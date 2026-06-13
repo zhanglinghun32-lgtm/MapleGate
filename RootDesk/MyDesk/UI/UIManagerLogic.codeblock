@@ -1,7 +1,7 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "codeblock://e05ad148-7240-4941-be0a-ceda9e8b8155",
+  "EntryKey": "codeblock://7cde14a8-02d9-4cbb-83c2-08fbfd5fdb5c",
   "ContentType": "x-mod/codeblock",
   "Content": "",
   "Usage": 0,
@@ -22,9 +22,9 @@
         "Minor": 1
       },
       "Description": "",
-      "Id": "e05ad148-7240-4941-be0a-ceda9e8b8155",
+      "Id": "7cde14a8-02d9-4cbb-83c2-08fbfd5fdb5c",
       "Language": 1,
-      "Name": "mainMenu",
+      "Name": "UIManagerLogic",
       "Type": 5,
       "Source": 0,
       "Target": null

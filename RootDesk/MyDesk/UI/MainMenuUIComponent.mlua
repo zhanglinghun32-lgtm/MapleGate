@@ -1,0 +1,132 @@
+@Component
+@ExecSpace("ClientOnly")
+script MainMenuUIComponent extends Component
+
+    property string defaultPanel = "Home"
+    property string currentPanel = ""
+    property boolean isOpen = false
+
+    property ButtonComponent newGameButton = "738eebb5-f560-4f94-8652-90def53b0b53"
+    property ButtonComponent continueGameButton = "d058b7df-a419-4d6a-92dc-ad780d7d9542"
+    property ButtonComponent settingButton = "029c072e-64d3-4685-b43a-1443644e0105"
+    property ButtonComponent exitButton = "dfacedf0-7695-4733-8817-678e153243eb"
+
+    property any newGameClickHandler = nil
+    property any continueGameClickHandler = nil
+    property any settingClickHandler = nil
+    property any exitClickHandler = nil
+
+    method void OnBeginPlay()
+        -- Initializes button event wiring for the main menu UI root.
+        log("[MainMenuUIComponent] OnBeginPlay.")
+        self:BindButtons()
+        self:ShowPanel(self.defaultPanel)
+        self.isOpen = true
+    end
+
+    method void OnEndPlay()
+        -- Releases button handlers owned by this UI component.
+        self:UnbindButtons()
+        log("[MainMenuUIComponent] OnEndPlay.")
+    end
+
+    method void BindButtons()
+        -- Connects main menu buttons to local UI actions.
+        self:UnbindButtons()
+
+        if self.newGameButton ~= nil then
+            self.newGameClickHandler = self.newGameButton.Entity:ConnectEvent(ButtonClickEvent, self.OnNewGameClicked)
+        else
+            log_warning("[MainMenuUIComponent] newGameButton is nil.")
+        end
+
+        if self.continueGameButton ~= nil then
+            self.continueGameClickHandler = self.continueGameButton.Entity:ConnectEvent(ButtonClickEvent, self.OnContinueGameClicked)
+        else
+            log_warning("[MainMenuUIComponent] continueGameButton is nil.")
+        end
+
+        if self.settingButton ~= nil then
+            self.settingClickHandler = self.settingButton.Entity:ConnectEvent(ButtonClickEvent, self.OnSettingClicked)
+        else
+            log_warning("[MainMenuUIComponent] settingButton is nil.")
+        end
+
+        if self.exitButton ~= nil then
+            self.exitClickHandler = self.exitButton.Entity:ConnectEvent(ButtonClickEvent, self.OnExitClicked)
+        else
+            log_warning("[MainMenuUIComponent] exitButton is nil.")
+        end
+
+        log("[MainMenuUIComponent] BindButtons complete.")
+    end
+
+    method void UnbindButtons()
+        -- Disconnects previously connected button handlers.
+        if self.newGameClickHandler ~= nil and self.newGameButton ~= nil then
+            self.newGameButton.Entity:DisconnectEvent(ButtonClickEvent, self.newGameClickHandler)
+            self.newGameClickHandler = nil
+        end
+
+        if self.continueGameClickHandler ~= nil and self.continueGameButton ~= nil then
+            self.continueGameButton.Entity:DisconnectEvent(ButtonClickEvent, self.continueGameClickHandler)
+            self.continueGameClickHandler = nil
+        end
+
+        if self.settingClickHandler ~= nil and self.settingButton ~= nil then
+            self.settingButton.Entity:DisconnectEvent(ButtonClickEvent, self.settingClickHandler)
+            self.settingClickHandler = nil
+        end
+
+        if self.exitClickHandler ~= nil and self.exitButton ~= nil then
+            self.exitButton.Entity:DisconnectEvent(ButtonClickEvent, self.exitClickHandler)
+            self.exitClickHandler = nil
+        end
+    end
+
+    method void ShowPanel(string panelKey)
+        -- Switches the logical active panel for future UI widgets.
+        if panelKey == nil or panelKey == "" then
+            log_warning("[MainMenuUIComponent] ShowPanel ignored: panelKey is empty.")
+            return
+        end
+
+        self.currentPanel = panelKey
+        log("[MainMenuUIComponent] ShowPanel. panel=" .. self.currentPanel)
+    end
+
+    method void RequestEnterGame()
+        -- Requests the startup flow controller; SceneLogic owns UI closing.
+        log("[MainMenuUIComponent] RequestEnterGame.")
+        _StartController:RequestEnterGame()
+    end
+
+    method void RequestExitGame()
+        -- Keeps the future exit-game interface local until the exit flow is designed.
+        log("[MainMenuUIComponent] RequestExitGame ignored: exit flow is not implemented yet.")
+    end
+
+    method void OnNewGameClicked(ButtonClickEvent event)
+        -- Handles the New Game button.
+        log("[MainMenuUIComponent] OnNewGameClicked.")
+        self:RequestEnterGame()
+    end
+
+    method void OnContinueGameClicked(ButtonClickEvent event)
+        -- Handles the Continue Game button.
+        log("[MainMenuUIComponent] OnContinueGameClicked.")
+        self:RequestEnterGame()
+    end
+
+    method void OnSettingClicked(ButtonClickEvent event)
+        -- Handles the Setting button placeholder.
+        log("[MainMenuUIComponent] OnSettingClicked. settings UI is not implemented yet.")
+    end
+
+    method void OnExitClicked(ButtonClickEvent event)
+        -- Handles the Exit button placeholder.
+        log("[MainMenuUIComponent] OnExitClicked.")
+        self:RequestExitGame()
+    end
+
+end

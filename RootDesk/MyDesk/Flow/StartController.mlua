@@ -1,28 +1,22 @@
 @Logic
 script StartController extends Logic
 
-	-- 最一開始的flow
-    property string InitialFlow = "MainMenu"
-    property string MainMenuFlow = "MainMenu"
-    property string WorldFlow = "World"
-
-    property string MainMenuMapName = "mainMenu"
-    property string WorldMapName = "map01"
-    property Vector2 MainMenuSpawnPosition = Vector2(0, 0)
-    property Vector2 WorldSpawnPosition = Vector2(0, 0)
+    property string initialSceneKey = "MainMenu"
+    property string mainMenuSceneKey = "MainMenu"
+    property string worldSceneKey = "World"
 
     property any userEnterHandler = nil
     property boolean hasStarted = false
 
     @ExecSpace("ServerOnly")
     method void OnBeginPlay()
-        -- Boots the game flow controller and routes already-connected users.
+        -- Boots the world-level flow and delegates scene selection.
         if self.hasStarted == true then
             return
         end
 
         self.hasStarted = true
-        log("[StartController] OnBeginPlay. initialFlow=" .. self.InitialFlow)
+        log("[StartController] OnBeginPlay. initialScene=" .. self.initialSceneKey)
 
         self.userEnterHandler = _UserService:ConnectEvent(UserEnterEvent, self.OnUserEnter)
         self:RouteExistingUsers()
@@ -30,7 +24,7 @@ script StartController extends Logic
 
     @ExecSpace("ServerOnly")
     method void OnEndPlay()
-        -- Releases event handlers owned by the flow controller.
+        -- Releases startup-owned event handlers.
         if self.userEnterHandler ~= nil then
             _UserService:DisconnectEvent(UserEnterEvent, self.userEnterHandler)
             self.userEnterHandler = nil
@@ -42,14 +36,14 @@ script StartController extends Logic
 
     @ExecSpace("ServerOnly")
     method void OnUserEnter(UserEnterEvent event)
-        -- Routes a newly-entered user through the startup flow.
+        -- Routes a newly-entered user into the first scene.
         if event == nil or event.UserId == "" then
             log_warning("[StartController] OnUserEnter ignored: missing UserId.")
             return
         end
 
-        log("[StartController] User entered. userId=" .. event.UserId .. ", initialFlow=" .. self.InitialFlow)
-        self:MoveUserToFlow(event.UserId, self.InitialFlow)
+        log("[StartController] User entered. userId=" .. event.UserId .. ", scene=" .. self.initialSceneKey)
+        self:SceneL(event.UserId, self.initialSceneKey)
     end
 
     @ExecSpace("ServerOnly")
@@ -61,7 +55,7 @@ script StartController extends Logic
         for _, userEntity in ipairs(users) do
             if isvalid(userEntity) and userEntity.PlayerComponent ~= nil then
                 count = count + 1
-                self:MoveUserToFlow(userEntity.PlayerComponent.UserId, self.InitialFlow)
+                self:SceneL(userEntity.PlayerComponent.UserId, self.initialSceneKey)
             end
         end
 
@@ -69,77 +63,77 @@ script StartController extends Logic
     end
 
     @ExecSpace("Server")
+    method void RequestScene(string sceneKey)
+        -- Lets a client request a top-level scene transition for itself.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[StartController] RequestScene ignored: senderUserId is empty.")
+            return
+        end
+
+        self:SceneL(senderUserId, sceneKey)
+    end
+
+    @ExecSpace("Server")
     method void RequestFlow(string flowKey)
-        -- Lets a client request a top-level flow transition for itself.
+        -- Compatibility wrapper for older callers; flows are now scene keys.
         if senderUserId == nil or senderUserId == "" then
             log_warning("[StartController] RequestFlow ignored: senderUserId is empty.")
             return
         end
 
-        self:MoveUserToFlow(senderUserId, flowKey)
+        self:SceneL(senderUserId, flowKey)
+    end
+
+    @ExecSpace("Server")
+    method void RequestEnterGame()
+        -- Lets a client request the gameplay scene.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[StartController] RequestEnterGame ignored: senderUserId is empty.")
+            return
+        end
+
+        log("[StartController] RequestEnterGame. userId=" .. senderUserId)
+        self:SceneL(senderUserId, self.worldSceneKey)
+    end
+
+    @ExecSpace("Server")
+    method void RequestExitGame()
+        -- Reserved for the future game-exit flow.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[StartController] RequestExitGame ignored: senderUserId is empty.")
+            return
+        end
+
+        log("[StartController] RequestExitGame ignored: exit flow is not implemented yet. userId=" .. senderUserId)
     end
 
     @ExecSpace("ServerOnly")
     method void EnterWorld(string userId)
-        -- Sends a user from system flow into the world flow.
-        self:MoveUserToFlow(userId, self.WorldFlow)
+        -- Sends a user into the gameplay scene.
+        self:SceneL(userId, self.worldSceneKey)
     end
 
     @ExecSpace("ServerOnly")
     method void ReturnToMainMenu(string userId)
-        -- Sends a user from a system flow back to the main menu flow.
-        self:MoveUserToFlow(userId, self.MainMenuFlow)
+        -- Sends a user back to the main menu scene.
+        self:SceneL(userId, self.mainMenuSceneKey)
     end
 
     @ExecSpace("ServerOnly")
-    method void MoveUserToFlow(string userId, string flowKey)
-        -- Resolves a flow key and moves the user to that flow's entry map.
+    method void SceneL(string userId, string sceneKey)
+        -- Delegates all scene details to SceneLogic.
         if userId == nil or userId == "" then
-            log_warning("[StartController] MoveUserToFlow ignored: userId is empty.")
+            log_warning("[StartController] SceneL ignored: userId is empty.")
             return
         end
 
-        local mapName = self:GetMapNameForFlow(flowKey)
-        if mapName == "" then
-            log_warning("[StartController] Unknown flow=" .. tostring(flowKey) .. ", userId=" .. userId)
+        if sceneKey == nil or sceneKey == "" then
+            log_warning("[StartController] SceneL ignored: sceneKey is empty. userId=" .. userId)
             return
         end
 
-        local userEntity = _UserService:GetUserEntityByUserId(userId)
-        if isvalid(userEntity) == false or userEntity.PlayerComponent == nil then
-            log_warning("[StartController] MoveUserToFlow failed: user entity missing. userId=" .. userId)
-            return
-        end
-
-        local spawnPosition = self:GetSpawnPositionForFlow(flowKey)
-        userEntity.PlayerComponent:MoveToMapPosition(mapName, spawnPosition)
-        log("[StartController] MoveUserToFlow userId=" .. userId .. ", flow=" .. flowKey .. ", map=" .. mapName .. ", spawn=" .. tostring(spawnPosition))
-    end
-
-    method string GetMapNameForFlow(string flowKey)
-        -- Maps top-level flow keys to their entry maps.
-        if flowKey == self.MainMenuFlow then
-            return self.MainMenuMapName
-        end
-
-        if flowKey == self.WorldFlow then
-            return self.WorldMapName
-        end
-
-        return ""
-    end
-
-    method Vector2 GetSpawnPositionForFlow(string flowKey)
-        -- Maps top-level flow keys to their entry positions.
-        if flowKey == self.MainMenuFlow then
-            return self.MainMenuSpawnPosition
-        end
-
-        if flowKey == self.WorldFlow then
-            return self.WorldSpawnPosition
-        end
-
-        return Vector2(0, 0)
+        log("[StartController] SceneL userId=" .. userId .. ", scene=" .. sceneKey)
+        _SceneLogic:EnterSceneForUser(userId, sceneKey)
     end
 
 end

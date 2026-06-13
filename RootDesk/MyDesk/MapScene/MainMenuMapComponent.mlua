@@ -1,0 +1,18 @@
+@Component
+script MainMenuMapComponent extends Component
+
+    property Vector2 entryPosition = Vector2(0, 0)
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Placeholder for future main menu map-level setup.
+        log("[MainMenuMapComponent] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method Vector2 GetEntryPosition(string userId)
+        -- Returns the map-owned entry position for future scene transitions.
+        return self.entryPosition
+    end
+
+end

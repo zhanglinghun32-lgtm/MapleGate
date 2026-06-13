@@ -1,7 +1,7 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "directory://c649037419ec4026a06c263bb174eec2",
+  "EntryKey": "directory://54f8e4e94a32499ca0ee1d70e03dc692",
   "ContentType": "x-mod/directory",
   "Content": "",
   "Usage": 0,
@@ -13,7 +13,7 @@
   "ContentProto": {
     "Use": "Json",
     "Json": {
-      "entry_id": "directory://c649037419ec4026a06c263bb174eec2",
+      "entry_id": "directory://54f8e4e94a32499ca0ee1d70e03dc692",
       "name": "mainMenu",
       "lock": false,
       "folding": false,

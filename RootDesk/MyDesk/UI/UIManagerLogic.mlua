@@ -1,0 +1,134 @@
+@Logic
+script UIManagerLogic extends Logic
+
+    property Entity mainMenuUI = "3dbdaa5c-37c4-4835-8ffe-5f269848382e"
+
+    property any uiMap = nil
+    property any currentOpenUI = nil
+    property string currentUIKey = ""
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        -- Builds the UI key registry for this client.
+        self:InitializeUIMap()
+        log("[UIManagerLogic] OnBeginPlay. registeredUI=" .. tostring(self:GetRegisteredUICount()))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void InitializeUIMap()
+        -- Registers UI keys to their root entities.
+        self.uiMap = {}
+        self:RegisterUI("MainMenu", self.mainMenuUI)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RegisterUI(string uiKey, Entity uiEntity)
+        -- Adds or replaces one UI root in the registry.
+        if uiKey == nil or uiKey == "" then
+            log_warning("[UIManagerLogic] RegisterUI ignored: uiKey is empty.")
+            return
+        end
+
+        if isvalid(uiEntity) == false then
+            log_warning("[UIManagerLogic] RegisterUI ignored: invalid entity. key=" .. tostring(uiKey))
+            return
+        end
+
+        if self.uiMap == nil then
+            self.uiMap = {}
+        end
+
+        self.uiMap[uiKey] = uiEntity
+        log("[UIManagerLogic] RegisterUI key=" .. uiKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OpenUI(string uiKey)
+        -- Opens one UI root and prevents duplicate open work.
+        local uiEntity = self:GetUIEntity(uiKey)
+        if isvalid(uiEntity) == false then
+            log_warning("[UIManagerLogic] OpenUI failed: ui not found. key=" .. tostring(uiKey))
+            return
+        end
+
+        if self.currentUIKey == uiKey and isvalid(self.currentOpenUI) and self.currentOpenUI.Enable == true then
+            log("[UIManagerLogic] OpenUI skipped duplicate. key=" .. uiKey)
+            return
+        end
+
+        if isvalid(self.currentOpenUI) and self.currentUIKey ~= uiKey then
+            self.currentOpenUI.Enable = false
+            log("[UIManagerLogic] Closed previous UI. key=" .. self.currentUIKey)
+        end
+
+        uiEntity.Enable = true
+        self.currentOpenUI = uiEntity
+        self.currentUIKey = uiKey
+        log("[UIManagerLogic] OpenUI key=" .. uiKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void CloseUI(string uiKey)
+        -- Closes a UI root if it exists.
+        local uiEntity = self:GetUIEntity(uiKey)
+        if isvalid(uiEntity) == false then
+            log_warning("[UIManagerLogic] CloseUI failed: ui not found. key=" .. tostring(uiKey))
+            return
+        end
+
+        uiEntity.Enable = false
+
+        if self.currentUIKey == uiKey then
+            self.currentOpenUI = nil
+            self.currentUIKey = ""
+        end
+
+        log("[UIManagerLogic] CloseUI key=" .. uiKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void CloseCurrentUI()
+        -- Closes the current UI root if one is tracked.
+        if isvalid(self.currentOpenUI) == false then
+            self.currentUIKey = ""
+            return
+        end
+
+        local closedKey = self.currentUIKey
+        self.currentOpenUI.Enable = false
+        self.currentOpenUI = nil
+        self.currentUIKey = ""
+        log("[UIManagerLogic] CloseCurrentUI key=" .. closedKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method Entity GetUIEntity(string uiKey)
+        -- Resolves a UI key to its registered root entity.
+        if self.uiMap == nil then
+            self:InitializeUIMap()
+        end
+
+        local uiEntity = self.uiMap[uiKey]
+        if isvalid(uiEntity) then
+            return uiEntity
+        end
+
+        return _EntityService:GetEntityByPath("/ui/" .. tostring(uiKey))
+    end
+
+    @ExecSpace("ClientOnly")
+    method integer GetRegisteredUICount()
+        -- Counts registered UI roots.
+        if self.uiMap == nil then
+            return 0
+        end
+
+        local count = 0
+        for uiKey, _ in pairs(self.uiMap) do
+            count = count + 1
+        end
+
+        return count
+    end
+
+end

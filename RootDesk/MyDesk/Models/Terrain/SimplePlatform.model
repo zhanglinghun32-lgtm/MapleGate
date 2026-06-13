@@ -112,7 +112,7 @@
           "Name": "DrawMode",
           "ValueType": {
             "$type": "MODNativeType",
-            "type": "System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+            "type": "MOD.Core.SpriteDrawMode, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
           },
           "Value": 2
         },

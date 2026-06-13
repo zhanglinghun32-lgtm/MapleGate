@@ -1,0 +1,93 @@
+@Logic
+script SceneLogic extends Logic
+
+    property string mainMenuSceneKey = "MainMenu"
+    property string worldSceneKey = "World"
+
+    property string mainMenuMapName = "MainMenu"
+    property string worldMapName = "map01"
+    property string mainMenuUIKey = "MainMenu"
+
+    property Vector2 transitionFallbackPosition = Vector2(0, 0)
+
+    @ExecSpace("ServerOnly")
+    method void EnterSceneForUser(string userId, string sceneKey)
+        -- Resolves the scene key, moves the player, then applies scene UI on that client.
+        if userId == nil or userId == "" then
+            log_warning("[SceneLogic] EnterSceneForUser ignored: userId is empty.")
+            return
+        end
+
+        if sceneKey == nil or sceneKey == "" then
+            log_warning("[SceneLogic] EnterSceneForUser ignored: sceneKey is empty. userId=" .. userId)
+            return
+        end
+
+        local mapName = self:GetMapName(sceneKey)
+        if mapName == "" then
+            log_warning("[SceneLogic] Unknown scene=" .. tostring(sceneKey) .. ", userId=" .. userId)
+            return
+        end
+
+        local userEntity = _UserService:GetUserEntityByUserId(userId)
+        if isvalid(userEntity) == false or userEntity.PlayerComponent == nil then
+            log_warning("[SceneLogic] EnterSceneForUser failed: user entity missing. userId=" .. userId)
+            return
+        end
+
+        local entryPosition = self:GetEntryPosition(sceneKey, userId)
+        userEntity.PlayerComponent:MoveToMapPosition(mapName, entryPosition)
+        log("[SceneLogic] EnterSceneForUser userId=" .. userId .. ", scene=" .. sceneKey .. ", map=" .. mapName .. ", entry=" .. tostring(entryPosition))
+
+        self:ApplySceneUI(sceneKey, userId)
+    end
+
+    @ExecSpace("Client")
+    method void ApplySceneUI(string sceneKey)
+        -- Opens or closes UI that belongs to the active top-level scene.
+        if sceneKey == self.mainMenuSceneKey then
+            _UIManagerLogic:OpenUI(self.mainMenuUIKey)
+            log("[SceneLogic] ApplySceneUI open=" .. self.mainMenuUIKey)
+            return
+        end
+
+        _UIManagerLogic:CloseUI(self.mainMenuUIKey)
+        log("[SceneLogic] ApplySceneUI close=" .. self.mainMenuUIKey .. ", scene=" .. tostring(sceneKey))
+    end
+
+    method string GetMapName(string sceneKey)
+        -- Maps top-level scene keys to their entry maps.
+        if sceneKey == self.mainMenuSceneKey then
+            return self.mainMenuMapName
+        end
+
+        if sceneKey == self.worldSceneKey then
+            return self.worldMapName
+        end
+
+        return ""
+    end
+
+    @ExecSpace("ServerOnly")
+    method Vector2 GetEntryPosition(string sceneKey, string userId)
+        -- Lets the map root component decide entry position when one exists.
+        local mapName = self:GetMapName(sceneKey)
+        if mapName == "" then
+            return self.transitionFallbackPosition
+        end
+
+        local mapEntity = _EntityService:GetEntityByPath("/maps/" .. mapName)
+        if isvalid(mapEntity) == false then
+            return self.transitionFallbackPosition
+        end
+
+        ---@type MainMenuMapComponent
+        local mainMenuMapComponent = mapEntity:GetComponent("script.MainMenuMapComponent")
+        if mainMenuMapComponent ~= nil then
+            return mainMenuMapComponent:GetEntryPosition(userId)
+        end
+
+        return self.transitionFallbackPosition
+    end
+
+end

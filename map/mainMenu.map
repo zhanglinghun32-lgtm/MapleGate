@@ -15,17 +15,17 @@
     "Entities": [
       {
         "id": "bbb131a8-d35b-4a2c-8ca3-33c5a0501106",
-        "path": "/maps/mainMenu",
-        "componentNames": "MOD.Core.MapComponent,MOD.Core.FootholdComponent",
+        "path": "/maps/MainMenu",
+        "componentNames": "MOD.Core.MapComponent,MOD.Core.FootholdComponent,script.MainMenuMapComponent",
         "jsonString": {
-          "name": "mainMenu",
-          "path": "/maps/mainMenu",
+          "name": "MainMenu",
+          "path": "/maps/MainMenu",
           "nameEditable": false,
           "enable": true,
           "visible": true,
           "localize": false,
-          "displayOrder": -1,
-          "pathConstraints": "",
+          "displayOrder": 0,
+          "pathConstraints": "//",
           "revision": 1,
           "modelId": null,
           "@components": [
@@ -39,6 +39,10 @@
               "@type": "MOD.Core.FootholdComponent",
               "FootholdsByLayer": {},
               "Enable": true
+            },
+            {
+              "@type": "script.MainMenuMapComponent",
+              "Enable": true
             }
           ],
           "@version": 1
@@ -46,17 +50,17 @@
       },
       {
         "id": "ba772e48-a8ba-49b4-a5b1-78277bf44573",
-        "path": "/maps/mainMenu/Background",
+        "path": "/maps/MainMenu/Background",
         "componentNames": "MOD.Core.BackgroundComponent",
         "jsonString": {
           "name": "Background",
-          "path": "/maps/mainMenu/Background",
+          "path": "/maps/MainMenu/Background",
           "nameEditable": false,
           "enable": true,
           "visible": true,
           "localize": false,
-          "displayOrder": -1,
-          "pathConstraints": "",
+          "displayOrder": 0,
+          "pathConstraints": "///",
           "revision": 1,
           "modelId": null,
           "@components": [
@@ -72,17 +76,17 @@
       },
       {
         "id": "a2c7144f-3763-4b46-ba08-209757596a18",
-        "path": "/maps/mainMenu/MapleMapLayer",
+        "path": "/maps/MainMenu/MapleMapLayer",
         "componentNames": "MOD.Core.MapLayerComponent",
         "jsonString": {
           "name": "MapleMapLayer",
-          "path": "/maps/mainMenu/MapleMapLayer",
+          "path": "/maps/MainMenu/MapleMapLayer",
           "nameEditable": false,
           "enable": true,
           "visible": true,
           "localize": false,
-          "displayOrder": -1,
-          "pathConstraints": "",
+          "displayOrder": 1,
+          "pathConstraints": "///",
           "revision": 1,
           "origin": {
             "type": "Model",
@@ -108,17 +112,17 @@
       },
       {
         "id": "37b4a54d-cbb9-4708-a14b-a0520ff3f584",
-        "path": "/maps/mainMenu/TileMap",
+        "path": "/maps/MainMenu/TileMap",
         "componentNames": "MOD.Core.TransformComponent,MOD.Core.TileMapComponent",
         "jsonString": {
           "name": "TileMap",
-          "path": "/maps/mainMenu/TileMap",
+          "path": "/maps/MainMenu/TileMap",
           "nameEditable": false,
           "enable": true,
           "visible": true,
           "localize": false,
-          "displayOrder": -1,
-          "pathConstraints": "",
+          "displayOrder": 2,
+          "pathConstraints": "///",
           "revision": 1,
           "origin": {
             "type": "Model",
@@ -132,20 +136,21 @@
             {
               "@type": "MOD.Core.TransformComponent",
               "Position": {
-                "x": 0,
-                "y": 0,
-                "z": 1000
+                "x": -0.225,
+                "y": -0.15,
+                "z": 1000.0
               },
               "QuaternionRotation": {
-                "x": 0,
-                "y": 0,
-                "z": 0,
-                "w": 1
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
               },
               "Enable": true
             },
             {
               "@type": "MOD.Core.TileMapComponent",
+              "IsOddGridPosition": false,
               "SortingLayer": "MapLayer0",
               "TileMapVersion": 1,
               "TileSetRUID": {
