@@ -1,0 +1,19 @@
+@Component
+script SimpleSceneProbe extends Component
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Logs that the simple platform scene is loaded in play mode.
+        local map = self.Entity.CurrentMap
+        local mapName = "nil"
+        local childCount = 0
+
+        if isvalid(map) then
+            mapName = map.Name
+            childCount = map.Children.Count
+        end
+
+        log("[SimpleSceneProbe] Scene ready. map=" .. mapName .. ", children=" .. tostring(childCount))
+    end
+
+end

@@ -1,0 +1,27 @@
+{  "inputs": [
+    {
+      "id": "msw-mcp-api-key",
+      "type": "promptString",
+      "description": "MSW MCP API Key",
+      "password": true
+    }
+  ],
+	"servers": {
+		"msw-maker-mcp": {
+			"type": "stdio",
+			"command": "cmd.exe",
+			"args": [
+				"/c",
+				"call",
+				"%LOCALAPPDATA%\\Nexon\\MapleStory Worlds\\MakerMCP\\msw-maker-mcp.bat"
+			]
+		},
+		"msw-mcp": {
+			"type": "http",
+			"url": "https://msw-mcp.nexon.com/mcp",
+			"headers": {
+				"Authorization": "Bearer ${input:msw-mcp-api-key}"
+			}
+		}
+	}
+}

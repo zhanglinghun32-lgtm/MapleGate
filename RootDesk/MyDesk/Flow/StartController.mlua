@@ -1,0 +1,144 @@
+@Logic
+script StartController extends Logic
+
+    property string InitialFlow = "MainMenu"
+    property string MainMenuFlow = "MainMenu"
+    property string WorldFlow = "World"
+
+    property string MainMenuMapName = "map02"
+    property string WorldMapName = "map01"
+    property Vector2 MainMenuSpawnPosition = Vector2(0, 0)
+    property Vector2 WorldSpawnPosition = Vector2(0, 0)
+
+    property any userEnterHandler = nil
+    property boolean hasStarted = false
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Boots the game flow controller and routes already-connected users.
+        if self.hasStarted == true then
+            return
+        end
+
+        self.hasStarted = true
+        log("[StartController] OnBeginPlay. initialFlow=" .. self.InitialFlow)
+
+        self.userEnterHandler = _UserService:ConnectEvent(UserEnterEvent, self.OnUserEnter)
+        self:RouteExistingUsers()
+    end
+
+    @ExecSpace("ServerOnly")
+    method void OnEndPlay()
+        -- Releases event handlers owned by the flow controller.
+        if self.userEnterHandler ~= nil then
+            _UserService:DisconnectEvent(UserEnterEvent, self.userEnterHandler)
+            self.userEnterHandler = nil
+        end
+
+        self.hasStarted = false
+        log("[StartController] OnEndPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method void OnUserEnter(UserEnterEvent event)
+        -- Routes a newly-entered user through the startup flow.
+        if event == nil or event.UserId == "" then
+            log_warning("[StartController] OnUserEnter ignored: missing UserId.")
+            return
+        end
+
+        log("[StartController] User entered. userId=" .. event.UserId .. ", initialFlow=" .. self.InitialFlow)
+        self:MoveUserToFlow(event.UserId, self.InitialFlow)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RouteExistingUsers()
+        -- Routes users that are already present when this Logic starts.
+        local users = _UserService.UserEntities.Values
+        local count = 0
+
+        for _, userEntity in ipairs(users) do
+            if isvalid(userEntity) and userEntity.PlayerComponent ~= nil then
+                count = count + 1
+                self:MoveUserToFlow(userEntity.PlayerComponent.UserId, self.InitialFlow)
+            end
+        end
+
+        log("[StartController] RouteExistingUsers count=" .. tostring(count))
+    end
+
+    @ExecSpace("Server")
+    method void RequestFlow(string flowKey)
+        -- Lets a client request a top-level flow transition for itself.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[StartController] RequestFlow ignored: senderUserId is empty.")
+            return
+        end
+
+        self:MoveUserToFlow(senderUserId, flowKey)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void EnterWorld(string userId)
+        -- Sends a user from system flow into the world flow.
+        self:MoveUserToFlow(userId, self.WorldFlow)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ReturnToMainMenu(string userId)
+        -- Sends a user from a system flow back to the main menu flow.
+        self:MoveUserToFlow(userId, self.MainMenuFlow)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void MoveUserToFlow(string userId, string flowKey)
+        -- Resolves a flow key and moves the user to that flow's entry map.
+        if userId == nil or userId == "" then
+            log_warning("[StartController] MoveUserToFlow ignored: userId is empty.")
+            return
+        end
+
+        local mapName = self:GetMapNameForFlow(flowKey)
+        if mapName == "" then
+            log_warning("[StartController] Unknown flow=" .. tostring(flowKey) .. ", userId=" .. userId)
+            return
+        end
+
+        local userEntity = _UserService:GetUserEntityByUserId(userId)
+        if isvalid(userEntity) == false or userEntity.PlayerComponent == nil then
+            log_warning("[StartController] MoveUserToFlow failed: user entity missing. userId=" .. userId)
+            return
+        end
+
+        local spawnPosition = self:GetSpawnPositionForFlow(flowKey)
+        userEntity.PlayerComponent:MoveToMapPosition(mapName, spawnPosition)
+        log("[StartController] MoveUserToFlow userId=" .. userId .. ", flow=" .. flowKey .. ", map=" .. mapName .. ", spawn=" .. tostring(spawnPosition))
+    end
+
+    method string GetMapNameForFlow(string flowKey)
+        -- Maps top-level flow keys to their entry maps.
+        if flowKey == self.MainMenuFlow then
+            return self.MainMenuMapName
+        end
+
+        if flowKey == self.WorldFlow then
+            return self.WorldMapName
+        end
+
+        return ""
+    end
+
+    method Vector2 GetSpawnPositionForFlow(string flowKey)
+        -- Maps top-level flow keys to their entry positions.
+        if flowKey == self.MainMenuFlow then
+            return self.MainMenuSpawnPosition
+        end
+
+        if flowKey == self.WorldFlow then
+            return self.WorldSpawnPosition
+        end
+
+        return Vector2(0, 0)
+    end
+
+end

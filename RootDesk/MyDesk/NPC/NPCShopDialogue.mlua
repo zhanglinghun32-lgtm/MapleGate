@@ -1,0 +1,29 @@
+@Component
+script NPCShopDialogue extends Component
+
+	property any touchHandler = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		-- Connects the world touch event for this NPC.
+		log("[NPCShopDialogue] OnBeginPlay: " .. self.Entity.Name)
+		self.touchHandler = self.Entity:ConnectEvent(TouchEvent, self.OnTouched)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnTouched(TouchEvent event)
+		-- Opens the current simple hello-world dialog.
+		log("[NPCShopDialogue] TouchEvent: opening hello world")
+		_UIPopup:Open("hello world", nil, nil)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnEndPlay()
+		-- Disconnects the touch event when the NPC leaves play.
+		if self.touchHandler ~= nil then
+			self.Entity:DisconnectEvent(TouchEvent, self.touchHandler)
+			self.touchHandler = nil
+		end
+	end
+
+end

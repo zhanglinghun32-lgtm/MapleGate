@@ -1,0 +1,46 @@
+[mcp_servers.msw-maker-mcp]
+command = "cmd.exe"
+args = ["/c", "call", '%LOCALAPPDATA%\Nexon\MapleStory Worlds\MakerMCP\msw-maker-mcp.bat']
+
+[mcp_servers.msw-maker-mcp.tools.maker_get_current_map]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_stop]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_refresh_workspace]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_logs]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_clear_logs]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_play]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_execute_script]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_get_context_keys]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_keyboard_input]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_screenshot]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_save]
+approval_mode = "approve"
+
+[mcp_servers.msw-maker-mcp.tools.maker_mouse_input]
+approval_mode = "approve"
+
+[mcp_servers.msw-mcp]
+url = "https://msw-mcp.nexon.com/mcp"
+http_headers = { "Authorization" = "Bearer ${MSW_MCP_API_KEY}" }
+
+[mcp_servers.msw-mcp.tools.mlua_api_retriever]
+approval_mode = "approve"
