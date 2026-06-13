@@ -1,11 +1,12 @@
 @Logic
 script StartController extends Logic
 
+	-- 最一開始的flow
     property string InitialFlow = "MainMenu"
     property string MainMenuFlow = "MainMenu"
     property string WorldFlow = "World"
 
-    property string MainMenuMapName = "map02"
+    property string MainMenuMapName = "mainMenu"
     property string WorldMapName = "map01"
     property Vector2 MainMenuSpawnPosition = Vector2(0, 0)
     property Vector2 WorldSpawnPosition = Vector2(0, 0)

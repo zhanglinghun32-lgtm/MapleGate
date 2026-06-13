@@ -1,7 +1,7 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "directory://5bef9c24af1047faa1379c785b48a24f",
+  "EntryKey": "directory://aa4759ec894846068cabbb8b9be37717",
   "ContentType": "x-mod/directory",
   "Content": "",
   "Usage": 0,
@@ -13,8 +13,8 @@
   "ContentProto": {
     "Use": "Json",
     "Json": {
-      "entry_id": "directory://5bef9c24af1047faa1379c785b48a24f",
-      "name": "Flow",
+      "entry_id": "directory://aa4759ec894846068cabbb8b9be37717",
+      "name": "UI",
       "lock": false,
       "folding": false,
       "nameEditable": true
