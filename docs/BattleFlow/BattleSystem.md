@@ -100,6 +100,10 @@ RequestAction(sponsorId, actionKey, targetIds)
 `BattleCalculator` should receive already-prepared input. It should not query UI,
 scene flow, save data, or raw Config by itself.
 
+Skill action config should come from `skillConfig` DataSet rows. A runtime
+`BattleSkill` component can load one row by `skillKey`, then expose the prepared
+`actionConfig` table through `BuildActionConfig()`.
+
 Recommended input shape:
 
 ```text

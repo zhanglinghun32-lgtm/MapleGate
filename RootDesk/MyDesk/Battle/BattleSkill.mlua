@@ -1,0 +1,129 @@
+@Component
+script BattleSkill extends Component
+
+    property string skillConfigDataSetName = "skillConfig"
+    property string skillKey = ""
+    property string displayName = ""
+    property string description = ""
+    property string iconRuid = ""
+    property string iconPath = ""
+    property string targetRule = ""
+    property string entryType = ""
+    property number powerRate = 0
+    property integer flatValue = 0
+    property integer mpCost = 0
+    property integer staminaCost = 0
+    property integer hitCount = 1
+    property string effectKey = ""
+    property integer effectDuration = 0
+    property integer cooldown = 0
+
+    method void OnBeginPlay()
+        -- Loads the configured skill automatically when skillKey is preset on the component.
+        if self.skillKey ~= nil and self.skillKey ~= "" then
+            self:LoadFromConfig(self.skillKey)
+        end
+    end
+
+    method boolean LoadFromConfig(string inputSkillKey)
+        -- Loads one SkillConfig row into this BattleSkill component.
+        local dataSet = _DataService:GetTable(self.skillConfigDataSetName)
+        if dataSet == nil then
+            log_warning("[BattleSkill] LoadFromConfig failed: DataSet not found. name=" .. tostring(self.skillConfigDataSetName))
+            return false
+        end
+
+        local row = dataSet:FindRow("skillKey", inputSkillKey)
+        if row == nil then
+            log_warning("[BattleSkill] LoadFromConfig failed: skillKey not found. key=" .. tostring(inputSkillKey))
+            return false
+        end
+
+        self.skillKey = self:GetString(row, "skillKey", inputSkillKey)
+        self.displayName = self:GetString(row, "displayName", "")
+        self.description = self:GetString(row, "description", "")
+        self.iconRuid = self:GetString(row, "iconRuid", "")
+        self.iconPath = self:GetString(row, "iconPath", "")
+        self.targetRule = self:GetString(row, "targetRule", _BattleKeys.targetEnemy)
+        self.entryType = self:GetString(row, "entryType", _BattleKeys.entryDamage)
+        self.powerRate = self:GetNumber(row, "powerRate", 0)
+        self.flatValue = self:GetInteger(row, "flatValue", 0)
+        self.mpCost = self:GetInteger(row, "mpCost", 0)
+        self.staminaCost = self:GetInteger(row, "staminaCost", 0)
+        self.hitCount = self:GetInteger(row, "hitCount", 1)
+        self.effectKey = self:GetString(row, "effectKey", "")
+        self.effectDuration = self:GetInteger(row, "effectDuration", 0)
+        self.cooldown = self:GetInteger(row, "cooldown", 0)
+
+        log("[BattleSkill] Loaded skillKey=" .. self.skillKey .. ", entryType=" .. self.entryType .. ", targetRule=" .. self.targetRule)
+        return true
+    end
+
+    method table BuildActionConfig()
+        -- Builds the config table that BattleCalculator can receive as actionConfig.
+        local actionConfig = {}
+        actionConfig.skillKey = self.skillKey
+        actionConfig.displayName = self.displayName
+        actionConfig.description = self.description
+        actionConfig.iconRuid = self.iconRuid
+        actionConfig.iconPath = self.iconPath
+        actionConfig.targetRule = self.targetRule
+        actionConfig.entryType = self.entryType
+        actionConfig.powerRate = self.powerRate
+        actionConfig.flatValue = self.flatValue
+        actionConfig.mpCost = self.mpCost
+        actionConfig.staminaCost = self.staminaCost
+        actionConfig.hitCount = self.hitCount
+        actionConfig.effectKey = self.effectKey
+        actionConfig.effectDuration = self.effectDuration
+        actionConfig.cooldown = self.cooldown
+
+        return actionConfig
+    end
+
+    method boolean IsLoaded()
+        -- Returns whether this component currently holds a valid skill key.
+        return self.skillKey ~= nil and self.skillKey ~= ""
+    end
+
+    method string GetString(any row, string columnName, string fallback)
+        -- Reads a string cell and returns fallback for empty cells.
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        return value
+    end
+
+    method integer GetInteger(any row, string columnName, integer fallback)
+        -- Reads an integer cell and returns fallback when conversion fails.
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        local numberValue = tonumber(value)
+        if numberValue == nil then
+            return fallback
+        end
+
+        return math.floor(numberValue)
+    end
+
+    method number GetNumber(any row, string columnName, number fallback)
+        -- Reads a number cell and returns fallback when conversion fails.
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        local numberValue = tonumber(value)
+        if numberValue == nil then
+            return fallback
+        end
+
+        return numberValue
+    end
+
+end

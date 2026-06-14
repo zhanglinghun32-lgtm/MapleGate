@@ -1,0 +1,10 @@
+﻿skillKey,displayName,description,iconRuid,iconPath,targetRule,entryType,powerRate,flatValue,mpCost,staminaCost,hitCount,effectKey,effectDuration,cooldown
+normalAttack,Normal Attack,基礎攻擊。對單一敵人造成一般傷害。,,"""RootDesk/MyDesk/UI/skill_icon/sk_00002.png""",Enemy,Damage,1,0,0,5,1,,0,0
+poisonSlash,Poison Slash,毒刃斬擊。造成傷害並附加中毒效果。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01007.png""",Enemy,Damage,1.1,0,3,8,1,Poison,3,1
+quickStab,Quick Stab,快速突刺。低消耗、低冷卻的單體攻擊。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01009.png""",Enemy,Damage,0.85,2,0,4,1,,0,0
+heavySlash,Heavy Slash,重斬。消耗較多耐力換取高傷害。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01011.png""",Enemy,Damage,1.6,0,0,14,1,,0,1
+doubleCut,Double Cut,二連斬。對同一目標造成兩段傷害。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01012.png""",Enemy,Damage,0.7,0,2,10,2,,0,1
+venomEdge,Venom Edge,淬毒刀鋒。較低直接傷害，但附加較長中毒。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01025.png""",Enemy,Damage,0.9,0,5,9,1,Poison,5,2
+guardStrike,Guard Strike,防禦反擊。造成少量傷害，之後可擴充 Guard 條目。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01027.png""",Enemy,Damage,0.75,0,0,6,1,Guard,1,1
+healPulse,Heal Pulse,治癒脈衝。恢復單一友方 HP。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01028.png""",Ally,Heal,0,30,8,0,1,,0,2
+focusBreath,Focus Breath,專注呼吸。恢復自身耐力。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01029.png""",Self,StaminaChange,0,20,0,0,1,,0,2
