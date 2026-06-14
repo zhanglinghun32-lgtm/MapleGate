@@ -259,3 +259,22 @@ If none of the above resolves the issue, tell the user:
 >
 > **https://discord.com/invite/maplestoryworlds**
 <!-- <<< managed by mswai <<< -->
+
+<!-- >>> project custom rules >>> -->
+
+# PROJECT CUSTOM SCRIPT RULES
+
+For project-specific `.mlua` naming and responsibility boundaries, read:
+
+- `docs/ScriptRules.md`
+
+These rules are mandatory for new or modified project scripts:
+
+- Script file names and script declarations use PascalCase and must match exactly.
+- Properties, parameters, and local variables use lowerCamelCase.
+- Methods use PascalCase, except built-in lifecycle names which keep MSW spelling.
+- Public scene/UI/data keys use PascalCase strings.
+- UI key-to-entity lookup data lives in `UIRegistry` DataSet, not scattered UUID literals.
+- `SceneLogic` owns top-level scene routing only; external callers use `ChangeScene(sceneKey)`. UI details stay in `UIManagerLogic` and UI components.
+
+<!-- <<< project custom rules <<< -->

@@ -133,7 +133,7 @@ script StartController extends Logic
         end
 
         log("[StartController] SceneL userId=" .. userId .. ", scene=" .. sceneKey)
-        _SceneLogic:EnterSceneForUser(userId, sceneKey)
+        _SceneLogic:ChangeSceneForUser(userId, sceneKey)
     end
 
 end

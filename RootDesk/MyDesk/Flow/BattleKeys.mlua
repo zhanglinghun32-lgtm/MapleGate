@@ -1,0 +1,52 @@
+@Logic
+script BattleKeys extends Logic
+
+    -- 集中管理戰鬥系統 key，避免魔術字串散落在各處。
+
+    -- 戰鬥結果條目類型：BattleCalculator 回傳給 BattleSystem 套用的結果分類。
+    property string entryDamage = "Damage"
+    property string entryHeal = "Heal"
+    property string entryMpChange = "MpChange"
+    property string entryStaminaChange = "StaminaChange"
+    property string entryAddEffect = "AddEffect"
+    property string entryRemoveEffect = "RemoveEffect"
+    property string entryRevive = "Revive"
+    property string entryGuard = "Guard"
+    property string entryMiss = "Miss"
+
+    -- 戰鬥資源類型：代表 Actor 身上會被消耗、恢復或改變的當前值。
+    property string resourceHp = "Hp"
+    property string resourceMp = "Mp"
+    property string resourceStamina = "Stamina"
+
+    -- 戰鬥屬性類型：代表可被裝備、Buff、Debuff 或公式讀取與修正的數值。
+    property string statBaseAttack = "BaseAttack"
+    property string statEquipmentAttackBonus = "EquipmentAttackBonus"
+    property string statTotalAttack = "TotalAttack"
+    property string statBaseDefense = "BaseDefense"
+    property string statTotalDefense = "TotalDefense"
+    property string statDamageDealt = "DamageDealt"
+    property string statDamageTaken = "DamageTaken"
+    property string statSpeed = "Speed"
+    property string statMpCost = "MpCost"
+    property string statStaminaCost = "StaminaCost"
+
+    -- 修正值計算方式：EffectSystem 回傳 modifier 時用來表明數值如何疊加或相乘。
+    property string modifierFlatAdd = "FlatAdd"
+    property string modifierRateAdd = "RateAdd"
+    property string modifierRateMul = "RateMul"
+
+    -- 戰鬥 Actor 類型：用來區分角色、夥伴、怪物、Boss 等戰鬥單位分類。
+    property string actorTypePlayer = "Player"
+    property string actorTypeCompanion = "Companion"
+    property string actorTypeMonster = "Monster"
+    property string actorTypeBoss = "Boss"
+
+    -- 目標選取規則：ActionConfig 或 BattleSystem 判斷技能可選目標時使用。
+    property string targetSelf = "Self"
+    property string targetEnemy = "Enemy"
+    property string targetAlly = "Ally"
+    property string targetAllEnemies = "AllEnemies"
+    property string targetAllAllies = "AllAllies"
+
+end

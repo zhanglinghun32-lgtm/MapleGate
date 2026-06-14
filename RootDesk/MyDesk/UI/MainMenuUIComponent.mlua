@@ -4,6 +4,7 @@ script MainMenuUIComponent extends Component
 
     property string defaultPanel = "Home"
     property string currentPanel = ""
+    property string worldSceneKey = "World"
     property boolean isOpen = false
 
     property ButtonComponent newGameButton = "738eebb5-f560-4f94-8652-90def53b0b53"
@@ -96,9 +97,9 @@ script MainMenuUIComponent extends Component
     end
 
     method void RequestEnterGame()
-        -- Requests the startup flow controller; SceneLogic owns UI closing.
+        -- Requests the gameplay scene through the public scene-change interface.
         log("[MainMenuUIComponent] RequestEnterGame.")
-        _StartController:RequestEnterGame()
+        _SceneLogic:ChangeScene(self.worldSceneKey)
     end
 
     method void RequestExitGame()

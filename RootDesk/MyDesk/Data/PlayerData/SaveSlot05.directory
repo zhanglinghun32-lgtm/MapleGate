@@ -1,0 +1,23 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "directory://1126f72156604f6fafbf6e4b22483905",
+  "ContentType": "x-mod/directory",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "entry_id": "directory://1126f72156604f6fafbf6e4b22483905",
+      "name": "SaveSlot05",
+      "lock": false,
+      "folding": false,
+      "nameEditable": true
+    }
+  }
+}

@@ -1,0 +1,3 @@
+﻿keyName,entityId,entityPath,description
+MainMenu,3dbdaa5c-37c4-4835-8ffe-5f269848382e,/ui/MainMenu,Main menu UI root
+BattleUI,c86e684e-cb5a-441d-844b-d507d6e71ef9,/ui/BattleUI,Battle UI root

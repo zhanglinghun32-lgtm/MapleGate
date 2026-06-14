@@ -1,6 +1,9 @@
 @Logic
 script SceneLogic extends Logic
 
+    -- SceneLogic routes top-level scene keys to entry maps and scene UI.
+    -- It does not bind UI buttons, store UI entity UUIDs, or own map-local gameplay.
+
     property string mainMenuSceneKey = "MainMenu"
     property string worldSceneKey = "World"
 
@@ -9,17 +12,29 @@ script SceneLogic extends Logic
     property string mainMenuUIKey = "MainMenu"
 
     property Vector2 transitionFallbackPosition = Vector2(0, 0)
+    property any closeCallback = nil
+
+    @ExecSpace("Server")
+    method void ChangeScene(string sceneKey)
+        -- Lets external systems request a top-level scene transition for the caller.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[SceneLogic] ChangeScene ignored: senderUserId is empty.")
+            return
+        end
+
+        self:ChangeSceneForUser(senderUserId, sceneKey)
+    end
 
     @ExecSpace("ServerOnly")
-    method void EnterSceneForUser(string userId, string sceneKey)
+    method void ChangeSceneForUser(string userId, string sceneKey)
         -- Resolves the scene key, moves the player, then applies scene UI on that client.
         if userId == nil or userId == "" then
-            log_warning("[SceneLogic] EnterSceneForUser ignored: userId is empty.")
+            log_warning("[SceneLogic] ChangeSceneForUser ignored: userId is empty.")
             return
         end
 
         if sceneKey == nil or sceneKey == "" then
-            log_warning("[SceneLogic] EnterSceneForUser ignored: sceneKey is empty. userId=" .. userId)
+            log_warning("[SceneLogic] ChangeSceneForUser ignored: sceneKey is empty. userId=" .. userId)
             return
         end
 
@@ -31,28 +46,52 @@ script SceneLogic extends Logic
 
         local userEntity = _UserService:GetUserEntityByUserId(userId)
         if isvalid(userEntity) == false or userEntity.PlayerComponent == nil then
-            log_warning("[SceneLogic] EnterSceneForUser failed: user entity missing. userId=" .. userId)
+            log_warning("[SceneLogic] ChangeSceneForUser failed: user entity missing. userId=" .. userId)
             return
         end
 
         local entryPosition = self:GetEntryPosition(sceneKey, userId)
         userEntity.PlayerComponent:MoveToMapPosition(mapName, entryPosition)
-        log("[SceneLogic] EnterSceneForUser userId=" .. userId .. ", scene=" .. sceneKey .. ", map=" .. mapName .. ", entry=" .. tostring(entryPosition))
+        log("[SceneLogic] ChangeSceneForUser userId=" .. userId .. ", scene=" .. sceneKey .. ", map=" .. mapName .. ", entry=" .. tostring(entryPosition))
 
         self:ApplySceneUI(sceneKey, userId)
     end
 
     @ExecSpace("Client")
     method void ApplySceneUI(string sceneKey)
-        -- Opens or closes UI that belongs to the active top-level scene.
+        -- Applies scene UI after running the previous scene close callback.
+        self:RunCloseCallback()
+
         if sceneKey == self.mainMenuSceneKey then
             _UIManagerLogic:OpenUI(self.mainMenuUIKey)
             log("[SceneLogic] ApplySceneUI open=" .. self.mainMenuUIKey)
+            self:SetCloseCallback(function()
+                _UIManagerLogic:CloseUI(self.mainMenuUIKey)
+                log("[SceneLogic] CloseCallback close=" .. self.mainMenuUIKey)
+            end)
             return
         end
 
-        _UIManagerLogic:CloseUI(self.mainMenuUIKey)
-        log("[SceneLogic] ApplySceneUI close=" .. self.mainMenuUIKey .. ", scene=" .. tostring(sceneKey))
+        self:SetCloseCallback(nil)
+        log("[SceneLogic] ApplySceneUI no scene UI. scene=" .. tostring(sceneKey))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RunCloseCallback()
+        -- Runs and clears the close callback registered by the previous scene.
+        if self.closeCallback == nil then
+            return
+        end
+
+        local closeCallback = self.closeCallback
+        self.closeCallback = nil
+        closeCallback()
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetCloseCallback(any newCloseCallback)
+        -- Stores the callback that closes the current scene UI on the next scene change.
+        self.closeCallback = newCloseCallback
     end
 
     method string GetMapName(string sceneKey)

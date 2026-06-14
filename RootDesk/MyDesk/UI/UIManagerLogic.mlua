@@ -1,8 +1,8 @@
 @Logic
 script UIManagerLogic extends Logic
 
-    property Entity mainMenuUI = "3dbdaa5c-37c4-4835-8ffe-5f269848382e"
-
+    property string uiRegistryDataSetName = "UIRegistry"
+    property string battleUIKey = "BattleUI"
     property any uiMap = nil
     property any currentOpenUI = nil
     property string currentUIKey = ""
@@ -16,9 +16,23 @@ script UIManagerLogic extends Logic
 
     @ExecSpace("ClientOnly")
     method void InitializeUIMap()
-        -- Registers UI keys to their root entities.
+        -- Registers UI keys to their root entities from the UIRegistry DataSet.
         self.uiMap = {}
-        self:RegisterUI("MainMenu", self.mainMenuUI)
+
+        local dataSet = _DataService:GetTable(self.uiRegistryDataSetName)
+        if dataSet == nil then
+            log_warning("[UIManagerLogic] InitializeUIMap failed: DataSet not found. name=" .. self.uiRegistryDataSetName)
+            return
+        end
+
+        local rowCount = dataSet:GetRowCount()
+        for rowIndex = 1, rowCount do
+            local uiKey = dataSet:GetCell(rowIndex, "keyName")
+            local entityId = dataSet:GetCell(rowIndex, "entityId")
+            local entityPath = dataSet:GetCell(rowIndex, "entityPath")
+            local uiEntity = self:ResolveUIEntity(entityId, entityPath)
+            self:RegisterUI(uiKey, uiEntity)
+        end
     end
 
     @ExecSpace("ClientOnly")
@@ -40,6 +54,20 @@ script UIManagerLogic extends Logic
 
         self.uiMap[uiKey] = uiEntity
         log("[UIManagerLogic] RegisterUI key=" .. uiKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OpenBattleUI()
+        -- Opens the battle HUD when combat starts.
+        log("[UIManagerLogic] OpenBattleUI requested.")
+        self:OpenUI(self.battleUIKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void CloseBattleUI()
+        -- Closes the battle HUD when combat ends.
+        log("[UIManagerLogic] CloseBattleUI requested.")
+        self:CloseUI(self.battleUIKey)
     end
 
     @ExecSpace("ClientOnly")
@@ -114,6 +142,26 @@ script UIManagerLogic extends Logic
         end
 
         return _EntityService:GetEntityByPath("/ui/" .. tostring(uiKey))
+    end
+
+    @ExecSpace("ClientOnly")
+    method Entity ResolveUIEntity(string entityId, string entityPath)
+        -- Resolves a UI root from DataSet entity id first, then entity path.
+        if entityId ~= nil and entityId ~= "" then
+            local entityById = _EntityService:GetEntity(entityId)
+            if isvalid(entityById) then
+                return entityById
+            end
+        end
+
+        if entityPath ~= nil and entityPath ~= "" then
+            local entityByPath = _EntityService:GetEntityByPath(entityPath)
+            if isvalid(entityByPath) then
+                return entityByPath
+            end
+        end
+
+        return nil
     end
 
     @ExecSpace("ClientOnly")
