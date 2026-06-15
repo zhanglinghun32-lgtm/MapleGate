@@ -1,0 +1,6 @@
+actorKey,displayName,actorType,jobType,level,maxHp,maxMp,attack,defense,moveSpeed,naturalSkillKeys,defaultEquipmentKeys,description,enabled
+playerWarrior,Warrior,Player,Warrior,1,120,20,12,5,3,normalAttack|heavySlash,ironSword|leatherArmor,近戰型初始職業。,true
+playerRogue,Rogue,Player,Rogue,1,90,30,10,3,3.4,normalAttack|quickStab|poisonSlash,ironSword,速度和毒傷取向的初始職業。,true
+npcElder,Village Elder,NPC,None,1,1,0,0,0,0,,,村莊長者，負責新手任務。,true
+npcGuard,Gate Guard,NPC,None,1,1,0,0,0,0,,,村口守衛，負責狩獵任務。,true
+slime,Slime,Monster,None,1,35,0,4,1,1.5,,,基礎史萊姆怪物。,true

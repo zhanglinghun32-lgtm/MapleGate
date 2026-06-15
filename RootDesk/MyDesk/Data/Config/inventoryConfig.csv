@@ -1,0 +1,8 @@
+itemKey,displayName,description,itemType,itemSubType,iconRuid,iconPath,maxStack,sellPrice,tradeable,usable,consumableConfigKey,equipmentConfigKey,sortOrder,enabled
+hpPotionSmall,Small HP Potion,恢復少量 HP 的基礎藥水。,Consumable,Potion,,"RootDesk/MyDesk/UI/item_icon/potion_red_small.png",99,10,true,true,hpPotionSmall,,100,true
+mpPotionSmall,Small MP Potion,恢復少量 MP 的基礎藥水。,Consumable,Potion,,"RootDesk/MyDesk/UI/item_icon/potion_blue_small.png",99,10,true,true,mpPotionSmall,,101,true
+staminaSnack,Stamina Snack,恢復耐力的小點心。,Consumable,Food,,"RootDesk/MyDesk/UI/item_icon/food_stamina.png",99,15,true,true,staminaSnack,,102,true
+ironSword,Iron Sword,新手也能使用的鐵劍。,Equipment,Weapon,,"RootDesk/MyDesk/UI/item_icon/weapon_iron_sword.png",1,80,true,false,,ironSword,200,true
+leatherArmor,Leather Armor,輕便的皮甲。,Equipment,Armor,,"RootDesk/MyDesk/UI/item_icon/armor_leather.png",1,65,true,false,,leatherArmor,201,true
+slimeGel,Slime Gel,黏滑的史萊姆凝膠，可作為任務或製作材料。,Material,Loot,,"RootDesk/MyDesk/UI/item_icon/material_slime_gel.png",999,2,true,false,,,300,true
+sealedLetter,Sealed Letter,交給指定人物的密封信件。,Quest,Delivery,,"RootDesk/MyDesk/UI/item_icon/quest_letter.png",1,0,false,false,,,400,true

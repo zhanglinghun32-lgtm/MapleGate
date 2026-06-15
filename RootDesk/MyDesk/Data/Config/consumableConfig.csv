@@ -1,0 +1,4 @@
+consumableKey,effectType,targetType,value,valueRate,duration,interval,stackPolicy,cooldown,removeOnUse,requiredLevel,description
+hpPotionSmall,HpRecover,Self,50,0,0,0,Refresh,1,true,1,立即恢復 50 HP。
+mpPotionSmall,MpRecover,Self,30,0,0,0,Refresh,1,true,1,立即恢復 30 MP。
+staminaSnack,StaminaRecover,Self,20,0,0,0,Refresh,1,true,1,立即恢復 20 耐力。
