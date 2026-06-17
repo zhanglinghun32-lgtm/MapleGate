@@ -1,0 +1,198 @@
+@Logic
+script InventoryLogic extends Logic
+
+    property string inventoryConfigDataSetName = "inventoryConfig"
+    property string consumableConfigDataSetName = "consumableConfig"
+    property any userInventories = nil
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Initializes the per-user inventory cache.
+        self.userInventories = {}
+        log("[InventoryLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadUserData(string userId, table inventoryData)
+        -- Loads one user's inventory data into the runtime cache.
+        if userId == nil or userId == "" then
+            log_warning("[InventoryLogic] LoadUserData ignored: userId is empty.")
+            return
+        end
+
+        if inventoryData == nil then
+            inventoryData = self:CreateDefaultData()
+        end
+
+        if inventoryData.Items == nil then
+            inventoryData.Items = {}
+        end
+
+        if inventoryData.Equipped == nil then
+            inventoryData.Equipped = {}
+        end
+
+        self.userInventories[userId] = inventoryData
+        log("[InventoryLogic] LoadUserData. userId=" .. userId .. ", itemCount=" .. tostring(#inventoryData.Items))
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ExportUserData(string userId)
+        -- Returns the user's current inventory payload for saving.
+        if self.userInventories == nil then
+            self.userInventories = {}
+        end
+
+        local inventoryData = self.userInventories[userId]
+        if inventoryData == nil then
+            inventoryData = self:CreateDefaultData()
+            self.userInventories[userId] = inventoryData
+        end
+
+        return inventoryData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateDefaultData()
+        -- Creates the default inventory for a new slot.
+        local inventoryData = {}
+        inventoryData.Items = {}
+        inventoryData.Equipped = {}
+
+        inventoryData.Items[1] = self:CreateItemStack("hpPotionSmall", 5)
+        inventoryData.Items[2] = self:CreateItemStack("mpPotionSmall", 3)
+        inventoryData.Items[3] = self:CreateItemStack("sealedLetter", 1)
+
+        return inventoryData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateItemStack(string itemKey, integer count)
+        -- Creates a compact stack table for save data.
+        local itemStack = {}
+        itemStack.ItemKey = itemKey
+        itemStack.Count = count
+        return itemStack
+    end
+
+    @ExecSpace("Server")
+    method void RequestUseItem(integer slotIndex)
+        -- Lets the owning client request item usage by inventory slot index.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[InventoryLogic] RequestUseItem ignored: senderUserId is empty.")
+            return
+        end
+
+        self:UseItem(senderUserId, slotIndex)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean UseItem(string userId, integer slotIndex)
+        -- Applies a consumable item from one cached inventory slot.
+        local inventoryData = self:ExportUserData(userId)
+        if slotIndex <= 0 or inventoryData.Items == nil or inventoryData.Items[slotIndex] == nil then
+            log_warning("[InventoryLogic] UseItem failed: invalid slot. userId=" .. tostring(userId) .. ", slotIndex=" .. tostring(slotIndex))
+            return false
+        end
+
+        local itemStack = inventoryData.Items[slotIndex]
+        if itemStack.Count == nil or itemStack.Count <= 0 then
+            log_warning("[InventoryLogic] UseItem failed: stack is empty. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
+            return false
+        end
+
+        local itemRow = self:FindItemRow(itemStack.ItemKey)
+        if itemRow == nil then
+            log_warning("[InventoryLogic] UseItem failed: itemConfig missing. itemKey=" .. tostring(itemStack.ItemKey))
+            return false
+        end
+
+        local usable = self:GetBoolean(itemRow, "usable", false)
+        local consumableKey = self:GetString(itemRow, "consumableConfigKey", "")
+        if usable == false or consumableKey == "" then
+            log_warning("[InventoryLogic] UseItem failed: item is not consumable. itemKey=" .. tostring(itemStack.ItemKey))
+            return false
+        end
+
+        local consumableRow = self:FindConsumableRow(consumableKey)
+        if consumableRow == nil then
+            log_warning("[InventoryLogic] UseItem failed: consumableConfig missing. key=" .. consumableKey)
+            return false
+        end
+
+        local effectType = self:GetString(consumableRow, "effectType", "")
+        local value = self:GetInteger(consumableRow, "value", 0)
+        itemStack.Count = itemStack.Count - 1
+
+        if itemStack.Count <= 0 then
+            inventoryData.Items[slotIndex] = nil
+        end
+
+        _PlayerDataLogic:MarkDirty(userId)
+        log("[InventoryLogic] UseItem. userId=" .. userId .. ", itemKey=" .. tostring(itemStack.ItemKey) .. ", effectType=" .. effectType .. ", value=" .. tostring(value))
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method any FindItemRow(string itemKey)
+        -- Finds one row in inventoryConfig by item key.
+        local dataSet = _DataService:GetTable(self.inventoryConfigDataSetName)
+        if dataSet == nil then
+            log_warning("[InventoryLogic] inventoryConfig DataSet not found.")
+            return nil
+        end
+
+        return dataSet:FindRow("itemKey", itemKey)
+    end
+
+    @ExecSpace("ServerOnly")
+    method any FindConsumableRow(string consumableKey)
+        -- Finds one row in consumableConfig by consumable key.
+        local dataSet = _DataService:GetTable(self.consumableConfigDataSetName)
+        if dataSet == nil then
+            log_warning("[InventoryLogic] consumableConfig DataSet not found.")
+            return nil
+        end
+
+        return dataSet:FindRow("consumableKey", consumableKey)
+    end
+
+    @ExecSpace("ServerOnly")
+    method string GetString(any row, string columnName, string fallback)
+        -- Reads a string cell with a fallback.
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        return value
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetInteger(any row, string columnName, integer fallback)
+        -- Reads an integer cell with a fallback.
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        local numberValue = tonumber(value)
+        if numberValue == nil then
+            return fallback
+        end
+
+        return math.floor(numberValue)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean GetBoolean(any row, string columnName, boolean fallback)
+        -- Reads a boolean-like string cell with a fallback.
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        return value == "true" or value == "True" or value == "1"
+    end
+
+end

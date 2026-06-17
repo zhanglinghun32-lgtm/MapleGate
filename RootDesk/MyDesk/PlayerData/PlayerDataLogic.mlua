@@ -1,0 +1,261 @@
+@Logic
+script PlayerDataLogic extends Logic
+
+    property string worldSceneKey = "World"
+    property string slotKeyPrefix = "Slot"
+    property integer maxSlotIndex = 3
+    property number autoFlushSeconds = 30
+    property any loadedSlotIndexes = nil
+    property any slotDataCache = nil
+    property any dirtyUsers = nil
+    property integer flushTimerId = 0
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Initializes player-save runtime caches and the periodic flush timer.
+        self.loadedSlotIndexes = {}
+        self.slotDataCache = {}
+        self.dirtyUsers = {}
+
+        if self.flushTimerId > 0 then
+            _TimerService:ClearTimer(self.flushTimerId)
+        end
+
+        self.flushTimerId = _TimerService:SetTimerRepeat(function() self:FlushDirtyUsers() end, self.autoFlushSeconds)
+        log("[PlayerDataLogic] OnBeginPlay. autoFlushSeconds=" .. tostring(self.autoFlushSeconds))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void OnEndPlay()
+        -- Flushes dirty save data and clears the periodic timer.
+        self:FlushDirtyUsers()
+
+        if self.flushTimerId > 0 then
+            _TimerService:ClearTimer(self.flushTimerId)
+            self.flushTimerId = 0
+        end
+
+        log("[PlayerDataLogic] OnEndPlay.")
+    end
+
+    @ExecSpace("Server")
+    method void RequestContinueGame(integer slotIndex)
+        -- Lets the owning client load a save slot before entering gameplay.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[PlayerDataLogic] RequestContinueGame ignored: senderUserId is empty.")
+            return
+        end
+
+        self:ContinueGame(senderUserId, slotIndex)
+    end
+
+    @ExecSpace("Server")
+    method void RequestNewGame(integer slotIndex)
+        -- Lets the owning client reset a save slot before entering gameplay.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[PlayerDataLogic] RequestNewGame ignored: senderUserId is empty.")
+            return
+        end
+
+        self:StartNewGame(senderUserId, slotIndex)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean ContinueGame(string userId, integer slotIndex)
+        -- Loads a slot from DataStorage, dispatches it to subsystem caches, then enters the world.
+        if self:IsValidSlotIndex(slotIndex) == false then
+            log_warning("[PlayerDataLogic] ContinueGame failed: invalid slotIndex=" .. tostring(slotIndex))
+            return false
+        end
+
+        local slotData = self:LoadSlotData(userId, slotIndex)
+        if slotData == nil then
+            slotData = self:CreateDefaultSlotData()
+            log("[PlayerDataLogic] ContinueGame using default slot. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
+        end
+
+        self:ApplyLoadedSlotData(userId, slotIndex, slotData)
+        _SceneLogic:ChangeSceneForUser(userId, self.worldSceneKey)
+        log("[PlayerDataLogic] ContinueGame complete. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean StartNewGame(string userId, integer slotIndex)
+        -- Resets a slot to default data, saves it, dispatches it, then enters the world.
+        if self:IsValidSlotIndex(slotIndex) == false then
+            log_warning("[PlayerDataLogic] StartNewGame failed: invalid slotIndex=" .. tostring(slotIndex))
+            return false
+        end
+
+        local slotData = self:CreateDefaultSlotData()
+        self:ApplyLoadedSlotData(userId, slotIndex, slotData)
+        self:SaveSlotData(userId, slotIndex, slotData)
+        _SceneLogic:ChangeSceneForUser(userId, self.worldSceneKey)
+        log("[PlayerDataLogic] StartNewGame complete. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ApplyLoadedSlotData(string userId, integer slotIndex, table slotData)
+        -- Fans loaded slot sections out to each gameplay data Logic.
+        if slotData == nil then
+            slotData = self:CreateDefaultSlotData()
+        end
+
+        self.loadedSlotIndexes[userId] = slotIndex
+        self.slotDataCache[userId] = slotData
+
+        _PartyLogic:LoadUserData(userId, slotData.Party)
+        _InventoryLogic:LoadUserData(userId, slotData.Inventory)
+        _SkillLogic:LoadUserData(userId, slotData.Skill)
+        _MissionLogic:LoadUserData(userId, slotData.Mission)
+
+        self.dirtyUsers[userId] = nil
+        log("[PlayerDataLogic] ApplyLoadedSlotData. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
+    end
+
+    @ExecSpace("ServerOnly")
+    method table LoadSlotData(string userId, integer slotIndex)
+        -- Reads and deserializes one slot from UserDataStorage.
+        local storage = _DataStorageService:GetUserDataStorage(userId)
+        if storage == nil then
+            log_warning("[PlayerDataLogic] LoadSlotData failed: storage is nil. userId=" .. tostring(userId))
+            return nil
+        end
+
+        local slotKey = self:GetSlotStorageKey(slotIndex)
+        local errorCode, rawData = storage:GetAndWait(slotKey)
+        if errorCode ~= 0 then
+            log_warning("[PlayerDataLogic] LoadSlotData failed. userId=" .. userId .. ", slotKey=" .. slotKey .. ", errorCode=" .. tostring(errorCode))
+            return nil
+        end
+
+        if rawData == nil or rawData == "" then
+            return nil
+        end
+
+        local slotData = _UtilLogic:StringToTable(rawData)
+        if slotData == nil then
+            log_warning("[PlayerDataLogic] LoadSlotData failed: parse returned nil. userId=" .. userId .. ", slotKey=" .. slotKey)
+            return nil
+        end
+
+        log("[PlayerDataLogic] LoadSlotData. userId=" .. userId .. ", slotKey=" .. slotKey)
+        return slotData
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean SaveSlotData(string userId, integer slotIndex, table slotData)
+        -- Serializes and writes one complete slot payload to UserDataStorage.
+        local storage = _DataStorageService:GetUserDataStorage(userId)
+        if storage == nil then
+            log_warning("[PlayerDataLogic] SaveSlotData failed: storage is nil. userId=" .. tostring(userId))
+            return false
+        end
+
+        local slotKey = self:GetSlotStorageKey(slotIndex)
+        local rawData = _UtilLogic:TableToString(slotData)
+        local errorCode = storage:SetAndWait(slotKey, rawData)
+        if errorCode ~= 0 then
+            log_warning("[PlayerDataLogic] SaveSlotData failed. userId=" .. userId .. ", slotKey=" .. slotKey .. ", errorCode=" .. tostring(errorCode))
+            return false
+        end
+
+        self.dirtyUsers[userId] = nil
+        self.slotDataCache[userId] = slotData
+        log("[PlayerDataLogic] SaveSlotData. userId=" .. userId .. ", slotKey=" .. slotKey)
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CollectSlotData(string userId)
+        -- Collects all subsystem caches into one versioned slot payload.
+        local slotData = self.slotDataCache[userId]
+        if slotData == nil then
+            slotData = self:CreateDefaultSlotData()
+        end
+
+        slotData.Version = 1
+        if slotData.Profile == nil then
+            slotData.Profile = self:CreateDefaultProfileData()
+        end
+
+        slotData.Party = _PartyLogic:ExportUserData(userId)
+        slotData.Inventory = _InventoryLogic:ExportUserData(userId)
+        slotData.Skill = _SkillLogic:ExportUserData(userId)
+        slotData.Mission = _MissionLogic:ExportUserData(userId)
+
+        return slotData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateDefaultSlotData()
+        -- Creates the full default save payload for one new slot.
+        local slotData = {}
+        slotData.Version = 1
+        slotData.Profile = self:CreateDefaultProfileData()
+        slotData.Party = _PartyLogic:CreateDefaultData()
+        slotData.Inventory = _InventoryLogic:CreateDefaultData()
+        slotData.Skill = _SkillLogic:CreateDefaultData()
+        slotData.Mission = _MissionLogic:CreateDefaultData()
+        return slotData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateDefaultProfileData()
+        -- Creates non-system-specific slot metadata.
+        local profileData = {}
+        profileData.DisplayName = "Player"
+        profileData.PlayTimeSeconds = 0
+        profileData.LastSceneKey = self.worldSceneKey
+        return profileData
+    end
+
+    @ExecSpace("ServerOnly")
+    method void MarkDirty(string userId)
+        -- Marks the loaded user's slot as needing a future save.
+        if userId == nil or userId == "" then
+            return
+        end
+
+        self.dirtyUsers[userId] = true
+    end
+
+    @ExecSpace("ServerOnly")
+    method void FlushDirtyUsers()
+        -- Saves all loaded users that have dirty subsystem data.
+        for userId, isDirty in pairs(self.dirtyUsers) do
+            if isDirty == true then
+                self:FlushUser(userId)
+            end
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean FlushUser(string userId)
+        -- Saves one dirty loaded user's slot.
+        local slotIndex = self.loadedSlotIndexes[userId]
+        if slotIndex == nil then
+            log_warning("[PlayerDataLogic] FlushUser ignored: no loaded slot. userId=" .. tostring(userId))
+            self.dirtyUsers[userId] = nil
+            return false
+        end
+
+        local slotData = self:CollectSlotData(userId)
+        return self:SaveSlotData(userId, slotIndex, slotData)
+    end
+
+    @ExecSpace("ServerOnly")
+    method string GetSlotStorageKey(integer slotIndex)
+        -- Builds the DataStorage key for one save slot.
+        return self.slotKeyPrefix .. tostring(slotIndex)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean IsValidSlotIndex(integer slotIndex)
+        -- Checks the supported player-save slot range.
+        return slotIndex >= 1 and slotIndex <= self.maxSlotIndex
+    end
+
+end

@@ -1,0 +1,140 @@
+@Logic
+script MissionLogic extends Logic
+
+    property any userMissions = nil
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Initializes the per-user mission cache.
+        self.userMissions = {}
+        log("[MissionLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadUserData(string userId, table missionData)
+        -- Loads one user's mission data into the runtime cache.
+        if userId == nil or userId == "" then
+            log_warning("[MissionLogic] LoadUserData ignored: userId is empty.")
+            return
+        end
+
+        if missionData == nil then
+            missionData = self:CreateDefaultData()
+        end
+
+        if missionData.Active == nil then
+            missionData.Active = {}
+        end
+
+        if missionData.Completed == nil then
+            missionData.Completed = {}
+        end
+
+        self.userMissions[userId] = missionData
+        log("[MissionLogic] LoadUserData. userId=" .. userId .. ", activeCount=" .. tostring(#missionData.Active))
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ExportUserData(string userId)
+        -- Returns the user's current mission payload for saving.
+        if self.userMissions == nil then
+            self.userMissions = {}
+        end
+
+        local missionData = self.userMissions[userId]
+        if missionData == nil then
+            missionData = self:CreateDefaultData()
+            self.userMissions[userId] = missionData
+        end
+
+        return missionData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateDefaultData()
+        -- Creates the default mission state for a new slot.
+        local missionData = {}
+        missionData.Active = {}
+        missionData.Completed = {}
+        return missionData
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean StartMission(string userId, string missionKey)
+        -- Adds a mission to the user's active mission list.
+        if self:IsCompleted(userId, missionKey) == true or self:FindActiveMission(userId, missionKey) ~= nil then
+            return false
+        end
+
+        local missionData = self:ExportUserData(userId)
+        local missionState = {}
+        missionState.MissionKey = missionKey
+        missionState.Progress = {}
+        missionData.Active[#missionData.Active + 1] = missionState
+
+        _PlayerDataLogic:MarkDirty(userId)
+        log("[MissionLogic] StartMission. userId=" .. userId .. ", missionKey=" .. missionKey)
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method void AddProgress(string userId, string missionKey, string objectiveKey, integer amount)
+        -- Adds progress to one objective of an active mission.
+        local missionState = self:FindActiveMission(userId, missionKey)
+        if missionState == nil then
+            log_warning("[MissionLogic] AddProgress ignored: mission is not active. userId=" .. userId .. ", missionKey=" .. missionKey)
+            return
+        end
+
+        if missionState.Progress == nil then
+            missionState.Progress = {}
+        end
+
+        local current = missionState.Progress[objectiveKey]
+        if current == nil then
+            current = 0
+        end
+
+        missionState.Progress[objectiveKey] = current + amount
+        _PlayerDataLogic:MarkDirty(userId)
+        log("[MissionLogic] AddProgress. userId=" .. userId .. ", missionKey=" .. missionKey .. ", objectiveKey=" .. objectiveKey)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean CompleteMission(string userId, string missionKey)
+        -- Moves a mission from active to completed.
+        local missionData = self:ExportUserData(userId)
+        for index, missionState in ipairs(missionData.Active) do
+            if missionState.MissionKey == missionKey then
+                table.remove(missionData.Active, index)
+                missionData.Completed[missionKey] = true
+                _PlayerDataLogic:MarkDirty(userId)
+                log("[MissionLogic] CompleteMission. userId=" .. userId .. ", missionKey=" .. missionKey)
+                return true
+            end
+        end
+
+        return false
+    end
+
+    @ExecSpace("ServerOnly")
+    method any FindActiveMission(string userId, string missionKey)
+        -- Finds one active mission state by key.
+        local missionData = self:ExportUserData(userId)
+        for _, missionState in ipairs(missionData.Active) do
+            if missionState.MissionKey == missionKey then
+                return missionState
+            end
+        end
+
+        return nil
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean IsCompleted(string userId, string missionKey)
+        -- Checks whether a mission has already been completed.
+        local missionData = self:ExportUserData(userId)
+        return missionData.Completed[missionKey] == true
+    end
+
+end

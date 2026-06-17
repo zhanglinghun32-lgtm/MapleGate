@@ -1,0 +1,116 @@
+@Logic
+script SkillLogic extends Logic
+
+    property any userSkills = nil
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Initializes the per-user skill cache.
+        self.userSkills = {}
+        log("[SkillLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadUserData(string userId, table skillData)
+        -- Loads one user's skill data into the runtime cache.
+        if userId == nil or userId == "" then
+            log_warning("[SkillLogic] LoadUserData ignored: userId is empty.")
+            return
+        end
+
+        if skillData == nil then
+            skillData = self:CreateDefaultData()
+        end
+
+        if skillData.Learned == nil then
+            skillData.Learned = {}
+        end
+
+        if skillData.Hotkeys == nil then
+            skillData.Hotkeys = {}
+        end
+
+        self.userSkills[userId] = skillData
+        log("[SkillLogic] LoadUserData. userId=" .. userId .. ", learnedCount=" .. tostring(#skillData.Learned))
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ExportUserData(string userId)
+        -- Returns the user's current skill payload for saving.
+        if self.userSkills == nil then
+            self.userSkills = {}
+        end
+
+        local skillData = self.userSkills[userId]
+        if skillData == nil then
+            skillData = self:CreateDefaultData()
+            self.userSkills[userId] = skillData
+        end
+
+        return skillData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateDefaultData()
+        -- Creates the default skill data for a new slot.
+        local skillData = {}
+        skillData.Learned = {}
+        skillData.Hotkeys = {}
+
+        skillData.Learned[1] = self:CreateSkillEntry("normalAttack", 1)
+        skillData.Hotkeys.Slot1 = "normalAttack"
+
+        return skillData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateSkillEntry(string skillKey, integer level)
+        -- Creates one learned-skill entry.
+        local skillEntry = {}
+        skillEntry.SkillKey = skillKey
+        skillEntry.Level = level
+        return skillEntry
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean HasSkill(string userId, string skillKey)
+        -- Checks whether the user has a learned skill.
+        local skillData = self:ExportUserData(userId)
+        for _, skillEntry in ipairs(skillData.Learned) do
+            if skillEntry.SkillKey == skillKey then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean LearnSkill(string userId, string skillKey, integer level)
+        -- Adds a skill if it is not learned yet.
+        if self:HasSkill(userId, skillKey) == true then
+            return false
+        end
+
+        local skillData = self:ExportUserData(userId)
+        skillData.Learned[#skillData.Learned + 1] = self:CreateSkillEntry(skillKey, level)
+        _PlayerDataLogic:MarkDirty(userId)
+        log("[SkillLogic] LearnSkill. userId=" .. userId .. ", skillKey=" .. skillKey)
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method void SetHotkey(string userId, string slotKey, string skillKey)
+        -- Assigns a learned skill to a hotkey slot.
+        if self:HasSkill(userId, skillKey) == false then
+            log_warning("[SkillLogic] SetHotkey ignored: skill is not learned. userId=" .. userId .. ", skillKey=" .. skillKey)
+            return
+        end
+
+        local skillData = self:ExportUserData(userId)
+        skillData.Hotkeys[slotKey] = skillKey
+        _PlayerDataLogic:MarkDirty(userId)
+        log("[SkillLogic] SetHotkey. userId=" .. userId .. ", slotKey=" .. slotKey .. ", skillKey=" .. skillKey)
+    end
+
+end

@@ -1,0 +1,116 @@
+@Logic
+script PartyLogic extends Logic
+
+    property string actorConfigDataSetName = "actorConfig"
+    property any userParties = nil
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Initializes the per-user party cache.
+        self.userParties = {}
+        log("[PartyLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadUserData(string userId, table partyData)
+        -- Loads one user's party data into the runtime cache.
+        if userId == nil or userId == "" then
+            log_warning("[PartyLogic] LoadUserData ignored: userId is empty.")
+            return
+        end
+
+        if partyData == nil then
+            partyData = self:CreateDefaultData()
+        end
+
+        if partyData.Members == nil then
+            partyData.Members = {}
+        end
+
+        if partyData.Formation == nil then
+            partyData.Formation = {}
+        end
+
+        self.userParties[userId] = partyData
+        log("[PartyLogic] LoadUserData. userId=" .. userId .. ", memberCount=" .. tostring(#partyData.Members))
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ExportUserData(string userId)
+        -- Returns the user's current party payload for saving.
+        if self.userParties == nil then
+            self.userParties = {}
+        end
+
+        local partyData = self.userParties[userId]
+        if partyData == nil then
+            partyData = self:CreateDefaultData()
+            self.userParties[userId] = partyData
+        end
+
+        return partyData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateDefaultData()
+        -- Creates the default party for a new slot.
+        local partyData = {}
+        partyData.Members = {}
+        partyData.Formation = {}
+
+        partyData.Members[1] = self:CreateActorState("playerWarrior", 1)
+        partyData.Formation[1] = "playerWarrior"
+
+        return partyData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateActorState(string actorKey, integer level)
+        -- Creates one actor state from actorConfig plus runtime defaults.
+        local actorState = {}
+        actorState.ActorKey = actorKey
+        actorState.Level = level
+        actorState.Exp = 0
+        actorState.Hp = self:GetActorInteger(actorKey, "maxHp", 1)
+        actorState.Mp = self:GetActorInteger(actorKey, "maxMp", 0)
+        return actorState
+    end
+
+    @ExecSpace("ServerOnly")
+    method string GetLeaderActorKey(string userId)
+        -- Returns the actor key in the first formation slot.
+        local partyData = self:ExportUserData(userId)
+        if partyData.Formation == nil or partyData.Formation[1] == nil then
+            return ""
+        end
+
+        return partyData.Formation[1]
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetActorInteger(string actorKey, string columnName, integer fallback)
+        -- Reads an integer value from actorConfig.
+        local dataSet = _DataService:GetTable(self.actorConfigDataSetName)
+        if dataSet == nil then
+            return fallback
+        end
+
+        local row = dataSet:FindRow("actorKey", actorKey)
+        if row == nil then
+            return fallback
+        end
+
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        local numberValue = tonumber(value)
+        if numberValue == nil then
+            return fallback
+        end
+
+        return math.floor(numberValue)
+    end
+
+end
