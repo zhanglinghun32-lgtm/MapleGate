@@ -1,6 +1,6 @@
 # BattleSystem Component
 
-The battle session is owned by `BattleSystemComponent` (`Battle/BattleSystemComponent.mlua`).
+The battle session is owned by `BattleSystem` (`Battle/BattleSystem.mlua`).
 The component owns the battle session flow; actor state remains inside each actor's
 `BattleActorComponent` (`Battle/BattleActorComponent.mlua`).
 
@@ -17,11 +17,15 @@ The current design uses actor entities with `BattleActorComponent`.
 Recommended registry:
 
 ```text
-BattleSystemComponent
+BattleSystem
 - activeActorIds
-- turnQueue
-- actorMap: actorId -> BattleActorComponent
+- actorMap: actorId -> actor entry / BattleActorComponent
 - currentActorId
+- battleQueue -> BattleQueue component on the same entity
+
+BattleQueue
+- turnQueue
+- actorMap (read-only copy for speed / alive checks)
 ```
 
 State changes should go through `BattleActorComponent`:
@@ -32,7 +36,7 @@ sponsorActor:UseMp(cost)
 sponsorActor:UseStamina(cost)
 ```
 
-`BattleSystemComponent` should not directly assign HP, MP, stamina, or stat
+`BattleSystem` should not directly assign HP, MP, stamina, or stat
 values.
 
 ## Battle Keys
@@ -200,7 +204,7 @@ BattleActionResult
   - StaminaChange target=Player01 value=-10
 ```
 
-`BattleSystemComponent` applies each entry. `BattleCalculator` only describes
+`BattleSystem` applies each entry. `BattleCalculator` only describes
 what should happen.
 
 ## Applying Results
@@ -216,5 +220,5 @@ Recommended application rules:
 - `Revive` delegates to a future actor revive interface.
 - `Guard` and `Miss` produce presentation/UI feedback but do not mutate HP.
 
-After all entries are applied, `BattleSystemComponent` checks each affected
+After all entries are applied, `BattleSystem` checks each affected
 actor for death and removes dead actors from `turnQueue`.

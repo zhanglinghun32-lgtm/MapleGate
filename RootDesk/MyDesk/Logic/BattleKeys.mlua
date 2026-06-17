@@ -49,4 +49,23 @@ script BattleKeys extends Logic
     property string targetAllEnemies = "AllEnemies"
     property string targetAllAllies = "AllAllies"
 
+    -- 單場戰鬥 phase：BattleSystem 內部狀態機使用。
+    property string phaseNone = "None"
+    property string phaseInitializing = "Initializing"
+    property string phaseTurnStart = "TurnStart"
+    property string phaseAwaitingInput = "AwaitingInput"
+    property string phaseResolvingAction = "ResolvingAction"
+    property string phaseTurnEnd = "TurnEnd"
+    property string phaseVictory = "Victory"
+    property string phaseDefeat = "Defeat"
+    property string phaseEscaped = "Escaped"
+    property string phaseCleanup = "Cleanup"
+    property string phaseEnded = "Ended"
+
+    -- 單場戰鬥結束結果：BattleSystem 回報給 BattleFlowLogic 的分類。
+    property string resultVictory = "Victory"
+    property string resultDefeat = "Defeat"
+    property string resultEscaped = "Escaped"
+    property string resultCancel = "Cancel"
+
 end

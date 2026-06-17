@@ -21,7 +21,7 @@ See `docs/ScriptRules.md`.
 | Design | This document | `docs/BattleFlow/BattleFlow.md` |
 | Config | `encounterConfig` (planned), existing `skillConfig` | `Data/Config/` (flat) |
 | Logic | `BattleFlowLogic`, shared `BattleKeys` | `Logic/` |
-| Component | `BattleSystemComponent`, `BattleSkill`, `BattleActorComponent` (planned) | `Battle/` |
+| Component | `BattleSystem`, `BattleQueue`, `BattleSkill`, `BattleActorComponent` (planned) | `Battle/` |
 | UI | Battle HUD layout + UI scripts | `ui/BattleUI.ui`, `UI/` |
 
 Skill icons: store RUID in `skillConfig.iconRuid` — no separate Catalog.
@@ -72,7 +72,7 @@ Recommended flow:
 5. Build enemy battle data from `EncounterConfig`, optionally merged with sponsor runtime data.
 6. Build the battle start payload.
 7. Spawn `BattleSystem.model`.
-8. Call `BattleSystemComponent:StartBattle(payload)`.
+8. Call `BattleSystem:StartBattle(payload)`.
 
 When spawning the model at runtime, `BattleFlowLogic` must pass a non-nil map
 entity as the spawn parent. The first version can use the current map from the
@@ -83,8 +83,8 @@ sponsor or target context.
 A single battle session needs a runtime entity to own turn state. Options:
 
 - **Spawned entity**: `BattleSystem.model` via `SpawnByModelId` when the session
-  must exist as a world entity (script: `Battle/BattleSystemComponent.mlua`).
-- **UI-bound session**: attach `BattleSystemComponent` on a battle UI entity if
+  must exist as a world entity (script: `Battle/BattleSystem.mlua`).
+- **UI-bound session**: attach `BattleSystem` on a battle UI entity if
   the session lives entirely inside `BattleUI.ui`.
 
 Pick one shape when implementing; the component script stays in `Battle/`.
@@ -92,7 +92,7 @@ Pick one shape when implementing; the component script stays in `Battle/`.
 Recommended component:
 
 ```text
-Battle/BattleSystemComponent.mlua
+Battle/BattleSystem.mlua
   -> bound on battle session entity (spawned model or UI entity)
 ```
 
@@ -201,7 +201,7 @@ Actor type examples:
 For concrete actor properties and ownership rules, see
 `docs/Actor/BattleActorComponent.md`.
 
-`BattleSystemComponent` should store actor ids and component references, then
+`BattleSystem` should store actor ids and component references, then
 apply state changes through `BattleActorComponent` interfaces.
 
 ## Battle Lifecycle
@@ -213,20 +213,20 @@ Expected first-pass flow:
 3. `BattleFlowLogic` loads `EncounterConfig` by `encounterKey`.
 4. `BattleFlowLogic` builds the battle start payload.
 5. `BattleFlowLogic` spawns `BattleSystem.model`.
-6. `BattleFlowLogic` calls `BattleSystemComponent:StartBattle(payload)`.
-7. `BattleSystemComponent` initializes turn order.
+6. `BattleFlowLogic` calls `BattleSystem:StartBattle(payload)`.
+7. `BattleSystem` initializes turn order.
 8. Player selects an action.
-9. `BattleSystemComponent` resolves the action.
+9. `BattleSystem` resolves the action.
 10. Enemy turn resolves through turn-based rules.
 11. Battle ends with victory, defeat, escape, or cancel.
-12. `BattleSystemComponent` reports the result back to `BattleFlowLogic`.
+12. `BattleSystem` reports the result back to `BattleFlowLogic`.
 13. `BattleFlowLogic` applies rewards, save changes, and scene flow decisions.
 
 ## Open Questions
 
 - Should battle happen in the same map, or transition to a battle scene?
 - Where should `BattleSystem.model` be spawned when battle happens in a separate battle scene?
-- Should battle UI be opened by `BattleFlowLogic`, by `BattleSystemComponent`, or by a battle UI controller through `UIManagerLogic`?
+- Should battle UI be opened by `BattleFlowLogic`, by `BattleSystem`, or by a battle UI controller through `UIManagerLogic`?
 - Should enemy data come from a static Config DataSet, a monster entity on the field, or both?
 - Should player party data be copied from save data or from live runtime components?
 - Should action resolution use MSW `AttackComponent` / `HitComponent`, or a pure turn-based calculation layer first?
@@ -243,8 +243,8 @@ Design rule:
 BattleFlowLogic:CreateBattle(...)
   -> validate and prepare data
   -> spawn BattleSystem.model
-  -> BattleSystemComponent:StartBattle(payload)
-  -> BattleSystemComponent owns the active turn battle
+  -> BattleSystem:StartBattle(payload)
+  -> BattleSystem owns the active turn battle
 ```
 
 Keep persistent player save data separate from battle runtime state.

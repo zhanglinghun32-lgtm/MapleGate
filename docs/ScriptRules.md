@@ -23,7 +23,7 @@ Example (battle):
 docs/BattleFlow/BattleFlow.md
   -> encounterConfig.csv (planned)
   -> Logic/BattleFlowLogic.mlua (planned)
-  -> Battle/BattleSystemComponent.mlua, Battle/BattleSkill.mlua (planned)
+  -> Battle/BattleSystem.mlua, Battle/BattleSkill.mlua (planned)
   -> ui/BattleUI.ui + UI bindings (existing)
 ```
 
@@ -91,10 +91,13 @@ UI entity in Maker; register the UI root in `UIRegistry`.
 All `@Logic` scripts live in `RootDesk/MyDesk/Logic/`.
 
 Examples: `SceneLogic`, `UIManagerLogic`, `StartController`, `BattleKeys`,
-`UIToast`, `UIPopup`, planned `BattleFlowLogic`.
+`DataUtil`, `UIToast`, `UIPopup`, planned `BattleFlowLogic`.
 
 Logic survives map transitions. Do not put world/session managers in feature
 subfolders.
+
+`DataUtil` holds shared pure helpers (table / DataSet row readers) callable as
+`_DataUtil:GetTableString(...)`, `_DataUtil:GetRowString(...)`, etc.
 
 ### Component — domain folders
 

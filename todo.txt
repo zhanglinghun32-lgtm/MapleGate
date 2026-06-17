@@ -1,0 +1,10 @@
+在同一個 battle session entity 上掛兩個 Component：
+
+BattleSystem
+BattleQueue
+然後 refresh 產生 .codeblock。
+
+payload 的 actor entry 可加 speed 欄位測試排序，例如：
+
+{ actorId = "Player01", actorType = "Player", speed = 12 }
+{ actorId = "Slime01", actorType = "Monster", speed = 5 }

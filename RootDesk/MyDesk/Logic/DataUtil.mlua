@@ -1,0 +1,68 @@
+@Logic
+script DataUtil extends Logic
+
+    -- Shared table / DataSet row readers for Logic and Component scripts.
+
+    method string GetTableString(any sourceTable, string key, string fallback)
+        if sourceTable == nil then
+            return fallback
+        end
+
+        local value = sourceTable[key]
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        return value
+    end
+
+    method string GetRowString(any row, string columnName, string fallback)
+        if row == nil then
+            return fallback
+        end
+
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        return value
+    end
+
+    method integer GetRowInteger(any row, string columnName, integer fallback)
+        if row == nil then
+            return fallback
+        end
+
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        local numberValue = tonumber(value)
+        if numberValue == nil then
+            return fallback
+        end
+
+        return math.floor(numberValue)
+    end
+
+    method number GetRowNumber(any row, string columnName, number fallback)
+        if row == nil then
+            return fallback
+        end
+
+        local value = row:GetItem(columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        local numberValue = tonumber(value)
+        if numberValue == nil then
+            return fallback
+        end
+
+        return numberValue
+    end
+
+end

@@ -1,0 +1,495 @@
+@Component
+script BattleSystem extends Component
+
+    -- Owns one turn-based battle session after BattleFlowLogic calls StartBattle(payload).
+    -- Does not load encounter Config, bind UI buttons, or decide post-battle scene flow.
+
+    property string battlePhase = "None"
+    property string battleId = ""
+    property string encounterKey = ""
+    property string rewardKey = ""
+    property string playerUserId = ""
+    property string sponsorEntityId = ""
+    property string currentActorId = ""
+    property string battleResult = ""
+    property boolean isActive = false
+
+    property any startPayload = nil
+    property any activeActorIds = nil
+    property any actorMap = nil
+    property any battleQueue = nil
+
+    method void OnBeginPlay()
+        -- Caches the sibling BattleQueue component on the same battle session entity.
+        self.battleQueue = self.Entity:GetComponent("script.BattleQueue")
+        if self.battleQueue == nil then
+            log_warning("[BattleSystem] OnBeginPlay: BattleQueue component not found on entity.")
+        end
+    end
+
+    method void OnEndPlay()
+        -- Clears session-owned tables when the battle entity is removed.
+        self:ResetSession()
+        log("[BattleSystem] OnEndPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean StartBattle(table payload)
+        -- Entry point from BattleFlowLogic after payload validation and spawn.
+        if self.isActive == true then
+            log_warning("[BattleSystem] StartBattle ignored: session already active. battleId=" .. tostring(self.battleId))
+            return false
+        end
+
+        if payload == nil then
+            log_warning("[BattleSystem] StartBattle failed: payload is nil.")
+            return false
+        end
+
+        self:ResetSession()
+        self.startPayload = payload
+        self.battleId = _DataUtil:GetTableString(payload, "battleId", "")
+        self.encounterKey = _DataUtil:GetTableString(payload, "encounterKey", "")
+        self.rewardKey = _DataUtil:GetTableString(payload, "rewardKey", "")
+        self.playerUserId = _DataUtil:GetTableString(payload, "playerUserId", "")
+        self.sponsorEntityId = _DataUtil:GetTableString(payload, "sponsorEntityId", "")
+
+        if self.battleId == "" then
+            log_warning("[BattleSystem] StartBattle failed: battleId is empty.")
+            self:ResetSession()
+            return false
+        end
+
+        self.isActive = true
+        log("[BattleSystem] StartBattle battleId=" .. self.battleId .. ", encounter=" .. self.encounterKey)
+
+        self:TransitionTo(_BattleKeys.phaseInitializing)
+        self:RegisterActorsFromPayload(payload)
+        self:InitializeBattleQueue()
+
+        if self:IsBattleQueueEmpty() == true then
+            log_warning("[BattleSystem] StartBattle failed: turnQueue is empty. battleId=" .. self.battleId)
+            self:FinishBattle(_BattleKeys.resultCancel)
+            return false
+        end
+
+        self:BeginNextTurn()
+        return true
+    end
+
+    @ExecSpace("Server")
+    method void RequestAction(string sponsorId, string actionKey, table targetIds)
+        -- Lets the current actor client request one battle action.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[BattleSystem] RequestAction ignored: senderUserId is empty.")
+            return
+        end
+
+        if self.playerUserId ~= "" and senderUserId ~= self.playerUserId then
+            log_warning("[BattleSystem] RequestAction ignored: user mismatch. sender=" .. senderUserId)
+            return
+        end
+
+        self:RequestActionForUser(senderUserId, sponsorId, actionKey, targetIds)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RequestActionForUser(string userId, string sponsorId, string actionKey, table targetIds)
+        -- Validates and resolves one action for the current turn actor.
+        if self.isActive == false then
+            log_warning("[BattleSystem] RequestAction ignored: battle not active.")
+            return
+        end
+
+        if self.battlePhase ~= _BattleKeys.phaseAwaitingInput then
+            log_warning("[BattleSystem] RequestAction ignored: phase=" .. tostring(self.battlePhase))
+            return
+        end
+
+        if sponsorId == nil or sponsorId == "" then
+            log_warning("[BattleSystem] RequestAction ignored: sponsorId is empty.")
+            return
+        end
+
+        if sponsorId ~= self.currentActorId then
+            log_warning("[BattleSystem] RequestAction ignored: not current actor. sponsor=" .. sponsorId .. ", current=" .. tostring(self.currentActorId))
+            return
+        end
+
+        if actionKey == nil or actionKey == "" then
+            log_warning("[BattleSystem] RequestAction ignored: actionKey is empty.")
+            return
+        end
+
+        if targetIds == nil then
+            targetIds = {}
+        end
+
+        log("[BattleSystem] RequestAction battleId=" .. self.battleId .. ", sponsor=" .. sponsorId .. ", action=" .. actionKey)
+
+        self:TransitionTo(_BattleKeys.phaseResolvingAction)
+        self:ResolveAction(sponsorId, actionKey, targetIds)
+        self:TransitionTo(_BattleKeys.phaseTurnEnd)
+        self:ProcessTurnEnd()
+
+        if self.isActive == false then
+            return
+        end
+
+        self:BeginNextTurn()
+    end
+
+    @ExecSpace("ServerOnly")
+    method void TransitionTo(string nextPhase)
+        -- Runs exit/enter hooks for battle phase changes.
+        if nextPhase == nil or nextPhase == "" then
+            log_warning("[BattleSystem] TransitionTo ignored: nextPhase is empty.")
+            return
+        end
+
+        local previousPhase = self.battlePhase
+        if previousPhase == nextPhase then
+            return
+        end
+
+        self:OnExitPhase(previousPhase)
+		log("[BattleSystem] OnExitPhase " .. tostring(previousPhase))
+        self.battlePhase = nextPhase
+        self:OnEnterPhase(nextPhase)
+		log("[BattleSystem] OnEnterPhase " .. tostring(nextPhase))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void OnEnterPhase(string phase)
+        if phase == _BattleKeys.phaseInitializing then
+            self:EnterInitializing()
+            return
+        end
+
+        if phase == _BattleKeys.phaseTurnStart then
+            self:EnterTurnStart()
+            return
+        end
+
+        if phase == _BattleKeys.phaseAwaitingInput then
+            self:EnterAwaitingInput()
+            return
+        end
+
+        if phase == _BattleKeys.phaseResolvingAction then
+            self:EnterResolvingAction()
+            return
+        end
+
+        if phase == _BattleKeys.phaseTurnEnd then
+            self:EnterTurnEnd()
+            return
+        end
+
+        if phase == _BattleKeys.phaseCleanup then
+            self:EnterCleanup()
+            return
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method void OnExitPhase(string phase)
+        if phase == _BattleKeys.phaseAwaitingInput then
+            self:ExitAwaitingInput()
+            return
+        end
+
+        if phase == _BattleKeys.phaseResolvingAction then
+            self:ExitResolvingAction()
+            return
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method void EnterInitializing()
+        self.activeActorIds = {}
+        self.actorMap = {}
+        self.currentActorId = ""
+        self:ResetBattleQueue()
+    end
+
+    @ExecSpace("ServerOnly")
+    method void EnterTurnStart()
+        -- Placeholder for per-turn effect ticks before input opens.
+    end
+
+    @ExecSpace("ServerOnly")
+    method void EnterAwaitingInput()
+        -- Placeholder for notifying battle UI that input is allowed.
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ExitAwaitingInput()
+        -- Placeholder for closing player input on this turn.
+    end
+
+    @ExecSpace("ServerOnly")
+    method void EnterResolvingAction()
+        -- Placeholder for battle presentation lock.
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ExitResolvingAction()
+        -- Placeholder for presentation unlock.
+    end
+
+    @ExecSpace("ServerOnly")
+    method void EnterTurnEnd()
+        -- Placeholder for end-of-turn housekeeping.
+    end
+
+    @ExecSpace("ServerOnly")
+    method void EnterCleanup()
+        self:ReportBattleResultToFlow()
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RegisterActorsFromPayload(table payload)
+        -- Registers actor ids from the prepared payload. BattleActorComponent wiring comes later.
+        local playerParty = payload.playerParty
+        local enemyParty = payload.enemyParty
+
+        if playerParty ~= nil then
+            for _, actorEntry in ipairs(playerParty) do
+                self:RegisterActorEntry(actorEntry)
+            end
+        end
+
+        if enemyParty ~= nil then
+            for _, actorEntry in ipairs(enemyParty) do
+                self:RegisterActorEntry(actorEntry)
+            end
+        end
+
+        log("[BattleSystem] RegisterActors count=" .. tostring(self:GetActorCount()) .. ", battleId=" .. self.battleId)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RegisterActorEntry(table actorEntry)
+        if actorEntry == nil then
+            return
+        end
+
+        local actorId = _DataUtil:GetTableString(actorEntry, "actorId", "")
+        if actorId == "" then
+            log_warning("[BattleSystem] RegisterActorEntry ignored: actorId is empty.")
+            return
+        end
+
+        if self.actorMap == nil then
+            self.actorMap = {}
+        end
+
+        if self.actorMap[actorId] ~= nil then
+            log_warning("[BattleSystem] RegisterActorEntry ignored: duplicate actorId=" .. actorId)
+            return
+        end
+
+        self.actorMap[actorId] = actorEntry
+
+        if self.activeActorIds == nil then
+            self.activeActorIds = {}
+        end
+
+        table.insert(self.activeActorIds, actorId)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void InitializeBattleQueue()
+        local queue = self:GetBattleQueue()
+        if queue == nil then
+            log_warning("[BattleSystem] InitializeBattleQueue failed: BattleQueue missing.")
+            return
+        end
+
+        queue:Initialize(self.actorMap, self.activeActorIds)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean IsBattleQueueEmpty()
+        local queue = self:GetBattleQueue()
+        if queue == nil then
+            return true
+        end
+
+        return queue:IsEmpty()
+    end
+
+    @ExecSpace("ServerOnly")
+    method any GetBattleQueue()
+        if self.battleQueue ~= nil then
+            return self.battleQueue
+        end
+
+        self.battleQueue = self.Entity:GetComponent("script.BattleQueue")
+        return self.battleQueue
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ResetBattleQueue()
+        local queue = self:GetBattleQueue()
+        if queue == nil then
+            return
+        end
+
+        queue:Reset()
+    end
+
+    @ExecSpace("ServerOnly")
+    method void BeginNextTurn()
+        if self.isActive == false then
+            return
+        end
+
+        if self:CheckBattleEnd() == true then
+            return
+        end
+
+        local queue = self:GetBattleQueue()
+        if queue == nil then
+            log_warning("[BattleSystem] BeginNextTurn failed: BattleQueue missing.")
+            self:FinishBattle(_BattleKeys.resultCancel)
+            return
+        end
+
+        local nextActorId = queue:PopNextTurn()
+        if nextActorId == "" then
+            log_warning("[BattleSystem] BeginNextTurn failed: no actor available.")
+            self:FinishBattle(_BattleKeys.resultCancel)
+            return
+        end
+
+        self.currentActorId = nextActorId
+        self:TransitionTo(_BattleKeys.phaseTurnStart)
+        self:TransitionTo(_BattleKeys.phaseAwaitingInput)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ResolveAction(string sponsorId, string actionKey, table targetIds)
+        -- Placeholder until BattleCalculator and BattleActorComponent exist.
+        log("[BattleSystem] ResolveAction stub sponsor=" .. sponsorId .. ", action=" .. actionKey .. ", targetCount=" .. tostring(#targetIds))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ProcessTurnEnd()
+        local queue = self:GetBattleQueue()
+        if queue ~= nil then
+            queue:RemoveDeadActors()
+        end
+
+        if self:CheckBattleEnd() == true then
+            return
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean CheckBattleEnd()
+        if self.isActive == false then
+            return true
+        end
+
+        local alivePlayers = self:CountAliveActorsByTeam(_BattleKeys.actorTypePlayer)
+        local aliveEnemies = self:CountAliveActorsByTeam(_BattleKeys.actorTypeMonster)
+
+        if alivePlayers == 0 then
+            self:FinishBattle(_BattleKeys.resultDefeat)
+            return true
+        end
+
+        if aliveEnemies == 0 then
+            self:FinishBattle(_BattleKeys.resultVictory)
+            return true
+        end
+
+        return false
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer CountAliveActorsByTeam(string actorType)
+        -- Stub: treats every registered actor as alive until BattleActorComponent exists.
+        if self.actorMap == nil then
+            return 0
+        end
+
+        local count = 0
+        local typedCount = 0
+        for actorId, actorEntry in pairs(self.actorMap) do
+            local entryType = _DataUtil:GetTableString(actorEntry, "actorType", "")
+            if entryType ~= "" then
+                typedCount = typedCount + 1
+                if entryType == actorType or (actorType == _BattleKeys.actorTypeMonster and entryType == _BattleKeys.actorTypeBoss) then
+                    count = count + 1
+                end
+            end
+        end
+
+        if typedCount == 0 then
+            -- Payload has no actorType yet; keep battle running until BattleActorComponent wiring lands.
+            return 1
+        end
+
+        return count
+    end
+
+    @ExecSpace("ServerOnly")
+    method void FinishBattle(string result)
+        if self.isActive == false then
+            return
+        end
+
+        self.battleResult = result
+        log("[BattleSystem] FinishBattle result=" .. result .. ", battleId=" .. self.battleId)
+
+        if result == _BattleKeys.resultVictory then
+            self:TransitionTo(_BattleKeys.phaseVictory)
+        elseif result == _BattleKeys.resultDefeat then
+            self:TransitionTo(_BattleKeys.phaseDefeat)
+        elseif result == _BattleKeys.resultEscaped then
+            self:TransitionTo(_BattleKeys.phaseEscaped)
+        else
+            self:TransitionTo(_BattleKeys.phaseEnded)
+        end
+
+        self:TransitionTo(_BattleKeys.phaseCleanup)
+        self.isActive = false
+        self:TransitionTo(_BattleKeys.phaseEnded)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ReportBattleResultToFlow()
+        -- BattleFlowLogic will own rewards and scene flow after this callback exists.
+        log("[BattleSystem] ReportBattleResult battleId=" .. self.battleId .. ", result=" .. tostring(self.battleResult) .. ", encounter=" .. self.encounterKey)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ResetSession()
+        self.battlePhase = _BattleKeys.phaseNone
+        self.battleId = ""
+        self.encounterKey = ""
+        self.rewardKey = ""
+        self.playerUserId = ""
+        self.sponsorEntityId = ""
+        self.currentActorId = ""
+        self.battleResult = ""
+        self.isActive = false
+        self.startPayload = nil
+        self.activeActorIds = nil
+        self.actorMap = nil
+        self:ResetBattleQueue()
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetActorCount()
+        if self.activeActorIds == nil then
+            return 0
+        end
+
+        return #self.activeActorIds
+    end
+
+end

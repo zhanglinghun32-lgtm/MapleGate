@@ -39,21 +39,21 @@ script BattleSkill extends Component
             return false
         end
 
-        self.skillKey = self:GetString(row, "skillKey", inputSkillKey)
-        self.displayName = self:GetString(row, "displayName", "")
-        self.description = self:GetString(row, "description", "")
-        self.iconRuid = self:GetString(row, "iconRuid", "")
-        self.iconPath = self:GetString(row, "iconPath", "")
-        self.targetRule = self:GetString(row, "targetRule", _BattleKeys.targetEnemy)
-        self.entryType = self:GetString(row, "entryType", _BattleKeys.entryDamage)
-        self.powerRate = self:GetNumber(row, "powerRate", 0)
-        self.flatValue = self:GetInteger(row, "flatValue", 0)
-        self.mpCost = self:GetInteger(row, "mpCost", 0)
-        self.staminaCost = self:GetInteger(row, "staminaCost", 0)
-        self.hitCount = self:GetInteger(row, "hitCount", 1)
-        self.effectKey = self:GetString(row, "effectKey", "")
-        self.effectDuration = self:GetInteger(row, "effectDuration", 0)
-        self.cooldown = self:GetInteger(row, "cooldown", 0)
+        self.skillKey = _DataUtil:GetRowString(row, "skillKey", inputSkillKey)
+        self.displayName = _DataUtil:GetRowString(row, "displayName", "")
+        self.description = _DataUtil:GetRowString(row, "description", "")
+        self.iconRuid = _DataUtil:GetRowString(row, "iconRuid", "")
+        self.iconPath = _DataUtil:GetRowString(row, "iconPath", "")
+        self.targetRule = _DataUtil:GetRowString(row, "targetRule", _BattleKeys.targetEnemy)
+        self.entryType = _DataUtil:GetRowString(row, "entryType", _BattleKeys.entryDamage)
+        self.powerRate = _DataUtil:GetRowNumber(row, "powerRate", 0)
+        self.flatValue = _DataUtil:GetRowInteger(row, "flatValue", 0)
+        self.mpCost = _DataUtil:GetRowInteger(row, "mpCost", 0)
+        self.staminaCost = _DataUtil:GetRowInteger(row, "staminaCost", 0)
+        self.hitCount = _DataUtil:GetRowInteger(row, "hitCount", 1)
+        self.effectKey = _DataUtil:GetRowString(row, "effectKey", "")
+        self.effectDuration = _DataUtil:GetRowInteger(row, "effectDuration", 0)
+        self.cooldown = _DataUtil:GetRowInteger(row, "cooldown", 0)
 
         log("[BattleSkill] Loaded skillKey=" .. self.skillKey .. ", entryType=" .. self.entryType .. ", targetRule=" .. self.targetRule)
         return true
@@ -84,46 +84,6 @@ script BattleSkill extends Component
     method boolean IsLoaded()
         -- Returns whether this component currently holds a valid skill key.
         return self.skillKey ~= nil and self.skillKey ~= ""
-    end
-
-    method string GetString(any row, string columnName, string fallback)
-        -- Reads a string cell and returns fallback for empty cells.
-        local value = row:GetItem(columnName)
-        if value == nil or value == "" then
-            return fallback
-        end
-
-        return value
-    end
-
-    method integer GetInteger(any row, string columnName, integer fallback)
-        -- Reads an integer cell and returns fallback when conversion fails.
-        local value = row:GetItem(columnName)
-        if value == nil or value == "" then
-            return fallback
-        end
-
-        local numberValue = tonumber(value)
-        if numberValue == nil then
-            return fallback
-        end
-
-        return math.floor(numberValue)
-    end
-
-    method number GetNumber(any row, string columnName, number fallback)
-        -- Reads a number cell and returns fallback when conversion fails.
-        local value = row:GetItem(columnName)
-        if value == nil or value == "" then
-            return fallback
-        end
-
-        local numberValue = tonumber(value)
-        if numberValue == nil then
-            return fallback
-        end
-
-        return numberValue
     end
 
 end

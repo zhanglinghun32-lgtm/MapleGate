@@ -1,0 +1,135 @@
+@Component
+script BattleQueue extends Component
+
+    -- Owns turn order for one battle session. BattleSystem delegates queue rules here.
+
+    property any turnQueue = nil
+    property any actorMap = nil
+
+    method void OnEndPlay()
+        self:Reset()
+        log("[BattleQueue] OnEndPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method void Reset()
+        self.turnQueue = nil
+        self.actorMap = nil
+    end
+
+    @ExecSpace("ServerOnly")
+    method void Initialize(any sourceActorMap, any orderedActorIds)
+        -- Builds the first turn order from registered actors.
+        self.actorMap = sourceActorMap
+        self.turnQueue = {}
+
+        if orderedActorIds == nil then
+            log_warning("[BattleQueue] Initialize ignored: orderedActorIds is nil.")
+            return
+        end
+
+        for _, actorId in ipairs(orderedActorIds) do
+            table.insert(self.turnQueue, actorId)
+        end
+
+        self:SortBySpeed()
+        log("[BattleQueue] Initialize count=" .. tostring(self:GetCount()))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void SortBySpeed()
+        -- Higher speed acts earlier. Actors without speed keep their relative order.
+        if self.turnQueue == nil or #self.turnQueue <= 1 then
+            return
+        end
+
+        local sortedEntries = {}
+        for index, actorId in ipairs(self.turnQueue) do
+            local speed = self:GetActorSpeed(actorId)
+            table.insert(sortedEntries, { actorId = actorId, speed = speed, order = index })
+        end
+
+        table.sort(sortedEntries, function(left, right)
+            if left.speed ~= right.speed then
+                return left.speed > right.speed
+            end
+
+            return left.order < right.order
+        end)
+
+        self.turnQueue = {}
+        for _, entry in ipairs(sortedEntries) do
+            table.insert(self.turnQueue, entry.actorId)
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method string PopNextTurn()
+        -- Returns the next actor id and rotates that actor to the end of the queue.
+        if self.turnQueue == nil or #self.turnQueue == 0 then
+            return ""
+        end
+
+        local actorId = self.turnQueue[1]
+        table.remove(self.turnQueue, 1)
+        table.insert(self.turnQueue, actorId)
+        return actorId
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RemoveActor(string actorId)
+        if self.turnQueue == nil or actorId == nil or actorId == "" then
+            return
+        end
+
+        for index = #self.turnQueue, 1, -1 do
+            if self.turnQueue[index] == actorId then
+                table.remove(self.turnQueue, index)
+            end
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RemoveDeadActors()
+        -- Placeholder until BattleActorComponent exposes IsDead().
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean IsEmpty()
+        return self.turnQueue == nil or #self.turnQueue == 0
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetCount()
+        if self.turnQueue == nil then
+            return 0
+        end
+
+        return #self.turnQueue
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetActorSpeed(string actorId)
+        if self.actorMap == nil or actorId == nil or actorId == "" then
+            return 0
+        end
+
+        local actorEntry = self.actorMap[actorId]
+        if actorEntry == nil then
+            return 0
+        end
+
+        local speedValue = actorEntry["speed"]
+        if speedValue == nil or speedValue == "" then
+            return 0
+        end
+
+        local numberValue = tonumber(speedValue)
+        if numberValue == nil then
+            return 0
+        end
+
+        return math.floor(numberValue)
+    end
+
+end
