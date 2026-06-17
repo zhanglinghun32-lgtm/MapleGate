@@ -3,6 +3,16 @@
 `BattleActorComponent` is the core state component for any actor that can
 participate in battle.
 
+## File Placement
+
+Keep `BattleActorComponent.mlua` in `RootDesk/MyDesk/Battle/`. Bind it on the
+battle actor entity in Maker (inline on `.map`, on a spawned model, or on a
+battle UI entity — whichever holds that actor in your setup).
+
+Single-use battle actors do not need a dedicated `.model` unless you spawn them
+at runtime or reuse the same composition in multiple places. See
+`docs/ScriptRules.md`.
+
 This document records responsibility boundaries first. The concrete `.mlua`
 interface can be finalized later when `BattleActorComponent.mlua` is created.
 

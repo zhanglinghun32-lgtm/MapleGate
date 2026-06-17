@@ -1,10 +1,14 @@
-# BattleSystem Model
+# BattleSystem Component
 
-`BattleSystem.model` is the runtime holder for one active turn-based battle.
+The battle session is owned by `BattleSystemComponent` (`Battle/BattleSystemComponent.mlua`).
+The component owns the battle session flow; actor state remains inside each actor's
+`BattleActorComponent` (`Battle/BattleActorComponent.mlua`).
 
-The model should have a `script.BattleSystemComponent` component. The component
-owns the battle session flow, while actor state remains inside each actor's
-`BattleActorComponent`.
+If the session is spawned at runtime, use a `BattleSystem.model` template only
+as the spawn vehicle — the script file does not need to live beside the model.
+
+Config data (e.g. `skillConfig`, planned `encounterConfig`) lives in flat
+`Data/Config/`. Skill icons use `skillConfig.iconRuid` — there is no RUID Catalog.
 
 ## Actor Registry
 
@@ -100,9 +104,9 @@ RequestAction(sponsorId, actionKey, targetIds)
 `BattleCalculator` should receive already-prepared input. It should not query UI,
 scene flow, save data, or raw Config by itself.
 
-Skill action config should come from `skillConfig` DataSet rows. A runtime
-`BattleSkill` component can load one row by `skillKey`, then expose the prepared
-`actionConfig` table through `BuildActionConfig()`.
+A `BattleSkill` component in `Battle/BattleSkill.mlua` loads one `skillConfig`
+row by `skillKey`, then exposes the prepared `actionConfig` table through
+`BuildActionConfig()`.
 
 Recommended input shape:
 

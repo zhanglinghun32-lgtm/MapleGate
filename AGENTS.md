@@ -264,12 +264,16 @@ If none of the above resolves the issue, tell the user:
 
 # PROJECT CUSTOM SCRIPT RULES
 
-For project-specific `.mlua` naming and responsibility boundaries, read:
+For project-specific architecture, naming, and responsibility boundaries, read:
 
 - `docs/ScriptRules.md`
+- `docs/README.md` (doc index)
 
 These rules are mandatory for new or modified project scripts:
 
+- New systems: **Design doc → Config (flat `Data/Config/`) → Logic (`Logic/`) → Component (domain folder: `UI/`, `Battle/`, `MapScene/`, …)**.
+- Do not create a RUID Catalog; use Config columns (e.g. `iconRuid`) or Maker `.ui` preview for layout sprites.
+- Keep `ui/` flat — no UI subfolders.
 - Script file names and script declarations use PascalCase and must match exactly.
 - Properties, parameters, and local variables use lowerCamelCase.
 - Methods use PascalCase, except built-in lifecycle names which keep MSW spelling.

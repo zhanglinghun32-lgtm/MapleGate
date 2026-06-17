@@ -13,6 +13,19 @@ The battle flow is turn-based, so monster chase / field AI is outside this syste
 
 ## Planned Files
 
+Follow the project workflow: **Design doc → Config → Logic → Component (domain folder)**.
+See `docs/ScriptRules.md`.
+
+| Step | Artifact | Path |
+|------|----------|------|
+| Design | This document | `docs/BattleFlow/BattleFlow.md` |
+| Config | `encounterConfig` (planned), existing `skillConfig` | `Data/Config/` (flat) |
+| Logic | `BattleFlowLogic`, shared `BattleKeys` | `Logic/` |
+| Component | `BattleSystemComponent`, `BattleSkill`, `BattleActorComponent` (planned) | `Battle/` |
+| UI | Battle HUD layout + UI scripts | `ui/BattleUI.ui`, `UI/` |
+
+Skill icons: store RUID in `skillConfig.iconRuid` — no separate Catalog.
+
 ### `RootDesk/MyDesk/Logic/BattleFlowLogic.mlua`
 
 World-level battle entry point.
@@ -65,14 +78,22 @@ When spawning the model at runtime, `BattleFlowLogic` must pass a non-nil map
 entity as the spawn parent. The first version can use the current map from the
 sponsor or target context.
 
-## BattleSystem Model
+## BattleSystem Runtime Holder
 
-`BattleSystem.model` is the runtime holder for a single battle session.
+A single battle session needs a runtime entity to own turn state. Options:
 
-Recommended model component:
+- **Spawned entity**: `BattleSystem.model` via `SpawnByModelId` when the session
+  must exist as a world entity (script: `Battle/BattleSystemComponent.mlua`).
+- **UI-bound session**: attach `BattleSystemComponent` on a battle UI entity if
+  the session lives entirely inside `BattleUI.ui`.
+
+Pick one shape when implementing; the component script stays in `Battle/`.
+
+Recommended component:
 
 ```text
-script.BattleSystemComponent
+Battle/BattleSystemComponent.mlua
+  -> bound on battle session entity (spawned model or UI entity)
 ```
 
 Expected responsibilities:
