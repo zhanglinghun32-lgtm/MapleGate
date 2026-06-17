@@ -2,6 +2,12 @@
 
 This project uses these naming and responsibility rules for all `.mlua` scripts.
 
+## Folder Layout
+
+- All `@Logic` scripts live in `RootDesk/MyDesk/Logic/` (e.g. `SceneLogic`, `UIManagerLogic`, `UIToast`, `UIPopup`, `BattleKeys`, `StartController`).
+- Map-scoped `@Component` scripts live in `RootDesk/MyDesk/MapScene/` (to be renamed `Components/Map/` in a later step).
+- UI `@Component` scripts live in `RootDesk/MyDesk/UI/`.
+
 ## Naming
 
 - Script file names use PascalCase: `SceneLogic.mlua`, `UIManagerLogic.mlua`, `MainMenuUIComponent.mlua`.

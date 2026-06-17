@@ -13,7 +13,7 @@ The battle flow is turn-based, so monster chase / field AI is outside this syste
 
 ## Planned Files
 
-### `RootDesk/MyDesk/Flow/BattleFlowLogic.mlua`
+### `RootDesk/MyDesk/Logic/BattleFlowLogic.mlua`
 
 World-level battle entry point.
 

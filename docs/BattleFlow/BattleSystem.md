@@ -34,7 +34,7 @@ values.
 ## Battle Keys
 
 Battle system enum-like strings should be centralized in
-`RootDesk/MyDesk/Flow/BattleKeys.mlua`.
+`RootDesk/MyDesk/Logic/BattleKeys.mlua`.
 
 Use `_BattleKeys` instead of writing magic strings such as `"Damage"`,
 `"TotalAttack"`, or `"Enemy"` directly in battle scripts.
