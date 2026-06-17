@@ -1,10 +1,12 @@
-在同一個 battle session entity 上掛兩個 Component：
+Battle mode entry todo
 
-BattleSystem
-BattleQueue
-然後 refresh 產生 .codeblock。
-
-payload 的 actor entry 可加 speed 欄位測試排序，例如：
-
-{ actorId = "Player01", actorType = "Player", speed = 12 }
-{ actorId = "Slime01", actorType = "Monster", speed = 5 }
+1. BattleFlowLogic should be the server-side entry for starting battle mode.
+2. Read save/cache data from existing domain logic only: PartyLogic, InventoryLogic, SkillLogic, MissionLogic, PlayerDataLogic.
+3. Do not let BattleSystem read DataStorage, configs, or permanent save data directly.
+4. BattleFlowLogic should assemble one battle payload before calling BattleSystem:StartBattle(payload).
+5. Payload should include battleId, encounterKey, rewardKey, playerUserId, sponsorEntityId, playerParty, enemyParty, and optional scene/map keys.
+6. BattleSystem should own runtime battle state only: actors, queue, phase, current turn, result calculation handoff.
+7. BattleSystem should report battle end back to BattleFlowLogic, not directly write save data or route scenes.
+8. Entering battle mode should notify the target client through a Client RPC such as EnterBattleClient(battleId).
+9. EnterBattleClient should handle client-only presentation state: close/open UI, disable player control, stop movement, and adjust camera.
+10. Exiting battle mode should notify the target client through a Client RPC such as ExitBattleClient(result), then restore UI, player control, camera, and normal scene state.

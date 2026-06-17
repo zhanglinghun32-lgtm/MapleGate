@@ -75,6 +75,7 @@ Examples:
 - Validate that the sponsor can act and the target is valid.
 - Ask `BattleCalculator` to calculate action results.
 - Apply action results through `BattleActorComponent` interfaces.
+- Send battle presentation RPC directly to `BattleClientLogic`.
 - Remove dead actors from the active turn queue.
 - Check victory, defeat, escape, and cancel conditions.
 - Report battle result back to `BattleFlowLogic`.
@@ -87,6 +88,7 @@ Examples:
 - Do not bind battle UI buttons.
 - Do not own field monster movement or chase AI.
 - Do not directly mutate actor resources without `BattleActorComponent`.
+- Do not route every battle event through `BattleFlowLogic`.
 
 ## Action Flow
 
@@ -97,11 +99,44 @@ RequestAction(sponsorId, actionKey, targetIds)
   -> validate sponsor and targets exist
   -> ask BattleCalculator for result
   -> apply result entries through BattleActorComponent
+  -> send action / damage / movement presentation RPC to BattleClientLogic
   -> process deaths
   -> remove dead actors from turnQueue
   -> check battle end
   -> advance turn
 ```
+
+## Client Presentation RPC
+
+`BattleSystem` owns the active battle events, so it is also the owner of battle
+presentation RPC.
+
+Examples:
+
+```text
+BattleStartedClient(battleId, snapshot)
+TurnStartedClient(battleId, actorId)
+ActorMovedClient(battleId, actorId, x, y)
+ActorDamagedClient(battleId, actorId, damage, hpAfter)
+ActionResolvedClient(battleId, actionResult)
+BattleEndedClient(battleId, result)
+```
+
+These methods should use `@ExecSpace("Client")` and call `_BattleClientLogic`
+on the target client.
+
+Targeting rule:
+
+```lua
+self:ActorDamagedClient(battleId, actorId, damage, hpAfter, playerUserId)
+```
+
+The final `playerUserId` is the RPC target at the call site. It is not declared
+in the client RPC method signature.
+
+`BattleFlowLogic` remains the entry and finalization layer. It should receive
+the final battle result for rewards, save updates, mission progress, and scene
+flow, but it should not relay every turn/action presentation event.
 
 ## BattleCalculator Input
 

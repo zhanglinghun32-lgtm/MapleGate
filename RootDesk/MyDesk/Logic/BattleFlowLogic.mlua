@@ -1,0 +1,122 @@
+@Logic
+script BattleFlowLogic extends Logic
+
+    -- Server-side battle orchestration boundary.
+    -- It prepares or receives payloads, starts BattleSystem, and notifies BattleClientLogic by Client RPC.
+
+    @ExecSpace("ServerOnly")
+    method boolean StartBattle(table payload, Entity battleEntity)
+        -- Starts a prepared BattleSystem session and then enters battle mode on the owning client.
+        if payload == nil then
+            log_warning("[BattleFlowLogic] StartBattle failed: payload is nil.")
+            return false
+        end
+
+        if isvalid(battleEntity) == false then
+            log_warning("[BattleFlowLogic] StartBattle failed: battleEntity is invalid.")
+            return false
+        end
+
+        ---@type BattleSystem
+        local battleSystem = battleEntity:GetComponent("script.BattleSystem")
+        if battleSystem == nil then
+            log_warning("[BattleFlowLogic] StartBattle failed: BattleSystem component missing.")
+            return false
+        end
+
+        local battleId = _DataUtil:GetTableString(payload, "battleId", "")
+        local playerUserId = _DataUtil:GetTableString(payload, "playerUserId", "")
+
+        if battleId == "" then
+            log_warning("[BattleFlowLogic] StartBattle failed: battleId is empty.")
+            return false
+        end
+
+        if playerUserId == "" then
+            log_warning("[BattleFlowLogic] StartBattle failed: playerUserId is empty. battleId=" .. battleId)
+            return false
+        end
+
+        local started = battleSystem:StartBattle(payload)
+        if started == false then
+            log_warning("[BattleFlowLogic] StartBattle failed inside BattleSystem. battleId=" .. battleId)
+            return false
+        end
+
+        self:NotifyBattleEntered(playerUserId, battleId)
+        log("[BattleFlowLogic] StartBattle battleId=" .. battleId .. ", userId=" .. playerUserId)
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method void HandleBattleFinished(string playerUserId, string battleId, string result)
+        -- Receives battle completion from BattleSystem and exits battle mode on the owning client.
+        if playerUserId == nil or playerUserId == "" then
+            log_warning("[BattleFlowLogic] HandleBattleFinished ignored: playerUserId is empty. battleId=" .. tostring(battleId))
+            return
+        end
+
+        if battleId == nil or battleId == "" then
+            log_warning("[BattleFlowLogic] HandleBattleFinished ignored: battleId is empty. userId=" .. playerUserId)
+            return
+        end
+
+        if result == nil or result == "" then
+            result = _BattleKeys.resultCancel
+        end
+
+        self:NotifyBattleExited(playerUserId, battleId, result)
+        log("[BattleFlowLogic] HandleBattleFinished battleId=" .. battleId .. ", result=" .. result .. ", userId=" .. playerUserId)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void NotifyBattleEntered(string playerUserId, string battleId)
+        -- Sends the client-only enter-battle presentation command to one user.
+        if playerUserId == nil or playerUserId == "" then
+            log_warning("[BattleFlowLogic] NotifyBattleEntered ignored: playerUserId is empty.")
+            return
+        end
+
+        if battleId == nil or battleId == "" then
+            log_warning("[BattleFlowLogic] NotifyBattleEntered ignored: battleId is empty. userId=" .. playerUserId)
+            return
+        end
+
+        self:EnterBattleClient(battleId, playerUserId)
+        log("[BattleFlowLogic] NotifyBattleEntered battleId=" .. battleId .. ", userId=" .. playerUserId)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void NotifyBattleExited(string playerUserId, string battleId, string result)
+        -- Sends the client-only exit-battle presentation command to one user.
+        if playerUserId == nil or playerUserId == "" then
+            log_warning("[BattleFlowLogic] NotifyBattleExited ignored: playerUserId is empty.")
+            return
+        end
+
+        if battleId == nil or battleId == "" then
+            log_warning("[BattleFlowLogic] NotifyBattleExited ignored: battleId is empty. userId=" .. playerUserId)
+            return
+        end
+
+        if result == nil or result == "" then
+            result = _BattleKeys.resultCancel
+        end
+
+        self:ExitBattleClient(battleId, result, playerUserId)
+        log("[BattleFlowLogic] NotifyBattleExited battleId=" .. battleId .. ", result=" .. result .. ", userId=" .. playerUserId)
+    end
+
+    @ExecSpace("Client")
+    method void EnterBattleClient(string battleId)
+        -- Client RPC wrapper; BattleClientLogic owns actual UI, control, and camera changes.
+        _BattleClientLogic:EnterBattle(battleId)
+    end
+
+    @ExecSpace("Client")
+    method void ExitBattleClient(string battleId, string result)
+        -- Client RPC wrapper; BattleClientLogic owns actual UI, control, and camera restoration.
+        _BattleClientLogic:ExitBattle(battleId, result)
+    end
+
+end

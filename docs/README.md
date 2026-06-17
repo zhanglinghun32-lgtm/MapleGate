@@ -17,8 +17,8 @@ Read **`ScriptRules.md`** first. It defines:
 | Path | Topic |
 |------|-------|
 | [ScriptRules.md](ScriptRules.md) | Architecture, folders, naming, responsibilities |
-| [BattleFlow/BattleFlow.md](BattleFlow/BattleFlow.md) | Turn-based battle entry (`BattleFlowLogic`) |
-| [BattleFlow/BattleSystem.md](BattleFlow/BattleSystem.md) | Battle session component (`BattleSystemComponent`) |
+| [BattleFlow/BattleFlowLogic.md](BattleFlow/BattleFlowLogic.md) | Battle entry and finalization (`BattleFlowLogic`) |
+| [BattleFlow/BattleSystem.md](BattleFlow/BattleSystem.md) | Server-authoritative battle session (`BattleSystem`) |
 | [Actor/BattleActorComponent.md](Actor/BattleActorComponent.md) | Per-actor HP / MP / stats authority |
 
 ## Adding A New System

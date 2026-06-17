@@ -1,0 +1,197 @@
+@Logic
+script BattleClientLogic extends Logic
+
+    -- Client-side shell for battle mode presentation: UI, local control lock, and camera.
+
+    property string currentBattleId = ""
+    property boolean isInBattle = false
+    property boolean previousControllerEnabled = true
+    property boolean hasPreviousControllerState = false
+    property string previousUIKey = ""
+    property boolean hasPreviousUIState = false
+    property number previousZoomRatio = 100
+    property boolean hasPreviousZoomRatio = false
+    property number battleZoomRatio = 120
+    property number cameraTransitionDuration = 0.2
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        -- Initializes the client battle shell for this local player.
+        log("[BattleClientLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnEndPlay()
+        -- Restores local presentation state if play ends while battle mode is active.
+        if self.isInBattle == true then
+            self:ExitBattle(self.currentBattleId, _BattleKeys.resultCancel)
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void EnterBattle(string battleId)
+        -- Applies client-only battle mode state after the server starts a battle session.
+        if battleId == nil or battleId == "" then
+            log_warning("[BattleClientLogic] EnterBattle ignored: battleId is empty.")
+            return
+        end
+
+        if self.isInBattle == true and self.currentBattleId == battleId then
+            log("[BattleClientLogic] EnterBattle skipped duplicate. battleId=" .. battleId)
+            return
+        end
+
+        if self.isInBattle == true then
+            self:ExitBattle(self.currentBattleId, _BattleKeys.resultCancel)
+        end
+
+        self.currentBattleId = battleId
+        self.isInBattle = true
+
+        self:CapturePreviousUIState()
+        _UIManagerLogic:CloseCurrentUI()
+        _UIManagerLogic:OpenBattleUI()
+        self:DisablePlayerControl()
+        self:ApplyBattleCamera()
+
+        log("[BattleClientLogic] EnterBattle battleId=" .. battleId)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ExitBattle(string battleId, string result)
+        -- Restores client-only state after the server finishes a battle session.
+        if self.isInBattle == false then
+            log("[BattleClientLogic] ExitBattle skipped: not in battle. battleId=" .. tostring(battleId))
+            return
+        end
+
+        if battleId ~= nil and battleId ~= "" and self.currentBattleId ~= "" and battleId ~= self.currentBattleId then
+            log_warning("[BattleClientLogic] ExitBattle ignored: battleId mismatch. current=" .. self.currentBattleId .. ", requested=" .. battleId)
+            return
+        end
+
+        _UIManagerLogic:CloseBattleUI()
+        self:RestorePreviousUIState()
+        self:RestorePlayerControl()
+        self:RestoreBattleCamera()
+
+        log("[BattleClientLogic] ExitBattle battleId=" .. self.currentBattleId .. ", result=" .. tostring(result))
+
+        self.currentBattleId = ""
+        self.isInBattle = false
+        self.previousUIKey = ""
+        self.hasPreviousUIState = false
+    end
+
+    @ExecSpace("ClientOnly")
+    method void CapturePreviousUIState()
+        -- Stores the UI key that was open before battle mode took over the screen.
+        self.previousUIKey = ""
+        self.hasPreviousUIState = false
+
+        if _UIManagerLogic.currentUIKey == nil or _UIManagerLogic.currentUIKey == "" then
+            return
+        end
+
+        if _UIManagerLogic.currentUIKey == _UIManagerLogic.battleUIKey then
+            return
+        end
+
+        self.previousUIKey = _UIManagerLogic.currentUIKey
+        self.hasPreviousUIState = true
+        log("[BattleClientLogic] CapturePreviousUIState key=" .. self.previousUIKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RestorePreviousUIState()
+        -- Reopens the UI that was active before battle mode when one was captured.
+        if self.hasPreviousUIState == false or self.previousUIKey == "" then
+            return
+        end
+
+        _UIManagerLogic:OpenUI(self.previousUIKey)
+        log("[BattleClientLogic] RestorePreviousUIState key=" .. self.previousUIKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void DisablePlayerControl()
+        -- Disables local player input and stops residual movement.
+        local player = self:GetLocalPlayer()
+        if isvalid(player) == false then
+            log_warning("[BattleClientLogic] DisablePlayerControl failed: LocalPlayer missing.")
+            return
+        end
+
+        local controller = player.PlayerControllerComponent
+        if controller ~= nil then
+            self.previousControllerEnabled = controller.Enable
+            self.hasPreviousControllerState = true
+            controller.Enable = false
+        end
+
+        local movement = player.MovementComponent
+        if movement ~= nil then
+            movement:Stop()
+        end
+
+        log("[BattleClientLogic] DisablePlayerControl done.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RestorePlayerControl()
+        -- Restores local player input state captured before battle mode.
+        local player = self:GetLocalPlayer()
+        if isvalid(player) == false then
+            log_warning("[BattleClientLogic] RestorePlayerControl failed: LocalPlayer missing.")
+            self.hasPreviousControllerState = false
+            return
+        end
+
+        local controller = player.PlayerControllerComponent
+        if controller ~= nil then
+            if self.hasPreviousControllerState == true then
+                controller.Enable = self.previousControllerEnabled
+            else
+                controller.Enable = true
+            end
+        end
+
+        self.hasPreviousControllerState = false
+        log("[BattleClientLogic] RestorePlayerControl done.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ApplyBattleCamera()
+        -- Stores current zoom and applies a battle-focused zoom.
+        local currentCamera = _CameraService:GetCurrentCameraComponent()
+        if currentCamera ~= nil then
+            self.previousZoomRatio = currentCamera.ZoomRatio
+            self.hasPreviousZoomRatio = true
+        else
+            self.hasPreviousZoomRatio = false
+        end
+
+        _CameraService:ZoomTo(self.battleZoomRatio, self.cameraTransitionDuration)
+        log("[BattleClientLogic] ApplyBattleCamera zoom=" .. tostring(self.battleZoomRatio))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RestoreBattleCamera()
+        -- Restores the zoom that was active before battle mode.
+        if self.hasPreviousZoomRatio == true then
+            _CameraService:ZoomTo(self.previousZoomRatio, self.cameraTransitionDuration)
+        else
+            _CameraService:ZoomReset()
+        end
+
+        self.hasPreviousZoomRatio = false
+        log("[BattleClientLogic] RestoreBattleCamera done.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method Entity GetLocalPlayer()
+        -- Returns the local player entity for client-only presentation changes.
+        return _UserService.LocalPlayer
+    end
+
+end

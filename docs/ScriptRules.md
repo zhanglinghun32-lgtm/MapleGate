@@ -20,9 +20,9 @@ doc before implementation starts.
 Example (battle):
 
 ```text
-docs/BattleFlow/BattleFlow.md
+docs/BattleFlow/BattleFlowLogic.md
   -> encounterConfig.csv (planned)
-  -> Logic/BattleFlowLogic.mlua (planned)
+  -> Logic/BattleFlowLogic.mlua
   -> Battle/BattleSystem.mlua, Battle/BattleSkill.mlua (planned)
   -> ui/BattleUI.ui + UI bindings (existing)
 ```
@@ -186,6 +186,6 @@ Current scene keys:
 
 ## Related Docs
 
-- `docs/BattleFlow/BattleFlow.md` — battle entry flow design
+- `docs/BattleFlow/BattleFlowLogic.md` — battle entry and finalization design
 - `docs/BattleFlow/BattleSystem.md` — battle session component design
 - `docs/Actor/BattleActorComponent.md` — per-actor battle state design

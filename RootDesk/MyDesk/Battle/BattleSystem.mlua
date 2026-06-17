@@ -464,6 +464,7 @@ script BattleSystem extends Component
     method void ReportBattleResultToFlow()
         -- BattleFlowLogic will own rewards and scene flow after this callback exists.
         log("[BattleSystem] ReportBattleResult battleId=" .. self.battleId .. ", result=" .. tostring(self.battleResult) .. ", encounter=" .. self.encounterKey)
+        _BattleFlowLogic:HandleBattleFinished(self.playerUserId, self.battleId, self.battleResult)
     end
 
     @ExecSpace("ServerOnly")
