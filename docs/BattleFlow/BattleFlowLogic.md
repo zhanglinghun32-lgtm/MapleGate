@@ -118,14 +118,15 @@ Expected first-pass flow:
 4. BattleFlowLogic builds the battle start payload.
 5. BattleFlowLogic spawns or finds BattleSystem.model.
 6. BattleFlowLogic calls BattleSystem:StartBattle(payload).
-7. BattleSystem initializes the server battle session.
-8. BattleSystem sends battle-start client RPC directly to BattleClientLogic.
-9. BattleSystem owns turn order and action resolution.
-10. BattleSystem sends turn/action/damage/movement client RPC directly to BattleClientLogic.
-11. BattleSystem detects battle end.
-12. BattleSystem sends battle-ended client RPC directly to BattleClientLogic.
-13. BattleSystem reports the final result to BattleFlowLogic.
-14. BattleFlowLogic applies rewards, save changes, mission progress, and scene flow.
+7. BattleSystem initializes the server battle session and writes @Sync battlePhase / currentActorId.
+8. BattleFlowLogic sends EnterBattleClient(battleId, battleEntity, userId) — Client RPC shell only.
+9. BattleClientLogic opens BattleUI via UIManagerLogic and attaches BattleUIComponent to battleEntity.
+10. BattleUIComponent reads @Sync through BattleSystem replication (forwarded via OnSyncProperty).
+11. BattleUIComponent sends player actions through BattleSystem:RequestAction (Client->Server RPC).
+12. BattleSystem owns turn order and action resolution.
+13. BattleSystem detects battle end and reports to BattleFlowLogic.
+14. BattleFlowLogic sends ExitBattleClient(battleId, result, userId).
+15. BattleFlowLogic applies rewards, save changes, mission progress, and scene flow.
 ```
 
 Recommended ownership diagram:
@@ -133,29 +134,43 @@ Recommended ownership diagram:
 ```text
 BattleFlowLogic
   -> BattleSystem:StartBattle(payload)
+  -> BattleClientLogic:EnterBattleClient / ExitBattleClient (UI shell RPC)
 
 BattleSystem
-  -> BattleClientLogic through @ExecSpace("Client") RPC
+  -> @Sync battlePhase / currentActorId (display state)
   -> BattleFlowLogic:HandleBattleFinished(...)
+  -> (future) turn/action presentation RPC to BattleClientLogic
 
 BattleClientLogic
-  -> UI / camera / player-control / animation presentation only
+  -> UIManagerLogic Open/Close BattleUI
+  -> BattleUIComponent Attach/Detach session
+
+BattleUIComponent
+  -> reads @Sync via BattleSystem + RequestAction Server RPC
 ```
+
+See also `docs/BattleFlow/BattleUIComponent.md` for the UI + Sync + input split.
 
 ## Client RPC Direction
 
-Battle presentation events should be emitted by `BattleSystem`, because
-`BattleSystem` owns the battle events that need presentation.
+Battle **shell** events (open/close UI, control lock, camera) are emitted by
+`BattleFlowLogic` after the server session starts or finishes.
 
-Example RPC categories:
+Battle **display state** during combat (`battlePhase`, `currentActorId`) uses
+`@Sync` on `BattleSystem`. The HUD reads sync through `BattleUIComponent`; do not
+use `@Sync` to open `BattleUI`.
+
+Future **presentation** events (damage float, movement tween) can still be emitted
+by `BattleSystem` through `@ExecSpace("Client")` RPC when one-shot animation
+commands are needed beyond replicated state.
+
+Example future RPC categories:
 
 ```text
-BattleStartedClient(battleId, snapshot)
 TurnStartedClient(battleId, actorId)
 ActorMovedClient(battleId, actorId, x, y)
 ActorDamagedClient(battleId, actorId, damage, hpAfter)
 ActionResolvedClient(battleId, actionResult)
-BattleEndedClient(battleId, result)
 ```
 
 These methods should be declared on `BattleSystem` with
@@ -172,7 +187,7 @@ self:ActorDamagedClient(battleId, actorId, damage, hpAfter, playerUserId)
 not declared in the RPC method signature.
 
 `BattleFlowLogic` should not be used as a relay for every turn/action event.
-Keep it focused on entry and finalization.
+Keep it focused on entry, UI shell, and finalization.
 
 ## Battle Start Payload
 
@@ -309,6 +324,7 @@ directly.
 - Should battle happen in the same map, or transition to a battle scene?
 - Where should `BattleSystem.model` be spawned when battle happens in a separate battle scene?
 - Should `BattleSystem` send all presentation events as immediate RPC, or should some public state also use `@Sync`?
+  - **Current answer:** `@Sync` for `battlePhase` and `currentActorId`; Client RPC for UI shell open/close; future RPC for one-shot animations.
 - How much of action result presentation should be payload-driven versus inferred by `BattleClientLogic`?
 - Should action resolution use MSW `AttackComponent` / `HitComponent`, or a pure turn-based calculation layer first?
 

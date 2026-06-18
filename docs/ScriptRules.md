@@ -188,4 +188,5 @@ Current scene keys:
 
 - `docs/BattleFlow/BattleFlowLogic.md` — battle entry and finalization design
 - `docs/BattleFlow/BattleSystem.md` — battle session component design
+- `docs/BattleFlow/BattleUIComponent.md` — battle HUD sync and input
 - `docs/Actor/BattleActorComponent.md` — per-actor battle state design

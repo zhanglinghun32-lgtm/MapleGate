@@ -3,14 +3,17 @@ script BattleSystem extends Component
 
     -- Owns one turn-based battle session after BattleFlowLogic calls StartBattle(payload).
     -- Does not load encounter Config, bind UI buttons, or decide post-battle scene flow.
+    --
+    -- @Sync battlePhase / currentActorId: server writes; client copies replicate for UI display.
+    -- UI open/close stays on BattleFlowLogic Client RPC — do not use @Sync to open BattleUI.
 
-    property string battlePhase = "None"
+    @Sync property string battlePhase = "None"
     property string battleId = ""
     property string encounterKey = ""
     property string rewardKey = ""
     property string playerUserId = ""
     property string sponsorEntityId = ""
-    property string currentActorId = ""
+    @Sync property string currentActorId = ""
     property string battleResult = ""
     property boolean isActive = false
 
@@ -31,6 +34,17 @@ script BattleSystem extends Component
         -- Clears session-owned tables when the battle entity is removed.
         self:ResetSession()
         log("[BattleSystem] OnEndPlay.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnSyncProperty(string name, any value)
+        -- Fires on the client when server-updated @Sync fields replicate.
+        -- BattleUIComponent lives on the UI entity, so forward sync here instead of opening UI from Sync.
+        if name ~= "battlePhase" and name ~= "currentActorId" then
+            return
+        end
+
+        _BattleClientLogic:DispatchBattleSyncToUI(self.Entity, name, value)
     end
 
     @ExecSpace("ServerOnly")

@@ -2,9 +2,11 @@
 script BattleClientLogic extends Logic
 
     -- Client-side shell for battle mode presentation: UI, local control lock, and camera.
+    -- Stores the server-spawned battleEntity so BattleUIComponent can read @Sync on BattleSystem.
 
     property string currentBattleId = ""
     property boolean isInBattle = false
+    property Entity battleEntity = nil
     property boolean previousControllerEnabled = true
     property boolean hasPreviousControllerState = false
     property string previousUIKey = ""
@@ -29,10 +31,16 @@ script BattleClientLogic extends Logic
     end
 
     @ExecSpace("ClientOnly")
-    method void EnterBattle(string battleId)
+    method void EnterBattle(string battleId, Entity battleEntity)
         -- Applies client-only battle mode state after the server starts a battle session.
+        -- battleEntity must be server-spawned; the client never spawns the battle session entity.
         if battleId == nil or battleId == "" then
             log_warning("[BattleClientLogic] EnterBattle ignored: battleId is empty.")
+            return
+        end
+
+        if isvalid(battleEntity) == false then
+            log_warning("[BattleClientLogic] EnterBattle ignored: battleEntity is invalid. battleId=" .. battleId)
             return
         end
 
@@ -46,11 +54,13 @@ script BattleClientLogic extends Logic
         end
 
         self.currentBattleId = battleId
+        self.battleEntity = battleEntity
         self.isInBattle = true
 
         self:CapturePreviousUIState()
         _UIManagerLogic:CloseCurrentUI()
         _UIManagerLogic:OpenBattleUI()
+        self:AttachBattleUI(battleEntity)
         self:DisablePlayerControl()
         self:ApplyBattleCamera()
 
@@ -71,6 +81,7 @@ script BattleClientLogic extends Logic
         end
 
         _UIManagerLogic:CloseBattleUI()
+        self:DetachBattleUI()
         self:RestorePreviousUIState()
         self:RestorePlayerControl()
         self:RestoreBattleCamera()
@@ -78,6 +89,7 @@ script BattleClientLogic extends Logic
         log("[BattleClientLogic] ExitBattle battleId=" .. self.currentBattleId .. ", result=" .. tostring(result))
 
         self.currentBattleId = ""
+        self.battleEntity = nil
         self.isInBattle = false
         self.previousUIKey = ""
         self.hasPreviousUIState = false
@@ -186,6 +198,61 @@ script BattleClientLogic extends Logic
 
         self.hasPreviousZoomRatio = false
         log("[BattleClientLogic] RestoreBattleCamera done.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void AttachBattleUI(Entity battleEntity)
+        -- Gives BattleUIComponent the server-spawned battle entity so it can read synced BattleSystem state.
+        local battleUI = self:GetBattleUIComponent()
+        if battleUI == nil then
+            log_warning("[BattleClientLogic] AttachBattleUI failed: BattleUIComponent missing.")
+            return
+        end
+
+        battleUI:AttachBattleSession(battleEntity)
+        log("[BattleClientLogic] AttachBattleUI battleId=" .. self.currentBattleId)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void DetachBattleUI()
+        -- Clears BattleUIComponent session binding when battle mode ends.
+        local battleUI = self:GetBattleUIComponent()
+        if battleUI == nil then
+            return
+        end
+
+        battleUI:DetachBattleSession()
+        log("[BattleClientLogic] DetachBattleUI.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void DispatchBattleSyncToUI(Entity battleEntity, string propertyName, any value)
+        -- Forwards BattleSystem @Sync updates to BattleUIComponent.OnSyncProperty.
+        if self.isInBattle == false then
+            return
+        end
+
+        if isvalid(self.battleEntity) == false or self.battleEntity ~= battleEntity then
+            return
+        end
+
+        local battleUI = self:GetBattleUIComponent()
+        if battleUI == nil then
+            return
+        end
+
+        battleUI:OnSyncProperty(propertyName, value)
+    end
+
+    @ExecSpace("ClientOnly")
+    method any GetBattleUIComponent()
+        -- Resolves the BattleUI root component from UIManagerLogic.
+        local battleUIEntity = _UIManagerLogic:GetUIEntity(_UIManagerLogic.battleUIKey)
+        if isvalid(battleUIEntity) == false then
+            return nil
+        end
+
+        return battleUIEntity:GetComponent("script.BattleUIComponent")
     end
 
     @ExecSpace("ClientOnly")

@@ -106,6 +106,26 @@ RequestAction(sponsorId, actionKey, targetIds)
   -> advance turn
 ```
 
+## Synced Display State
+
+`BattleSystem` exposes server-authoritative display fields to clients:
+
+| Property | Purpose |
+|----------|---------|
+| `@Sync battlePhase` | Turn phase for enabling HUD input |
+| `@Sync currentActorId` | Current turn actor id |
+
+Server-only fields such as `battleId`, `playerUserId`, and `isActive` stay
+non-synced unless a future HUD requirement needs them.
+
+Do **not** use `@Sync` to open `BattleUI`. UI shell open/close stays on
+`BattleFlowLogic` Client RPC -> `BattleClientLogic` -> `UIManagerLogic`.
+
+On the client, `BattleSystem:OnSyncProperty` forwards phase/actor updates to
+`BattleUIComponent` through `BattleClientLogic`.
+
+See `docs/BattleFlow/BattleUIComponent.md`.
+
 ## Client Presentation RPC
 
 `BattleSystem` owns the active battle events, so it is also the owner of battle

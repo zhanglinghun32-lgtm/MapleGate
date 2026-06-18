@@ -1,0 +1,171 @@
+@Component
+@ExecSpace("ClientOnly")
+script BattleUIComponent extends Component
+
+    -- Client-only battle HUD controller bound on ui/BattleUI.ui root.
+    -- Reads @Sync state from the server-spawned BattleSystem entity; sends player input via Server RPC.
+    -- Does not open/close the UI shell — BattleClientLogic + UIManagerLogic own that.
+
+    property string defaultActionKey = "NormalAttack"
+    property boolean inputEnabled = false
+    property string syncedBattlePhase = "None"
+    property string syncedCurrentActorId = ""
+
+    property Entity battleEntity = nil
+    property any battleSystem = nil
+
+    property ButtonComponent skillSlot01Button = "584e30fa-7f87-4cf5-9cf8-e90179b4bea2"
+
+    property any skillSlot01ClickHandler = nil
+
+    method void OnBeginPlay()
+        -- Binds skill slot buttons; session attach happens when battle mode opens.
+        log("[BattleUIComponent] OnBeginPlay.")
+        self:BindButtons()
+    end
+
+    method void OnEndPlay()
+        -- Releases handlers owned by this UI component.
+        self:UnbindButtons()
+        self:DetachBattleSession()
+        log("[BattleUIComponent] OnEndPlay.")
+    end
+
+    method void AttachBattleSession(Entity battleEntity)
+        -- Stores the server-spawned battle entity and applies the current synced BattleSystem snapshot.
+        if isvalid(battleEntity) == false then
+            log_warning("[BattleUIComponent] AttachBattleSession ignored: battleEntity is invalid.")
+            return
+        end
+
+        self.battleEntity = battleEntity
+        self.battleSystem = battleEntity:GetComponent("script.BattleSystem")
+        if self.battleSystem == nil then
+            log_warning("[BattleUIComponent] AttachBattleSession failed: BattleSystem missing on battleEntity.")
+            self.battleEntity = nil
+            return
+        end
+
+        self:ApplyBattleSystemSnapshot()
+        log("[BattleUIComponent] AttachBattleSession battleId=" .. tostring(self.battleSystem.battleId))
+    end
+
+    method void DetachBattleSession()
+        -- Clears cached battle references when battle mode closes.
+        self.battleEntity = nil
+        self.battleSystem = nil
+        self.inputEnabled = false
+        self.syncedBattlePhase = _BattleKeys.phaseNone
+        self.syncedCurrentActorId = ""
+        self:RefreshSkillSlotInteractable()
+        log("[BattleUIComponent] DetachBattleSession.")
+    end
+
+    method void OnSyncProperty(string name, any value)
+        -- Handles battle display updates forwarded from BattleSystem @Sync replication.
+        -- MSW only auto-invokes OnSyncProperty on the component that owns the @Sync property,
+        -- so BattleSystem forwards phase/actor sync through BattleClientLogic to reach this UI script.
+        if name == "battlePhase" then
+            self.syncedBattlePhase = tostring(value)
+            self:RefreshInputState()
+            log("[BattleUIComponent] OnSyncProperty battlePhase=" .. self.syncedBattlePhase)
+            return
+        end
+
+        if name == "currentActorId" then
+            self.syncedCurrentActorId = tostring(value)
+            self:RefreshInputState()
+            log("[BattleUIComponent] OnSyncProperty currentActorId=" .. self.syncedCurrentActorId)
+            return
+        end
+    end
+
+    method void ApplyBattleSystemSnapshot()
+        -- Reads the latest replicated BattleSystem fields after attach or reconnect.
+        if self.battleSystem == nil then
+            return
+        end
+
+        self.syncedBattlePhase = tostring(self.battleSystem.battlePhase)
+        self.syncedCurrentActorId = tostring(self.battleSystem.currentActorId)
+        self:RefreshInputState()
+    end
+
+    method void RefreshInputState()
+        -- Enables skill input only while the server phase allows player action on the current actor.
+        local canInput = false
+        if self.battleSystem ~= nil and self.syncedBattlePhase == _BattleKeys.phaseAwaitingInput then
+            canInput = self.syncedCurrentActorId ~= ""
+        end
+
+        self.inputEnabled = canInput
+        self:RefreshSkillSlotInteractable()
+    end
+
+    method void RefreshSkillSlotInteractable()
+        -- Toggles the first skill slot button while server authority decides whether input is legal.
+        if self.skillSlot01Button == nil then
+            return
+        end
+
+        self.skillSlot01Button.Enable = self.inputEnabled
+    end
+
+    method void BindButtons()
+        -- Connects battle HUD buttons to local input handlers.
+        self:UnbindButtons()
+
+        if self.skillSlot01Button ~= nil then
+            self.skillSlot01ClickHandler = self.skillSlot01Button.Entity:ConnectEvent(ButtonClickEvent, self.OnSkillSlot01Clicked)
+        else
+            log_warning("[BattleUIComponent] skillSlot01Button is nil.")
+        end
+
+        log("[BattleUIComponent] BindButtons complete.")
+    end
+
+    method void UnbindButtons()
+        -- Disconnects previously connected button handlers.
+        if self.skillSlot01ClickHandler ~= nil and self.skillSlot01Button ~= nil then
+            self.skillSlot01Button.Entity:DisconnectEvent(ButtonClickEvent, self.skillSlot01ClickHandler)
+            self.skillSlot01ClickHandler = nil
+        end
+    end
+
+    method void RequestBattleAction(string actionKey, table targetIds)
+        -- Sends one player action to the authoritative BattleSystem on the server.
+        if self.inputEnabled == false then
+            log_warning("[BattleUIComponent] RequestBattleAction ignored: input disabled. phase=" .. self.syncedBattlePhase)
+            return
+        end
+
+        if self.battleSystem == nil then
+            log_warning("[BattleUIComponent] RequestBattleAction ignored: battleSystem is nil.")
+            return
+        end
+
+        if self.syncedCurrentActorId == "" then
+            log_warning("[BattleUIComponent] RequestBattleAction ignored: currentActorId is empty.")
+            return
+        end
+
+        if actionKey == nil or actionKey == "" then
+            log_warning("[BattleUIComponent] RequestBattleAction ignored: actionKey is empty.")
+            return
+        end
+
+        if targetIds == nil then
+            targetIds = {}
+        end
+
+        log("[BattleUIComponent] RequestBattleAction actor=" .. self.syncedCurrentActorId .. ", action=" .. actionKey)
+        self.battleSystem:RequestAction(self.syncedCurrentActorId, actionKey, targetIds)
+    end
+
+    method void OnSkillSlot01Clicked(ButtonClickEvent event)
+        -- First skill slot placeholder: sends the default action for the current turn actor.
+        log("[BattleUIComponent] OnSkillSlot01Clicked.")
+        self:RequestBattleAction(self.defaultActionKey, {})
+    end
+
+end

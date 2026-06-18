@@ -43,7 +43,9 @@ script BattleFlowLogic extends Logic
             return false
         end
 
-        self:NotifyBattleEntered(playerUserId, battleId)
+        -- Only notify the client after the server session is valid.
+        -- battleEntity crosses RPC so the client can read @Sync fields on BattleSystem.
+        self:NotifyBattleEntered(playerUserId, battleId, battleEntity)
         log("[BattleFlowLogic] StartBattle battleId=" .. battleId .. ", userId=" .. playerUserId)
         return true
     end
@@ -70,8 +72,9 @@ script BattleFlowLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
-    method void NotifyBattleEntered(string playerUserId, string battleId)
+    method void NotifyBattleEntered(string playerUserId, string battleId, Entity battleEntity)
         -- Sends the client-only enter-battle presentation command to one user.
+        -- UI open is a one-shot Client RPC command — not driven by @Sync.
         if playerUserId == nil or playerUserId == "" then
             log_warning("[BattleFlowLogic] NotifyBattleEntered ignored: playerUserId is empty.")
             return
@@ -82,7 +85,12 @@ script BattleFlowLogic extends Logic
             return
         end
 
-        self:EnterBattleClient(battleId, playerUserId)
+        if isvalid(battleEntity) == false then
+            log_warning("[BattleFlowLogic] NotifyBattleEntered ignored: battleEntity is invalid. battleId=" .. battleId)
+            return
+        end
+
+        self:EnterBattleClient(battleId, battleEntity, playerUserId)
         log("[BattleFlowLogic] NotifyBattleEntered battleId=" .. battleId .. ", userId=" .. playerUserId)
     end
 
@@ -108,9 +116,10 @@ script BattleFlowLogic extends Logic
     end
 
     @ExecSpace("Client")
-    method void EnterBattleClient(string battleId)
+    method void EnterBattleClient(string battleId, Entity battleEntity)
         -- Client RPC wrapper; BattleClientLogic owns actual UI, control, and camera changes.
-        _BattleClientLogic:EnterBattle(battleId)
+        -- playerUserId is supplied at the server call site as the RPC target, not in this signature.
+        _BattleClientLogic:EnterBattle(battleId, battleEntity)
     end
 
     @ExecSpace("Client")
