@@ -15,6 +15,9 @@ script BattleClientLogic extends Logic
     property boolean hasPreviousZoomRatio = false
     property number battleZoomRatio = 120
     property number cameraTransitionDuration = 0.2
+    property boolean isPlayingActionPresentation = false
+    property integer currentPresentationId = 0
+    property number defaultActionPresentationDuration = 0.5
 
     @ExecSpace("ClientOnly")
     method void OnBeginPlay()
@@ -93,6 +96,60 @@ script BattleClientLogic extends Logic
         self.isInBattle = false
         self.previousUIKey = ""
         self.hasPreviousUIState = false
+        self.isPlayingActionPresentation = false
+        self.currentPresentationId = 0
+    end
+
+    @ExecSpace("ClientOnly")
+    method void PlayActionPresentation(Entity battleEntity, string battleId, integer presentationId, string sponsorId, string actionKey, table targetIds)
+        -- Plays one server-resolved action and acknowledges only the latest valid presentation.
+        if self.isInBattle == false or battleId ~= self.currentBattleId then
+            log_warning("[BattleClientLogic] PlayActionPresentation ignored: battle mismatch.")
+            return
+        end
+
+        if presentationId <= 0 then
+            log_warning("[BattleClientLogic] PlayActionPresentation ignored: invalid presentationId.")
+            return
+        end
+
+        self.isPlayingActionPresentation = true
+        self.currentPresentationId = presentationId
+        self:OnActionPresentationStarted(sponsorId, actionKey, targetIds)
+
+        local duration = self:GetActionPresentationDuration(actionKey)
+        if duration > 0 then
+            wait(duration)
+        end
+
+        if self.isPlayingActionPresentation == false or self.currentPresentationId ~= presentationId then
+            return
+        end
+
+        self:OnActionPresentationFinished(sponsorId, actionKey, targetIds)
+        self.isPlayingActionPresentation = false
+        self.currentPresentationId = 0
+
+        local battleSystem = battleEntity:GetComponent("script.BattleSystem")
+        battleSystem:NotifyActionPresentationFinished(battleId, presentationId)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnActionPresentationStarted(string sponsorId, string actionKey, table targetIds)
+        -- Extension point for movement, skill animation, VFX, damage text, and camera work.
+        log("[BattleClientLogic] Action presentation started. sponsor=" .. sponsorId .. ", action=" .. actionKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnActionPresentationFinished(string sponsorId, string actionKey, table targetIds)
+        -- Extension point for restoring presentation state before acknowledging the server.
+        log("[BattleClientLogic] Action presentation finished. sponsor=" .. sponsorId .. ", action=" .. actionKey)
+    end
+
+    @ExecSpace("ClientOnly")
+    method number GetActionPresentationDuration(string actionKey)
+        -- Returns the placeholder duration until action-specific animation callbacks are implemented.
+        return self.defaultActionPresentationDuration
     end
 
     @ExecSpace("ClientOnly")

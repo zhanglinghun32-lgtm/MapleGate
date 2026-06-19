@@ -1,3 +1,7 @@
+    -- 捨棄 (legacy)
+	-- 理論上DTO不會是Component而是table
+	-- Table詳情看SkillLogic.mlua
+
 @Component
 script BattleSkill extends Component
 

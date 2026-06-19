@@ -139,7 +139,8 @@ BattleFlowLogic
 BattleSystem
   -> @Sync battlePhase / currentActorId (display state)
   -> BattleFlowLogic:HandleBattleFinished(...)
-  -> (future) turn/action presentation RPC to BattleClientLogic
+  -> action presentation RPC to BattleClientLogic
+  -> waits in PresentingAction for client acknowledgement or timeout
 
 BattleClientLogic
   -> UIManagerLogic Open/Close BattleUI
@@ -160,9 +161,10 @@ Battle **display state** during combat (`battlePhase`, `currentActorId`) uses
 `@Sync` on `BattleSystem`. The HUD reads sync through `BattleUIComponent`; do not
 use `@Sync` to open `BattleUI`.
 
-Future **presentation** events (damage float, movement tween) can still be emitted
-by `BattleSystem` through `@ExecSpace("Client")` RPC when one-shot animation
-commands are needed beyond replicated state.
+One-shot **presentation** events are emitted by `BattleSystem` through
+`@ExecSpace("Client")` RPC. Action resolution enters `PresentingAction`, and the
+server advances to `TurnEnd` only after `BattleClientLogic` acknowledges the
+matching presentation id or the server timeout expires.
 
 Example future RPC categories:
 
@@ -324,7 +326,7 @@ directly.
 - Should battle happen in the same map, or transition to a battle scene?
 - Where should `BattleSystem.model` be spawned when battle happens in a separate battle scene?
 - Should `BattleSystem` send all presentation events as immediate RPC, or should some public state also use `@Sync`?
-  - **Current answer:** `@Sync` for `battlePhase` and `currentActorId`; Client RPC for UI shell open/close; future RPC for one-shot animations.
+  - **Current answer:** `@Sync` for `battlePhase` and `currentActorId`; Client RPC for UI shell open/close and one-shot animations; client acknowledgement for action presentation completion.
 - How much of action result presentation should be payload-driven versus inferred by `BattleClientLogic`?
 - Should action resolution use MSW `AttackComponent` / `HitComponent`, or a pure turn-based calculation layer first?
 

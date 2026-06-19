@@ -55,11 +55,8 @@ script BattleKeys extends Logic
     property string phaseTurnStart = "TurnStart"
     property string phaseAwaitingInput = "AwaitingInput"
     property string phaseResolvingAction = "ResolvingAction"
+    property string phasePresentingAction = "PresentingAction" -- 演出階段，等待palyer ack回來
     property string phaseTurnEnd = "TurnEnd"
-    property string phaseVictory = "Victory"
-    property string phaseDefeat = "Defeat"
-    property string phaseEscaped = "Escaped"
-    property string phaseCleanup = "Cleanup"
     property string phaseEnded = "Ended"
 
     -- 單場戰鬥結束結果：BattleSystem 回報給 BattleFlowLogic 的分類。

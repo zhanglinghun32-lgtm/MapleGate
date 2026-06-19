@@ -76,6 +76,7 @@ Examples:
 - Ask `BattleCalculator` to calculate action results.
 - Apply action results through `BattleActorComponent` interfaces.
 - Send battle presentation RPC directly to `BattleClientLogic`.
+- Wait in `PresentingAction` until the client acknowledges the presentation or the server timeout expires.
 - Remove dead actors from the active turn queue.
 - Check victory, defeat, escape, and cancel conditions.
 - Report battle result back to `BattleFlowLogic`.
@@ -99,7 +100,10 @@ RequestAction(sponsorId, actionKey, targetIds)
   -> validate sponsor and targets exist
   -> ask BattleCalculator for result
   -> apply result entries through BattleActorComponent
-  -> send action / damage / movement presentation RPC to BattleClientLogic
+  -> transition to PresentingAction
+  -> send action presentation RPC to BattleClientLogic
+  -> wait for client acknowledgement (or server timeout fallback)
+  -> transition to TurnEnd
   -> process deaths
   -> remove dead actors from turnQueue
   -> check battle end
@@ -130,6 +134,21 @@ See `docs/BattleFlow/BattleUIComponent.md`.
 
 `BattleSystem` owns the active battle events, so it is also the owner of battle
 presentation RPC.
+
+The action flow uses a presentation sequence id so stale or duplicate client
+acknowledgements cannot advance a newer turn:
+
+```text
+ResolvingAction
+  -> PresentingAction
+  -> PlayActionPresentationClient(...)
+  -> BattleClientLogic:PlayActionPresentation(...)
+  -> NotifyActionPresentationFinished(battleId, presentationId)
+  -> TurnEnd
+```
+
+`presentationTimeoutSeconds` is a server-side fallback. It prevents a missing,
+disconnected, or failed client presentation from permanently locking the battle.
 
 Examples:
 

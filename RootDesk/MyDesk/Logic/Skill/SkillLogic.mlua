@@ -1,3 +1,9 @@
+    -- 這是Config(csv)載到script的第一個步驟
+	-- 在runtime中，server Client之間溝通會用table
+	-- 格式如下：
+	-- {
+		
+	-- }
 @Logic
 script SkillLogic extends Logic
 
@@ -73,19 +79,6 @@ script SkillLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
-    method boolean HasSkill(string userId, string skillKey)
-        -- Checks whether the user has a learned skill.
-        local skillData = self:ExportUserData(userId)
-        for _, skillEntry in ipairs(skillData.Learned) do
-            if skillEntry.SkillKey == skillKey then
-                return true
-            end
-        end
-
-        return false
-    end
-
-    @ExecSpace("ServerOnly")
     method boolean LearnSkill(string userId, string skillKey, integer level)
         -- Adds a skill if it is not learned yet.
         if self:HasSkill(userId, skillKey) == true then
@@ -112,5 +105,11 @@ script SkillLogic extends Logic
         _PlayerDataLogic:MarkDirty(userId)
         log("[SkillLogic] SetHotkey. userId=" .. userId .. ", slotKey=" .. slotKey .. ", skillKey=" .. skillKey)
     end
+
+    @ExecSpace("ServerOnly")
+	method boolean IsSkillReady(string actorId, string actionKey)
+		-- Todo
+		return true;
+	end
 
 end
