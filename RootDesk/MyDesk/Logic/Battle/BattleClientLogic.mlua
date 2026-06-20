@@ -18,6 +18,10 @@ script BattleClientLogic extends Logic
     property boolean isPlayingActionPresentation = false
     property integer currentPresentationId = 0
     property number defaultActionPresentationDuration = 0.5
+    property any battleViewState = nil
+    property integer battleStateRevision = 0
+    property any latestActionResultPayload = nil
+    property boolean needsBattleSnapshot = false
 
     @ExecSpace("ClientOnly")
     method void OnBeginPlay()
@@ -59,6 +63,7 @@ script BattleClientLogic extends Logic
         self.currentBattleId = battleId
         self.battleEntity = battleEntity
         self.isInBattle = true
+        self:ResetBattleViewState()
 
         self:CapturePreviousUIState()
         _UIManagerLogic:CloseCurrentUI()
@@ -98,10 +103,11 @@ script BattleClientLogic extends Logic
         self.hasPreviousUIState = false
         self.isPlayingActionPresentation = false
         self.currentPresentationId = 0
+        self:ResetBattleViewState()
     end
 
     @ExecSpace("ClientOnly")
-    method void PlayActionPresentation(Entity battleEntity, string battleId, integer presentationId, string sponsorId, string actionKey, table targetIds)
+    method void PlayActionPresentation(Entity battleEntity, string battleId, integer presentationId, string sponsorId, string actionKey, table targetIds, table actionResultPayload)
         -- Plays one server-resolved action and acknowledges only the latest valid presentation.
         if self.isInBattle == false or battleId ~= self.currentBattleId then
             log_warning("[BattleClientLogic] PlayActionPresentation ignored: battle mismatch.")
@@ -115,7 +121,8 @@ script BattleClientLogic extends Logic
 
         self.isPlayingActionPresentation = true
         self.currentPresentationId = presentationId
-        self:OnActionPresentationStarted(sponsorId, actionKey, targetIds)
+        self:ApplyActionResultPayload(battleId, actionResultPayload)
+        self:OnActionPresentationStarted(sponsorId, actionKey, targetIds, actionResultPayload)
 
         local duration = self:GetActionPresentationDuration(actionKey)
         if duration > 0 then
@@ -126,22 +133,31 @@ script BattleClientLogic extends Logic
             return
         end
 
-        self:OnActionPresentationFinished(sponsorId, actionKey, targetIds)
+        self:OnActionPresentationFinished(sponsorId, actionKey, targetIds, actionResultPayload)
         self.isPlayingActionPresentation = false
         self.currentPresentationId = 0
 
+        if isvalid(battleEntity) == false then
+            log_warning("[BattleClientLogic] Presentation acknowledgement failed: battleEntity invalid.")
+            return
+        end
+
         local battleSystem = battleEntity:GetComponent("script.BattleSystem")
+        if battleSystem == nil then
+            log_warning("[BattleClientLogic] Presentation acknowledgement failed: BattleSystem missing.")
+            return
+        end
         battleSystem:NotifyActionPresentationFinished(battleId, presentationId)
     end
 
     @ExecSpace("ClientOnly")
-    method void OnActionPresentationStarted(string sponsorId, string actionKey, table targetIds)
+    method void OnActionPresentationStarted(string sponsorId, string actionKey, table targetIds, table actionResultPayload)
         -- Extension point for movement, skill animation, VFX, damage text, and camera work.
         log("[BattleClientLogic] Action presentation started. sponsor=" .. sponsorId .. ", action=" .. actionKey)
     end
 
     @ExecSpace("ClientOnly")
-    method void OnActionPresentationFinished(string sponsorId, string actionKey, table targetIds)
+    method void OnActionPresentationFinished(string sponsorId, string actionKey, table targetIds, table actionResultPayload)
         -- Extension point for restoring presentation state before acknowledging the server.
         log("[BattleClientLogic] Action presentation finished. sponsor=" .. sponsorId .. ", action=" .. actionKey)
     end
@@ -150,6 +166,187 @@ script BattleClientLogic extends Logic
     method number GetActionPresentationDuration(string actionKey)
         -- Returns the placeholder duration until action-specific animation callbacks are implemented.
         return self.defaultActionPresentationDuration
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ResetBattleViewState()
+        -- Resets the client-owned display cache; it never acts as authoritative battle state.
+        self.battleViewState = {}
+        self.battleViewState.Actors = {}
+        self.battleViewState.Skills = {}
+        self.battleStateRevision = 0
+        self.latestActionResultPayload = nil
+        self.needsBattleSnapshot = false
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ApplyBattleSnapshot(string battleId, table snapshot)
+        -- Replaces the local display cache with a full server-provided snapshot.
+        if self.isInBattle == false or battleId ~= self.currentBattleId or snapshot == nil then
+            log_warning("[BattleClientLogic] ApplyBattleSnapshot ignored: invalid battle or snapshot.")
+            return
+        end
+
+        self.battleViewState = snapshot
+        if self.battleViewState.Actors == nil then
+            self.battleViewState.Actors = {}
+        end
+        if self.battleViewState.Skills == nil then
+            self.battleViewState.Skills = {}
+        end
+
+        self.battleStateRevision = tonumber(snapshot.Revision) or 0
+        self.needsBattleSnapshot = false
+        log("[BattleClientLogic] ApplyBattleSnapshot revision=" .. tostring(self.battleStateRevision))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ApplyActionResultPayload(string battleId, table actionResultPayload)
+        -- Applies one ordered batch of authoritative action changes to the client display cache.
+        if self.isInBattle == false or battleId ~= self.currentBattleId or actionResultPayload == nil then
+            log_warning("[BattleClientLogic] ApplyActionResultPayload ignored: invalid battle or payload.")
+            return
+        end
+
+        if self.battleViewState == nil then
+            self:ResetBattleViewState()
+        end
+
+        local revision = tonumber(actionResultPayload.Revision) or 0
+        if revision > 0 and revision <= self.battleStateRevision then
+            log_warning("[BattleClientLogic] Action result ignored: duplicate revision=" .. tostring(revision))
+            return
+        end
+
+        if revision > 0 and self.battleStateRevision > 0 and revision ~= self.battleStateRevision + 1 then
+            self.needsBattleSnapshot = true
+            log_warning("[BattleClientLogic] Action result ignored: revision gap. current=" .. tostring(self.battleStateRevision) .. ", received=" .. tostring(revision))
+            return
+        end
+
+        local changes = actionResultPayload.Changes
+        if changes == nil then
+            changes = {}
+        end
+
+        for _, change in ipairs(changes) do
+            self:ApplyBattleChange(change)
+        end
+
+        if revision > 0 then
+            self.battleStateRevision = revision
+        end
+        self.battleViewState.Revision = self.battleStateRevision
+        self.latestActionResultPayload = actionResultPayload
+
+        -- UI notification is intentionally deferred; BattleClientLogic owns the cache contract first.
+        log("[BattleClientLogic] ApplyActionResultPayload revision=" .. tostring(self.battleStateRevision) .. ", changeCount=" .. tostring(#changes))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ApplyBattleChange(table change)
+        -- Applies one normalized change entry to the local actor display state.
+        if change == nil then
+            return
+        end
+
+        local changeType = tostring(change.Type)
+        local actorId = tostring(change.ActorId)
+        if actorId == "" or actorId == "nil" then
+            return
+        end
+
+        local actorState = self:GetOrCreateActorView(actorId)
+        if changeType == "Damage" then
+            actorState.Hp = self:GetResultNumber(change.HpAfter, actorState.Hp - self:GetResultNumber(change.Value, 0))
+            return
+        end
+
+        if changeType == "Heal" then
+            actorState.Hp = self:GetResultNumber(change.HpAfter, actorState.Hp + self:GetResultNumber(change.Value, 0))
+            return
+        end
+
+        if changeType == "Resource" then
+            actorState.Mp = self:GetResultNumber(change.MpAfter, actorState.Mp)
+            return
+        end
+
+        if changeType == "BuffAdded" then
+            local buffKey = tostring(change.BuffKey)
+            if buffKey ~= "" and buffKey ~= "nil" then
+                actorState.Buffs[buffKey] = change.Buff
+            end
+            return
+        end
+
+        if changeType == "BuffRemoved" then
+            local buffKey = tostring(change.BuffKey)
+            if buffKey ~= "" and buffKey ~= "nil" then
+                actorState.Buffs[buffKey] = nil
+            end
+            return
+        end
+
+        if changeType == "Cooldown" then
+            local skillKey = tostring(change.SkillKey)
+            if skillKey ~= "" and skillKey ~= "nil" then
+                actorState.Cooldowns[skillKey] = self:GetResultNumber(change.RemainingTurns, 0)
+            end
+            return
+        end
+
+        if changeType == "Movement" then
+            actorState.Position = change.Position
+            return
+        end
+
+        if changeType == "Death" then
+            actorState.IsDead = true
+            actorState.Hp = self:GetResultNumber(change.HpAfter, 0)
+            return
+        end
+
+        if changeType == "Revive" then
+            actorState.IsDead = false
+            actorState.Hp = self:GetResultNumber(change.HpAfter, actorState.Hp)
+            return
+        end
+
+        if changeType == "ActorPatch" and change.Patch ~= nil then
+            for key, value in pairs(change.Patch) do
+                actorState[key] = value
+            end
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method table GetOrCreateActorView(string actorId)
+        -- Returns the mutable client display record for one actor.
+        if self.battleViewState.Actors[actorId] == nil then
+            self.battleViewState.Actors[actorId] = {}
+        end
+
+        local actorState = self.battleViewState.Actors[actorId]
+        actorState.Hp = self:GetResultNumber(actorState.Hp, 0)
+        actorState.Mp = self:GetResultNumber(actorState.Mp, 0)
+        if actorState.Buffs == nil then
+            actorState.Buffs = {}
+        end
+        if actorState.Cooldowns == nil then
+            actorState.Cooldowns = {}
+        end
+        return actorState
+    end
+
+    @ExecSpace("ClientOnly")
+    method number GetResultNumber(any value, number defaultValue)
+        -- Converts RPC table values while preserving a caller-provided fallback.
+        local converted = tonumber(value)
+        if converted == nil then
+            return defaultValue
+        end
+        return converted
     end
 
     @ExecSpace("ClientOnly")

@@ -1,0 +1,23 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "directory://5b38ff59b2834cb9be9c6c2b07f91a49",
+  "ContentType": "x-mod/directory",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "entry_id": "directory://5b38ff59b2834cb9be9c6c2b07f91a49",
+      "name": "Actor",
+      "lock": false,
+      "folding": false,
+      "nameEditable": true
+    }
+  }
+}

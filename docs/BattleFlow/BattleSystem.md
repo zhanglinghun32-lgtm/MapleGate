@@ -147,6 +147,12 @@ ResolvingAction
   -> TurnEnd
 ```
 
+`ResolveAction` returns one `actionResultPayload` for both client cache updates
+and presentation. Its contract is `{ Revision, Changes }`; `Changes` contains
+every authoritative mutation caused by the action (damage, healing, resources,
+buff add/remove, cooldown, movement, death, and other actor patches). Send this
+table once rather than emitting one RPC per changed field.
+
 `presentationTimeoutSeconds` is a server-side fallback. It prevents a missing,
 disconnected, or failed client presentation from permanently locking the battle.
 

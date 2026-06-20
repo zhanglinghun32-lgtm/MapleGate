@@ -1,20 +1,20 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "directory://1a987088dfea41eea3d0c4526177e18d",
+  "EntryKey": "directory://d98f94c88e124d91a280f39619b9a712",
   "ContentType": "x-mod/directory",
   "Content": "",
   "Usage": 0,
   "UsePublish": 1,
   "UseService": 0,
   "CoreVersion": "26.5.0.0",
-  "StudioVersion": "0.1.0.0",
+  "StudioVersion": "",
   "DynamicLoading": 0,
   "ContentProto": {
     "Use": "Json",
     "Json": {
-      "entry_id": "directory://1a987088dfea41eea3d0c4526177e18d",
-      "name": "Battle",
+      "entry_id": "directory://d98f94c88e124d91a280f39619b9a712",
+      "name": "Skill",
       "lock": false,
       "folding": false,
       "nameEditable": true

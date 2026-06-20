@@ -25,6 +25,7 @@ script BattleSystem extends Component
     property integer pendingPresentationId = 0
     property number presentationTimeoutRemaining = 0
     property number presentationTimeoutSeconds = 10
+    property integer battleStateRevision = 0
     
     method void OnBeginPlay()
         -- Caches the sibling BattleQueue component on the same battle session entity.
@@ -163,8 +164,8 @@ script BattleSystem extends Component
         log("[BattleSystem] RequestAction battleId=" .. self.battleId .. ", sponsor=" .. sponsorId .. ", action=" .. actionKey)
         
         self:TransitionTo(_BattleKeys.phaseResolvingAction)
-        self:ResolveAction(sponsorId, actionKey, targetIds)
-        self:BeginActionPresentation(sponsorId, actionKey, targetIds)
+        local actionResultPayload = self:ResolveAction(sponsorId, actionKey, targetIds)
+        self:BeginActionPresentation(sponsorId, actionKey, targetIds, actionResultPayload)
     end
     
     @ExecSpace("ServerOnly")
@@ -430,13 +431,22 @@ script BattleSystem extends Component
     end
     
     @ExecSpace("ServerOnly")
-    method void ResolveAction(string sponsorId, string actionKey, table targetIds)
-        -- Placeholder until BattleCalculator and BattleActorComponent exist.
+    method table ResolveAction(string sponsorId, string actionKey, table targetIds)
+        -- Returns every authoritative mutation in one RPC-safe table for client cache and presentation.
+        -- Payload contract: { Revision = integer, Changes = table }.
+        -- Changes must include all damage, healing, resource, buff, cooldown, movement, and death results.
+        self.battleStateRevision = self.battleStateRevision + 1
+        local actionResultPayload = {}
+        actionResultPayload.Revision = self.battleStateRevision
+        actionResultPayload.Changes = {}
+
+        -- TODO: BattleCalculator appends all resolved change entries to actionResultPayload.Changes.
         log("[BattleSystem] ResolveAction stub sponsor=" .. sponsorId .. ", action=" .. actionKey .. ", targetCount=" .. tostring(#targetIds))
+        return actionResultPayload
     end
 
     @ExecSpace("ServerOnly")
-    method void BeginActionPresentation(string sponsorId, string actionKey, table targetIds)
+    method void BeginActionPresentation(string sponsorId, string actionKey, table targetIds, table actionResultPayload)
         -- Opens a uniquely identified client presentation and pauses turn progression.
         self.presentationSequence = self.presentationSequence + 1
         self.pendingPresentationId = self.presentationSequence
@@ -455,14 +465,15 @@ script BattleSystem extends Component
             sponsorId,
             actionKey,
             targetIds,
+            actionResultPayload,
             self.playerUserId
         )
     end
 
     @ExecSpace("Client")
-    method void PlayActionPresentationClient(string battleId, integer presentationId, string sponsorId, string actionKey, table targetIds)
-        -- Delegates the server-resolved action presentation to the client presentation layer.
-        _BattleClientLogic:PlayActionPresentation(self.Entity, battleId, presentationId, sponsorId, actionKey, targetIds)
+    method void PlayActionPresentationClient(string battleId, integer presentationId, string sponsorId, string actionKey, table targetIds, table actionResultPayload)
+        -- Sends every resolved mutation as one table so the client can update its cache and play presentation.
+        _BattleClientLogic:PlayActionPresentation(self.Entity, battleId, presentationId, sponsorId, actionKey, targetIds, actionResultPayload)
     end
 
     @ExecSpace("Server")
@@ -611,6 +622,7 @@ script BattleSystem extends Component
         self.presentationSequence = 0
         self.pendingPresentationId = 0
         self.presentationTimeoutRemaining = 0
+        self.battleStateRevision = 0
         self:ResetBattleQueue()
     end
     

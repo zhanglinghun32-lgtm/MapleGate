@@ -1,20 +1,20 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "directory://7cee817473ac456cb6c067edb270aa99",
+  "EntryKey": "directory://81d4566ba8c14d16be81322db1f16eff",
   "ContentType": "x-mod/directory",
   "Content": "",
   "Usage": 0,
   "UsePublish": 1,
   "UseService": 0,
   "CoreVersion": "26.5.0.0",
-  "StudioVersion": "0.1.0.0",
+  "StudioVersion": "",
   "DynamicLoading": 0,
   "ContentProto": {
     "Use": "Json",
     "Json": {
-      "entry_id": "directory://7cee817473ac456cb6c067edb270aa99",
-      "name": "Party",
+      "entry_id": "directory://81d4566ba8c14d16be81322db1f16eff",
+      "name": "battle",
       "lock": false,
       "folding": false,
       "nameEditable": true

@@ -10,8 +10,8 @@ script BattleUIComponent extends Component
     property boolean inputEnabled = false
     property string syncedBattlePhase = "None"
     property string syncedCurrentActorId = ""
+	property table syncActorMap = {}
 
-    property Entity battleEntity = nil
     property any battleSystem = nil
 
     property ButtonComponent skillSlot01Button = "584e30fa-7f87-4cf5-9cf8-e90179b4bea2"
@@ -37,12 +37,9 @@ script BattleUIComponent extends Component
             log_warning("[BattleUIComponent] AttachBattleSession ignored: battleEntity is invalid.")
             return
         end
-
-        self.battleEntity = battleEntity
         self.battleSystem = battleEntity:GetComponent("script.BattleSystem")
         if self.battleSystem == nil then
             log_warning("[BattleUIComponent] AttachBattleSession failed: BattleSystem missing on battleEntity.")
-            self.battleEntity = nil
             return
         end
 
@@ -52,7 +49,6 @@ script BattleUIComponent extends Component
 
     method void DetachBattleSession()
         -- Clears cached battle references when battle mode closes.
-        self.battleEntity = nil
         self.battleSystem = nil
         self.inputEnabled = false
         self.syncedBattlePhase = _BattleKeys.phaseNone
@@ -82,12 +78,10 @@ script BattleUIComponent extends Component
 
     method void ApplyBattleSystemSnapshot()
         -- Reads the latest replicated BattleSystem fields after attach or reconnect.
-        if self.battleSystem == nil then
-            return
-        end
 
         self.syncedBattlePhase = tostring(self.battleSystem.battlePhase)
         self.syncedCurrentActorId = tostring(self.battleSystem.currentActorId)
+		self.syncActorMap = (self.battleSystem.actorMap)
         self:RefreshInputState()
     end
 

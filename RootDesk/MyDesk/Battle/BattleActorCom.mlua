@@ -1,0 +1,96 @@
+@Component
+script BattleActorCom extends Component
+
+    property string actorConfigTableName = "actorConfig"
+
+    @Sync property string configId = ""
+    @Sync property integer level = 1
+    @Sync property integer hp = 0
+    @Sync property integer maxHp = 0
+    @Sync property integer mp = 0
+    @Sync property integer maxMp = 0
+    @Sync property integer stamina = 0
+    @Sync property integer maxStamina = 0
+    @Sync property integer baseAttack = 0
+    @Sync property integer totalAttack = 0
+    @Sync property integer baseDefense = 0
+    @Sync property integer totalDefense = 0
+    @Sync property number speed = 0
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Applies the configured actor row when this component starts with a Config ID.
+        if self.configId ~= nil and self.configId ~= "" then
+            self:ApplyConfig(self.configId)
+            return
+        end
+
+        log("[BattleActorCom] OnBeginPlay without configId. entity=" .. tostring(self.Entity.Name))
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean ApplyConfig(string actorConfigId)
+        -- Initializes this actor's base stats and resources from actorConfig.
+        if actorConfigId == nil or actorConfigId == "" then
+            log_warning("[BattleActorCom] ApplyConfig failed: actorConfigId is empty.")
+            return false
+        end
+
+        local actorConfig = _DataService:GetTable(self.actorConfigTableName)
+        if actorConfig == nil then
+            log_warning("[BattleActorCom] ApplyConfig failed: table not found. table=" .. self.actorConfigTableName)
+            return false
+        end
+
+        local actorRow = actorConfig:FindRow("actorKey", actorConfigId)
+        if actorRow == nil then
+            log_warning("[BattleActorCom] ApplyConfig failed: actorKey not found. actorConfigId=" .. actorConfigId)
+            return false
+        end
+
+        self.configId = actorConfigId
+        self.level = _DataUtil:GetRowInteger(actorRow, "level", 1)
+        self.maxHp = math.max(0, _DataUtil:GetRowInteger(actorRow, "maxHp", 0))
+        self.maxMp = math.max(0, _DataUtil:GetRowInteger(actorRow, "maxMp", 0))
+        self.hp = self.maxHp
+        self.mp = self.maxMp
+        self.stamina = self.maxStamina
+        self.baseAttack = _DataUtil:GetRowInteger(actorRow, "attack", 0)
+        self.baseDefense = _DataUtil:GetRowInteger(actorRow, "defense", 0)
+        self.speed = _DataUtil:GetRowNumber(actorRow, "moveSpeed", 0)
+        self:RecalculateStats()
+        self:ClampResources()
+
+        log("[BattleActorCom] ApplyConfig complete. configId=" .. self.configId
+            .. ", hp=" .. tostring(self.hp)
+            .. ", mp=" .. tostring(self.mp))
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RecalculateStats()
+        -- Rebuilds derived combat stats from their current base values.
+        self.totalAttack = math.max(0, self.baseAttack)
+        self.totalDefense = math.max(0, self.baseDefense)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ClampResources()
+        -- Keeps current resources inside their valid zero-to-maximum ranges.
+        self.hp = math.max(0, math.min(self.hp, self.maxHp))
+        self.mp = math.max(0, math.min(self.mp, self.maxMp))
+        self.stamina = math.max(0, math.min(self.stamina, self.maxStamina))
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ExportSaveData()
+        -- Reserved for the future SaveSlot actor-state schema.
+        return nil
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ImportSaveData(table saveData)
+        -- Reserved for the future SaveSlot actor-state schema.
+    end
+
+end
