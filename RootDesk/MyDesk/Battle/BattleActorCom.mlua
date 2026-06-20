@@ -84,13 +84,84 @@ script BattleActorCom extends Component
 
     @ExecSpace("ServerOnly")
     method table ExportSaveData()
-        -- Reserved for the future SaveSlot actor-state schema.
-        return nil
+        -- Exports persistent actor state without temporary derived totals.
+        local saveData = {}
+        saveData.ConfigId = self.configId
+        saveData.Level = self.level
+        saveData.Hp = self.hp
+        saveData.MaxHp = self.maxHp
+        saveData.Mp = self.mp
+        saveData.MaxMp = self.maxMp
+        saveData.Stamina = self.stamina
+        saveData.MaxStamina = self.maxStamina
+        saveData.BaseAttack = self.baseAttack
+        saveData.BaseDefense = self.baseDefense
+        saveData.Speed = self.speed
+        return saveData
     end
 
     @ExecSpace("ServerOnly")
     method void ImportSaveData(table saveData)
-        -- Reserved for the future SaveSlot actor-state schema.
+        -- Applies Config defaults first, then restores mutable SaveSlot actor values.
+        if saveData == nil then
+            log_warning("[BattleActorCom] ImportSaveData ignored: saveData is nil.")
+            return
+        end
+
+        local savedConfigId = _DataUtil:GetTableString(saveData, "ConfigId", self.configId)
+        if savedConfigId ~= nil and savedConfigId ~= "" then
+            self:ApplyConfig(savedConfigId)
+        end
+
+        self.level = self:GetSaveInteger(saveData, "Level", self.level)
+        self.maxHp = math.max(0, self:GetSaveInteger(saveData, "MaxHp", self.maxHp))
+        self.maxMp = math.max(0, self:GetSaveInteger(saveData, "MaxMp", self.maxMp))
+        self.maxStamina = math.max(0, self:GetSaveInteger(saveData, "MaxStamina", self.maxStamina))
+        self.hp = self:GetSaveInteger(saveData, "Hp", self.maxHp)
+        self.mp = self:GetSaveInteger(saveData, "Mp", self.maxMp)
+        self.stamina = self:GetSaveInteger(saveData, "Stamina", self.maxStamina)
+        self.baseAttack = self:GetSaveInteger(saveData, "BaseAttack", self.baseAttack)
+        self.baseDefense = self:GetSaveInteger(saveData, "BaseDefense", self.baseDefense)
+        self.speed = self:GetSaveNumber(saveData, "Speed", self.speed)
+        self:RecalculateStats()
+        self:ClampResources()
+
+        log("[BattleActorCom] ImportSaveData complete. configId=" .. tostring(self.configId)
+            .. ", hp=" .. tostring(self.hp)
+            .. ", mp=" .. tostring(self.mp)
+            .. ", stamina=" .. tostring(self.stamina))
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetSaveInteger(table saveData, string key, integer fallback)
+        -- Reads one integer field from actor save data with a fallback.
+        local value = saveData[key]
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        local numberValue = tonumber(value)
+        if numberValue == nil then
+            return fallback
+        end
+
+        return math.floor(numberValue)
+    end
+
+    @ExecSpace("ServerOnly")
+    method number GetSaveNumber(table saveData, string key, number fallback)
+        -- Reads one number field from actor save data with a fallback.
+        local value = saveData[key]
+        if value == nil or value == "" then
+            return fallback
+        end
+
+        local numberValue = tonumber(value)
+        if numberValue == nil then
+            return fallback
+        end
+
+        return numberValue
     end
 
 end

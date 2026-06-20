@@ -2,6 +2,7 @@
 script PlayerDataLogic extends Logic
 
     property string worldSceneKey = "World"
+    property string mainMenuSceneKey = "MainMenu"
     property string slotKeyPrefix = "Slot"
     property integer maxSlotIndex = 3
     property number autoFlushSeconds = 30
@@ -60,6 +61,36 @@ script PlayerDataLogic extends Logic
         self:StartNewGame(senderUserId, slotIndex)
     end
 
+    @ExecSpace("Server")
+    method void RequestSaveCurrentSlot()
+        -- Lets the owning client immediately flush its currently loaded slot.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[PlayerDataLogic] RequestSaveCurrentSlot ignored: senderUserId is empty.")
+            return
+        end
+
+        local saved = self:FlushUser(senderUserId)
+        log("[PlayerDataLogic] RequestSaveCurrentSlot userId=" .. senderUserId .. ", saved=" .. tostring(saved))
+    end
+
+    @ExecSpace("Server")
+    method void RequestSaveAndReturnToMenu()
+        -- Flushes the caller's loaded slot before routing back to the main menu.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[PlayerDataLogic] RequestSaveAndReturnToMenu ignored: senderUserId is empty.")
+            return
+        end
+
+        local saved = self:FlushUser(senderUserId)
+        if saved == false then
+            log_warning("[PlayerDataLogic] RequestSaveAndReturnToMenu stopped: save failed. userId=" .. senderUserId)
+            return
+        end
+
+        _SceneLogic:ChangeSceneForUser(senderUserId, self.mainMenuSceneKey)
+        log("[PlayerDataLogic] RequestSaveAndReturnToMenu complete. userId=" .. senderUserId)
+    end
+
     @ExecSpace("ServerOnly")
     method boolean ContinueGame(string userId, integer slotIndex)
         -- Loads a slot from DataStorage, dispatches it to subsystem caches, then enters the world.
@@ -69,12 +100,17 @@ script PlayerDataLogic extends Logic
         end
 
         local slotData = self:LoadSlotData(userId, slotIndex)
+        local createdVirtualSlot = false
         if slotData == nil then
             slotData = self:CreateDefaultSlotData()
+            createdVirtualSlot = true
             log("[PlayerDataLogic] ContinueGame using default slot. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
         end
 
         self:ApplyLoadedSlotData(userId, slotIndex, slotData)
+        if createdVirtualSlot == true then
+            self:MarkDirty(userId)
+        end
         _SceneLogic:ChangeSceneForUser(userId, self.worldSceneKey)
         log("[PlayerDataLogic] ContinueGame complete. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
         return true
@@ -103,6 +139,12 @@ script PlayerDataLogic extends Logic
             slotData = self:CreateDefaultSlotData()
         end
 
+        local createdVirtualActors = false
+        if slotData.Actors == nil or #slotData.Actors == 0 then
+            slotData.Actors = self:CreateDefaultActorList()
+            createdVirtualActors = true
+        end
+
         self.loadedSlotIndexes[userId] = slotIndex
         self.slotDataCache[userId] = slotData
 
@@ -110,8 +152,12 @@ script PlayerDataLogic extends Logic
         _InventoryLogic:LoadUserData(userId, slotData.Inventory)
         _SkillLogic:LoadUserData(userId, slotData.Skill)
         _MissionLogic:LoadUserData(userId, slotData.Mission)
+        self:ApplyPrimaryActorToPlayer(userId, slotData.Actors)
 
         self.dirtyUsers[userId] = nil
+        if createdVirtualActors == true then
+            self:MarkDirty(userId)
+        end
         log("[PlayerDataLogic] ApplyLoadedSlotData. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
     end
 
@@ -185,6 +231,7 @@ script PlayerDataLogic extends Logic
         slotData.Inventory = _InventoryLogic:ExportUserData(userId)
         slotData.Skill = _SkillLogic:ExportUserData(userId)
         slotData.Mission = _MissionLogic:ExportUserData(userId)
+        slotData.Actors = self:CollectPlayerActors(userId, slotData.Actors)
 
         return slotData
     end
@@ -199,7 +246,80 @@ script PlayerDataLogic extends Logic
         slotData.Inventory = _InventoryLogic:CreateDefaultData()
         slotData.Skill = _SkillLogic:CreateDefaultData()
         slotData.Mission = _MissionLogic:CreateDefaultData()
+        slotData.Actors = self:CreateDefaultActorList()
         return slotData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateDefaultActorList()
+        -- Creates temporary actor save data until character creation is implemented.
+        local actors = {}
+        local actorData = {}
+        actorData.ConfigId = "playerWarrior"
+        actorData.Level = 1
+        actorData.Hp = 120
+        actorData.MaxHp = 120
+        actorData.Mp = 20
+        actorData.MaxMp = 20
+        actorData.Stamina = 100
+        actorData.MaxStamina = 100
+        actorData.BaseAttack = 12
+        actorData.BaseDefense = 5
+        actorData.Speed = 3
+        actors[1] = actorData
+        return actors
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean ApplyPrimaryActorToPlayer(string userId, table actors)
+        -- Applies the first saved actor to the user's DefaultPlayer runtime entity.
+        if actors == nil or actors[1] == nil then
+            log_warning("[PlayerDataLogic] ApplyPrimaryActorToPlayer failed: Actors[1] is missing. userId=" .. tostring(userId))
+            return false
+        end
+
+        local userEntity = _UserService:GetUserEntityByUserId(userId)
+        if isvalid(userEntity) == false then
+            log_warning("[PlayerDataLogic] ApplyPrimaryActorToPlayer failed: user entity missing. userId=" .. tostring(userId))
+            return false
+        end
+
+        local battleActor = userEntity:GetComponent("BattleActorCom")
+        if isvalid(battleActor) == false then
+            userEntity:AddComponent("BattleActorCom")
+            battleActor = userEntity:GetComponent("BattleActorCom")
+        end
+
+        if isvalid(battleActor) == false then
+            log_warning("[PlayerDataLogic] ApplyPrimaryActorToPlayer failed: BattleActorCom missing. userId=" .. userId)
+            return false
+        end
+
+        battleActor:ImportSaveData(actors[1])
+        log("[PlayerDataLogic] ApplyPrimaryActorToPlayer complete. userId=" .. userId
+            .. ", configId=" .. tostring(battleActor.configId)
+            .. ", hp=" .. tostring(battleActor.hp)
+            .. ", mp=" .. tostring(battleActor.mp)
+            .. ", stamina=" .. tostring(battleActor.stamina))
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CollectPlayerActors(string userId, table fallbackActors)
+        -- Exports the live DefaultPlayer actor state for the next SaveSlot flush.
+        local userEntity = _UserService:GetUserEntityByUserId(userId)
+        if isvalid(userEntity) == false then
+            return fallbackActors or self:CreateDefaultActorList()
+        end
+
+        local battleActor = userEntity:GetComponent("BattleActorCom")
+        if isvalid(battleActor) == false then
+            return fallbackActors or self:CreateDefaultActorList()
+        end
+
+        local actors = fallbackActors or {}
+        actors[1] = battleActor:ExportSaveData()
+        return actors
     end
 
     @ExecSpace("ServerOnly")

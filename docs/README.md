@@ -20,6 +20,8 @@ Read **`ScriptRules.md`** first. It defines:
 | [BattleFlow/BattleFlowLogic.md](BattleFlow/BattleFlowLogic.md) | Battle entry and finalization (`BattleFlowLogic`) |
 | [BattleFlow/BattleSystem.md](BattleFlow/BattleSystem.md) | Server-authoritative battle session (`BattleSystem`) |
 | [Actor/BattleActorComponent.md](Actor/BattleActorComponent.md) | Per-actor HP / MP / stats authority |
+| [PlayerData/SaveSlotSchema.md](PlayerData/SaveSlotSchema.md) | Canonical SaveSlot keys, types, casing, and ownership |
+| [UI/SystemMenuUI.md](UI/SystemMenuUI.md) | Persistent gameplay system menu and save actions |
 
 ## Adding A New System
 

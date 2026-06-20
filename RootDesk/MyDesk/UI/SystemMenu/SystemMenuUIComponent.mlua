@@ -1,0 +1,97 @@
+@Component
+@ExecSpace("ClientOnly")
+script SystemMenuUIComponent extends Component
+
+    property boolean isExpanded = false
+    property Entity menuPanel = "5d5135ef-c19c-4691-a5e9-ae33a660b950"
+    property ButtonComponent settingToggle = "acc05943-be66-4104-98f3-64dd76d9b69d"
+    property ButtonComponent storeData = "12a87334-9ab5-4634-8196-2baee6f7edfa"
+    property ButtonComponent backToMenu = "a2b0110f-2aa0-48ef-add1-9d955d7c7719"
+
+    property any settingToggleHandler = nil
+    property any storeDataHandler = nil
+    property any backToMenuHandler = nil
+
+    method void OnBeginPlay()
+        -- Binds the persistent system menu buttons and starts collapsed.
+        self:BindButtons()
+        self:SetExpanded(false)
+        log("[SystemMenuUIComponent] OnBeginPlay.")
+    end
+
+    method void OnEndPlay()
+        -- Releases button event handlers owned by this UI component.
+        self:UnbindButtons()
+        log("[SystemMenuUIComponent] OnEndPlay.")
+    end
+
+    method void BindButtons()
+        -- Connects the gear, save, and return-to-menu actions.
+        self:UnbindButtons()
+
+        if self.settingToggle ~= nil then
+            self.settingToggleHandler = self.settingToggle.Entity:ConnectEvent(ButtonClickEvent, self.OnSettingToggleClicked)
+        else
+            log_warning("[SystemMenuUIComponent] settingToggle is nil.")
+        end
+
+        if self.storeData ~= nil then
+            self.storeDataHandler = self.storeData.Entity:ConnectEvent(ButtonClickEvent, self.OnStoreDataClicked)
+        else
+            log_warning("[SystemMenuUIComponent] storeData is nil.")
+        end
+
+        if self.backToMenu ~= nil then
+            self.backToMenuHandler = self.backToMenu.Entity:ConnectEvent(ButtonClickEvent, self.OnBackToMenuClicked)
+        else
+            log_warning("[SystemMenuUIComponent] backToMenu is nil.")
+        end
+    end
+
+    method void UnbindButtons()
+        -- Disconnects previously connected system menu handlers.
+        if self.settingToggleHandler ~= nil and self.settingToggle ~= nil then
+            self.settingToggle.Entity:DisconnectEvent(ButtonClickEvent, self.settingToggleHandler)
+            self.settingToggleHandler = nil
+        end
+
+        if self.storeDataHandler ~= nil and self.storeData ~= nil then
+            self.storeData.Entity:DisconnectEvent(ButtonClickEvent, self.storeDataHandler)
+            self.storeDataHandler = nil
+        end
+
+        if self.backToMenuHandler ~= nil and self.backToMenu ~= nil then
+            self.backToMenu.Entity:DisconnectEvent(ButtonClickEvent, self.backToMenuHandler)
+            self.backToMenuHandler = nil
+        end
+    end
+
+    method void SetExpanded(boolean expanded)
+        -- Applies the collapsible menu state below the gear button.
+        self.isExpanded = expanded
+        if isvalid(self.menuPanel) then
+            self.menuPanel.Enable = expanded
+        end
+        log("[SystemMenuUIComponent] SetExpanded expanded=" .. tostring(expanded))
+    end
+
+    method void OnSettingToggleClicked(ButtonClickEvent event)
+        -- Toggles the system action panel.
+        self:SetExpanded(self.isExpanded == false)
+    end
+
+    method void OnStoreDataClicked(ButtonClickEvent event)
+        -- Requests an immediate server-side SaveSlot flush.
+        self:SetExpanded(false)
+        _PlayerDataLogic:RequestSaveCurrentSlot()
+        log("[SystemMenuUIComponent] OnStoreDataClicked.")
+    end
+
+    method void OnBackToMenuClicked(ButtonClickEvent event)
+        -- Saves the loaded slot before returning to the main menu.
+        self:SetExpanded(false)
+        _PlayerDataLogic:RequestSaveAndReturnToMenu()
+        log("[SystemMenuUIComponent] OnBackToMenuClicked.")
+    end
+
+end

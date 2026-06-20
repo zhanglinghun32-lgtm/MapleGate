@@ -130,6 +130,19 @@ script UIManagerLogic extends Logic
     end
 
     @ExecSpace("ClientOnly")
+    method void SetOverlayUIVisible(string uiKey, boolean visible)
+        -- Shows or hides an overlay without replacing the tracked normal UI.
+        local uiEntity = self:GetUIEntity(uiKey)
+        if isvalid(uiEntity) == false then
+            log_warning("[UIManagerLogic] SetOverlayUIVisible failed: ui not found. key=" .. tostring(uiKey))
+            return
+        end
+
+        uiEntity.Enable = visible
+        log("[UIManagerLogic] SetOverlayUIVisible key=" .. uiKey .. ", visible=" .. tostring(visible))
+    end
+
+    @ExecSpace("ClientOnly")
     method Entity GetUIEntity(string uiKey)
         -- Resolves a UI key to its registered root entity.
         if self.uiMap == nil then

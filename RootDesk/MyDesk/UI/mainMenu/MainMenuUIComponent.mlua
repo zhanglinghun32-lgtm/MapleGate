@@ -5,6 +5,7 @@ script MainMenuUIComponent extends Component
     property string defaultPanel = "Home"
     property string currentPanel = ""
     property string worldSceneKey = "World"
+    property integer temporarySlotIndex = 1
     property boolean isOpen = false
 
     property ButtonComponent newGameButton = "738eebb5-f560-4f94-8652-90def53b0b53"
@@ -97,9 +98,9 @@ script MainMenuUIComponent extends Component
     end
 
     method void RequestEnterGame()
-        -- Requests the gameplay scene through the public scene-change interface.
-        log("[MainMenuUIComponent] RequestEnterGame.")
-        _SceneLogic:ChangeScene(self.worldSceneKey)
+        -- Temporarily loads Slot 1 before the save-slot selection UI is implemented.
+        log("[MainMenuUIComponent] RequestEnterGame. slotIndex=" .. tostring(self.temporarySlotIndex))
+        _PlayerDataLogic:RequestContinueGame(self.temporarySlotIndex)
     end
 
     method void RequestExitGame()
