@@ -84,6 +84,12 @@ BattleUIComponent button click
   -> BattleSystem:RequestActionForUser(...)                         [ServerOnly validation]
 ```
 
+For range skills, UI code can call
+`RequestBattleActionAtWorldPosition(actionKey, targetPoint)` or
+`RequestBattleActionAtScreenPosition(actionKey, screenPoint)`. The screen-point
+variant converts through `_UILogic:ScreenToWorldPosition`; the server still owns
+the final range expansion from `skillConfig`.
+
 The server validates:
 
 - battle is active
@@ -112,7 +118,7 @@ BattleSystem:FinishBattle(result)
 
 ## Current MVP Scope
 
-- First skill slot (`SkillSlot_01`) sends placeholder action `NormalAttack`.
+- First skill slot (`SkillSlot_01`) sends placeholder action `normalAttack`.
 - Target list is empty until target selection UI exists.
 - HP bars, skill icons, and multi-slot binding are follow-up tasks.
 

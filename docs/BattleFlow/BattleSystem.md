@@ -94,9 +94,10 @@ Examples:
 ## Action Flow
 
 ```text
-RequestAction(sponsorId, actionKey, targetIds)
+RequestAction(sponsorId, actionKey, targetIds/actionContext)
   -> validate battle is active
   -> validate sponsorId is current turn actor
+  -> resolve click/bounds targeting into authoritative target ids
   -> validate sponsor and targets exist
   -> ask BattleCalculator for result
   -> apply result entries through BattleActorComponent
@@ -200,6 +201,7 @@ BattleActionInput
 - actionKey
 - sponsorId
 - targetIds
+- actionContext
 - sponsorSnapshot
 - targetSnapshots
 - actionConfig
@@ -227,6 +229,21 @@ ActorBattleSnapshot
 ```
 
 This keeps `BattleCalculator` deterministic and easy to test.
+
+`actionContext` is the normalized targeting payload. Legacy callers may still
+send a plain `targetIds` array. Point/range callers send:
+
+```text
+ActionContext
+- TargetIds: optional explicit actor ids
+- TargetPoint: optional world-space Vector2 from click/touch
+- Bounds: optional explicit world-space bounds table
+- ResolvedTargetIds: server-authoritative ids after range expansion
+- RangeShape / RangeRadius / RangeWidth / RangeHeight: copied from skillConfig
+```
+
+The server reads `skillConfig.targetShape`, `targetRadius`, `targetWidth`,
+`targetHeight`, and `targetMaxCount` by `actionKey` before resolving the range.
 
 ## BattleCalculator Result
 

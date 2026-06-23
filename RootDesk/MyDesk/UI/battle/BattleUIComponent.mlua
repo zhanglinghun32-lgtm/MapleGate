@@ -6,7 +6,7 @@ script BattleUIComponent extends Component
     -- Reads @Sync state from the server-spawned BattleSystem entity; sends player input via Server RPC.
     -- Does not open/close the UI shell — BattleClientLogic + UIManagerLogic own that.
 
-    property string defaultActionKey = "NormalAttack"
+    property string defaultActionKey = "normalAttack"
     property boolean inputEnabled = false
     property string syncedBattlePhase = "None"
     property string syncedCurrentActorId = ""
@@ -154,6 +154,61 @@ script BattleUIComponent extends Component
 
         log("[BattleUIComponent] RequestBattleAction actor=" .. self.syncedCurrentActorId .. ", action=" .. actionKey)
         self.battleSystem:RequestAction(self.syncedCurrentActorId, actionKey, targetIds)
+    end
+
+    method void RequestBattleActionAtWorldPosition(string actionKey, Vector2 targetPoint)
+        -- Sends one player action using a world-space point that the server expands into range targets.
+        if targetPoint == nil then
+            log_warning("[BattleUIComponent] RequestBattleActionAtWorldPosition ignored: targetPoint is nil.")
+            return
+        end
+
+        local actionContext = {}
+        actionContext.TargetPoint = targetPoint
+        actionContext.HasTargetPoint = true
+        actionContext.TargetIds = {}
+        self:RequestBattleActionWithContext(actionKey, actionContext)
+    end
+
+    method void RequestBattleActionAtScreenPosition(string actionKey, Vector2 screenPoint)
+        -- Converts a screen click to a world point before sending the action request.
+        if screenPoint == nil then
+            log_warning("[BattleUIComponent] RequestBattleActionAtScreenPosition ignored: screenPoint is nil.")
+            return
+        end
+
+        local worldPoint = _UILogic:ScreenToWorldPosition(screenPoint)
+        self:RequestBattleActionAtWorldPosition(actionKey, worldPoint)
+    end
+
+    method void RequestBattleActionWithContext(string actionKey, table actionContext)
+        -- Sends one player action with a flexible target context table.
+        if self.inputEnabled == false then
+            log_warning("[BattleUIComponent] RequestBattleActionWithContext ignored: input disabled. phase=" .. self.syncedBattlePhase)
+            return
+        end
+
+        if self.battleSystem == nil then
+            log_warning("[BattleUIComponent] RequestBattleActionWithContext ignored: battleSystem is nil.")
+            return
+        end
+
+        if self.syncedCurrentActorId == "" then
+            log_warning("[BattleUIComponent] RequestBattleActionWithContext ignored: currentActorId is empty.")
+            return
+        end
+
+        if actionKey == nil or actionKey == "" then
+            log_warning("[BattleUIComponent] RequestBattleActionWithContext ignored: actionKey is empty.")
+            return
+        end
+
+        if actionContext == nil then
+            actionContext = {}
+        end
+
+        log("[BattleUIComponent] RequestBattleActionWithContext actor=" .. self.syncedCurrentActorId .. ", action=" .. actionKey)
+        self.battleSystem:RequestActionWithContext(self.syncedCurrentActorId, actionKey, actionContext)
     end
 
     method void OnSkillSlot01Clicked(ButtonClickEvent event)

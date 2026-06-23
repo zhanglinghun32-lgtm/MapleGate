@@ -107,7 +107,7 @@ script BattleClientLogic extends Logic
     end
 
     @ExecSpace("ClientOnly")
-    method void PlayActionPresentation(Entity battleEntity, string battleId, integer presentationId, string sponsorId, string actionKey, table targetIds, table actionResultPayload)
+    method void PlayActionPresentation(Entity battleEntity, string battleId, integer presentationId, string sponsorId, string actionKey, table actionContext, table actionResultPayload)
         -- Plays one server-resolved action and acknowledges only the latest valid presentation.
         if self.isInBattle == false or battleId ~= self.currentBattleId then
             log_warning("[BattleClientLogic] PlayActionPresentation ignored: battle mismatch.")
@@ -122,7 +122,7 @@ script BattleClientLogic extends Logic
         self.isPlayingActionPresentation = true
         self.currentPresentationId = presentationId
         self:ApplyActionResultPayload(battleId, actionResultPayload)
-        self:OnActionPresentationStarted(sponsorId, actionKey, targetIds, actionResultPayload)
+        self:OnActionPresentationStarted(sponsorId, actionKey, actionContext, actionResultPayload)
 
         local duration = self:GetActionPresentationDuration(actionKey)
         if duration > 0 then
@@ -133,7 +133,7 @@ script BattleClientLogic extends Logic
             return
         end
 
-        self:OnActionPresentationFinished(sponsorId, actionKey, targetIds, actionResultPayload)
+        self:OnActionPresentationFinished(sponsorId, actionKey, actionContext, actionResultPayload)
         self.isPlayingActionPresentation = false
         self.currentPresentationId = 0
 
@@ -151,13 +151,13 @@ script BattleClientLogic extends Logic
     end
 
     @ExecSpace("ClientOnly")
-    method void OnActionPresentationStarted(string sponsorId, string actionKey, table targetIds, table actionResultPayload)
+    method void OnActionPresentationStarted(string sponsorId, string actionKey, table actionContext, table actionResultPayload)
         -- Extension point for movement, skill animation, VFX, damage text, and camera work.
         log("[BattleClientLogic] Action presentation started. sponsor=" .. sponsorId .. ", action=" .. actionKey)
     end
 
     @ExecSpace("ClientOnly")
-    method void OnActionPresentationFinished(string sponsorId, string actionKey, table targetIds, table actionResultPayload)
+    method void OnActionPresentationFinished(string sponsorId, string actionKey, table actionContext, table actionResultPayload)
         -- Extension point for restoring presentation state before acknowledging the server.
         log("[BattleClientLogic] Action presentation finished. sponsor=" .. sponsorId .. ", action=" .. actionKey)
     end

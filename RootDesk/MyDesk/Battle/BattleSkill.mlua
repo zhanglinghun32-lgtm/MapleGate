@@ -21,6 +21,11 @@ script BattleSkill extends Component
     property string effectKey = ""
     property integer effectDuration = 0
     property integer cooldown = 0
+    property string targetShape = "Single"
+    property number targetRadius = 0
+    property number targetWidth = 0
+    property number targetHeight = 0
+    property integer targetMaxCount = 0
 
     method void OnBeginPlay()
         -- Loads the configured skill automatically when skillKey is preset on the component.
@@ -58,8 +63,13 @@ script BattleSkill extends Component
         self.effectKey = _DataUtil:GetRowString(row, "effectKey", "")
         self.effectDuration = _DataUtil:GetRowInteger(row, "effectDuration", 0)
         self.cooldown = _DataUtil:GetRowInteger(row, "cooldown", 0)
+        self.targetShape = _DataUtil:GetRowString(row, "targetShape", "Single")
+        self.targetRadius = _DataUtil:GetRowNumber(row, "targetRadius", 0)
+        self.targetWidth = _DataUtil:GetRowNumber(row, "targetWidth", 0)
+        self.targetHeight = _DataUtil:GetRowNumber(row, "targetHeight", 0)
+        self.targetMaxCount = _DataUtil:GetRowInteger(row, "targetMaxCount", 0)
 
-        log("[BattleSkill] Loaded skillKey=" .. self.skillKey .. ", entryType=" .. self.entryType .. ", targetRule=" .. self.targetRule)
+        log("[BattleSkill] Loaded skillKey=" .. self.skillKey .. ", entryType=" .. self.entryType .. ", targetRule=" .. self.targetRule .. ", targetShape=" .. self.targetShape)
         return true
     end
 
@@ -81,6 +91,11 @@ script BattleSkill extends Component
         actionConfig.effectKey = self.effectKey
         actionConfig.effectDuration = self.effectDuration
         actionConfig.cooldown = self.cooldown
+        actionConfig.targetShape = self.targetShape
+        actionConfig.targetRadius = self.targetRadius
+        actionConfig.targetWidth = self.targetWidth
+        actionConfig.targetHeight = self.targetHeight
+        actionConfig.targetMaxCount = self.targetMaxCount
 
         return actionConfig
     end

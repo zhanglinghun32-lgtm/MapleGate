@@ -115,9 +115,33 @@ script BattleSystem extends Component
     
     @ExecSpace("Server")
     method void RequestAction(string sponsorId, string actionKey, table targetIds)
-        -- Lets the current actor client request one battle action.
-        if senderUserId == nil or senderUserId == "" then
-            log_warning("[BattleSystem] RequestAction ignored: senderUserId is empty.")
+        -- Lets the current actor client request one battle action with legacy target ids.
+        local actionContext = self:ResolveActionContext(sponsorId, actionKey, self:BuildActionContext(targetIds))
+        self:ValidateAndRequestAction(senderUserId, sponsorId, actionKey, actionContext)
+    end
+
+    @ExecSpace("Server")
+    method void RequestActionAtPosition(string sponsorId, string actionKey, Vector2 targetPoint, table targetIds)
+        -- Lets the current actor client request an action centered on a world-space target point.
+        local actionContext = self:BuildActionContext(targetIds)
+        actionContext.TargetPoint = targetPoint
+        actionContext.HasTargetPoint = true
+        actionContext = self:ResolveActionContext(sponsorId, actionKey, actionContext)
+        self:ValidateAndRequestAction(senderUserId, sponsorId, actionKey, actionContext)
+    end
+
+    @ExecSpace("Server")
+    method void RequestActionWithContext(string sponsorId, string actionKey, table actionContext)
+        -- Lets the current actor client request an action with target ids, a world point, or both.
+        actionContext = self:ResolveActionContext(sponsorId, actionKey, self:BuildActionContext(actionContext))
+        self:ValidateAndRequestAction(senderUserId, sponsorId, actionKey, actionContext)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ValidateAndRequestAction(string userId, string sponsorId, string actionKey, table actionContext)
+        -- Validates one client action request before applying the resolved action context.
+        if userId == nil or userId == "" then
+            log_warning("[BattleSystem] RequestAction ignored: userId is empty.")
             return
         end
         if self.battlePhase ~= _BattleKeys.phaseAwaitingInput then
@@ -136,36 +160,419 @@ script BattleSystem extends Component
             log_warning("[BattleSystem] RequestAction ignored: actionKey is empty.")
             return
         end
-        if targetIds == nil then
-            targetIds = {}
-        end
-        -- 1. sender 是否是這場戰鬥的玩家
-        if self.playerUserId == "" or senderUserId ~= self.playerUserId then
+        if self.playerUserId == "" or userId ~= self.playerUserId then
             log_warning("[BattleSystem] RequestAction ignored: user mismatch.")
             return
         end
-        -- 2. 是否輪到這個 actor
-        if self.currentActorId ~= sponsorId then
-            log_warning("[BattleSystem] RequestAction ignored: actor mismatch.")
-            return
-        end
-        -- 3. 玩家是否可以施放技能
-        if _SkillLogic:IsSkillReady(senderUserId, actionKey) == false then
+        if _SkillLogic:IsSkillReady(userId, actionKey) == false then
             log_warning("[BattleSystem] RequestAction ignored: skill unavailable.")
             return
         end
-        
-        self:RequestActionForUser(senderUserId, sponsorId, actionKey, targetIds)
+
+        self:RequestActionForUser(userId, sponsorId, actionKey, actionContext)
     end
     
     @ExecSpace("ServerOnly")
     method void RequestActionForUser(string userId, string sponsorId, string actionKey, table targetIds)
         -- Resolves the authoritative action, then waits for client presentation acknowledgement.
-        log("[BattleSystem] RequestAction battleId=" .. self.battleId .. ", sponsor=" .. sponsorId .. ", action=" .. actionKey)
+        local resolvedTargetIds = self:GetActionContextTargetIds(targetIds)
+        log("[BattleSystem] RequestAction battleId=" .. self.battleId .. ", sponsor=" .. sponsorId .. ", action=" .. actionKey .. ", resolvedTargets=" .. tostring(#resolvedTargetIds))
         
         self:TransitionTo(_BattleKeys.phaseResolvingAction)
         local actionResultPayload = self:ResolveAction(sponsorId, actionKey, targetIds)
         self:BeginActionPresentation(sponsorId, actionKey, targetIds, actionResultPayload)
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildActionContext(table targetData)
+        -- Normalizes legacy target id arrays and new point/bounds requests into one table.
+        local actionContext = {}
+        actionContext.TargetIds = {}
+        actionContext.ResolvedTargetIds = {}
+        actionContext.TargetPoint = nil
+        actionContext.HasTargetPoint = false
+
+        if targetData == nil then
+            return actionContext
+        end
+
+        if targetData.TargetIds ~= nil then
+            actionContext.TargetIds = self:CopyTargetIds(targetData.TargetIds)
+        else
+            actionContext.TargetIds = self:CopyTargetIds(targetData)
+        end
+
+        local targetPoint = targetData.TargetPoint or targetData.targetPoint or targetData.ClickPosition or targetData.clickPosition or targetData.MouseClickPosition or targetData.mouseClickPosition
+        if targetPoint ~= nil then
+            actionContext.TargetPoint = targetPoint
+            actionContext.HasTargetPoint = true
+        elseif targetData.x ~= nil and targetData.y ~= nil then
+            actionContext.TargetPoint = Vector2(tonumber(targetData.x) or 0, tonumber(targetData.y) or 0)
+            actionContext.HasTargetPoint = true
+        elseif targetData.X ~= nil and targetData.Y ~= nil then
+            actionContext.TargetPoint = Vector2(tonumber(targetData.X) or 0, tonumber(targetData.Y) or 0)
+            actionContext.HasTargetPoint = true
+        end
+
+        if targetData.Bounds ~= nil then
+            actionContext.Bounds = targetData.Bounds
+        elseif targetData.bounds ~= nil then
+            actionContext.Bounds = targetData.bounds
+        end
+
+        return actionContext
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CopyTargetIds(table sourceTargetIds)
+        -- Copies numeric target ids from a legacy array or action context field.
+        local targetIds = {}
+        if sourceTargetIds == nil then
+            return targetIds
+        end
+
+        for _, targetId in ipairs(sourceTargetIds) do
+            if targetId ~= nil and tostring(targetId) ~= "" then
+                table.insert(targetIds, tostring(targetId))
+            end
+        end
+
+        return targetIds
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ResolveActionContext(string sponsorId, string actionKey, table actionContext)
+        -- Resolves click/bounds targeting into authoritative actor ids using skill range config.
+        actionContext = self:BuildActionContext(actionContext)
+        local explicitTargetIds = actionContext.TargetIds
+        local resolvedTargetIds = {}
+
+        if actionContext.HasTargetPoint == true and actionContext.TargetPoint ~= nil then
+            local rangeConfig = self:GetActionRangeConfig(actionKey)
+            resolvedTargetIds = self:FindActorIdsInActionRange(sponsorId, rangeConfig, actionContext.TargetPoint)
+            actionContext.RangeShape = rangeConfig.Shape
+            actionContext.RangeRadius = rangeConfig.Radius
+            actionContext.RangeWidth = rangeConfig.Width
+            actionContext.RangeHeight = rangeConfig.Height
+            actionContext.TargetRule = rangeConfig.TargetRule
+        elseif actionContext.Bounds ~= nil then
+            local boundsRangeConfig = self:GetActionRangeConfig(actionKey)
+            resolvedTargetIds = self:FindActorIdsInBounds(sponsorId, boundsRangeConfig.TargetRule, actionContext.Bounds)
+            actionContext.TargetRule = boundsRangeConfig.TargetRule
+        end
+
+        if #resolvedTargetIds == 0 and explicitTargetIds ~= nil and #explicitTargetIds > 0 then
+            resolvedTargetIds = self:FilterExplicitTargetIds(sponsorId, actionKey, explicitTargetIds)
+        end
+
+        if #resolvedTargetIds == 0 then
+            local fallbackRangeConfig = self:GetActionRangeConfig(actionKey)
+            if fallbackRangeConfig.TargetRule == _BattleKeys.targetSelf then
+                table.insert(resolvedTargetIds, sponsorId)
+            elseif fallbackRangeConfig.TargetRule == _BattleKeys.targetAllEnemies or fallbackRangeConfig.TargetRule == _BattleKeys.targetAllAllies then
+                resolvedTargetIds = self:FindAllAllowedActorIds(sponsorId, fallbackRangeConfig.TargetRule)
+            end
+        end
+
+        actionContext.ResolvedTargetIds = resolvedTargetIds
+        return actionContext
+    end
+
+    @ExecSpace("ServerOnly")
+    method table GetActionContextTargetIds(table actionContext)
+        -- Returns resolved target ids first, then legacy target ids as a fallback.
+        if actionContext == nil then
+            return {}
+        end
+
+        if actionContext.ResolvedTargetIds ~= nil then
+            return actionContext.ResolvedTargetIds
+        end
+
+        if actionContext.TargetIds ~= nil then
+            return actionContext.TargetIds
+        end
+
+        return {}
+    end
+
+    @ExecSpace("ServerOnly")
+    method table GetActionRangeConfig(string actionKey)
+        -- Reads skill range settings from skillConfig, with safe defaults for older rows.
+        local rangeConfig = {}
+        rangeConfig.TargetRule = _BattleKeys.targetEnemy
+        rangeConfig.Shape = "Single"
+        rangeConfig.Radius = 0
+        rangeConfig.Width = 0
+        rangeConfig.Height = 0
+        rangeConfig.MaxCount = 0
+
+        local row = self:FindSkillConfigRow(actionKey)
+        if row == nil then
+            log_warning("[BattleSystem] GetActionRangeConfig fallback: skillConfig row not found. actionKey=" .. tostring(actionKey))
+            return rangeConfig
+        end
+
+        rangeConfig.TargetRule = _DataUtil:GetRowString(row, "targetRule", rangeConfig.TargetRule)
+        rangeConfig.Shape = _DataUtil:GetRowString(row, "targetShape", rangeConfig.Shape)
+        rangeConfig.Radius = _DataUtil:GetRowNumber(row, "targetRadius", rangeConfig.Radius)
+        rangeConfig.Width = _DataUtil:GetRowNumber(row, "targetWidth", rangeConfig.Width)
+        rangeConfig.Height = _DataUtil:GetRowNumber(row, "targetHeight", rangeConfig.Height)
+        rangeConfig.MaxCount = _DataUtil:GetRowInteger(row, "targetMaxCount", rangeConfig.MaxCount)
+
+        return rangeConfig
+    end
+
+    @ExecSpace("ServerOnly")
+    method any FindSkillConfigRow(string actionKey)
+        -- Finds the skillConfig row used to derive targeting rules and range.
+        if actionKey == nil or actionKey == "" then
+            return nil
+        end
+
+        local dataSet = _DataService:GetTable("skillConfig")
+        if dataSet == nil then
+            log_warning("[BattleSystem] FindSkillConfigRow failed: skillConfig table missing.")
+            return nil
+        end
+
+        local row = dataSet:FindRow("skillKey", actionKey)
+        if row ~= nil then
+            return row
+        end
+
+        local camelActionKey = string.lower(string.sub(actionKey, 1, 1)) .. string.sub(actionKey, 2)
+        row = dataSet:FindRow("skillKey", camelActionKey)
+        if row ~= nil then
+            return row
+        end
+
+        return dataSet:FindRow("skillKey", string.lower(actionKey))
+    end
+
+    @ExecSpace("ServerOnly")
+    method table FindActorIdsInActionRange(string sponsorId, table rangeConfig, Vector2 targetPoint)
+        -- Returns actor ids that match the target rule and fall inside the configured area.
+        local targetIds = {}
+        if self.activeActorIds == nil or self.actorMap == nil or targetPoint == nil then
+            return targetIds
+        end
+
+        for _, actorId in ipairs(self.activeActorIds) do
+            if self:IsActorTargetAllowed(sponsorId, actorId, rangeConfig.TargetRule) == true then
+                local actorEntry = self.actorMap[actorId]
+                local actorPosition = self:GetActorEntryPosition(actorEntry)
+                if actorPosition ~= nil and self:IsPositionInsideActionRange(actorPosition, targetPoint, rangeConfig.Shape, rangeConfig) == true then
+                    table.insert(targetIds, actorId)
+                    if rangeConfig.MaxCount > 0 and #targetIds >= rangeConfig.MaxCount then
+                        return targetIds
+                    end
+                end
+            end
+        end
+
+        return targetIds
+    end
+
+    @ExecSpace("ServerOnly")
+    method table FindActorIdsInBounds(string sponsorId, string targetRule, table bounds)
+        -- Returns actor ids that match the target rule and fall inside explicit bounds.
+        local targetIds = {}
+        if self.activeActorIds == nil or self.actorMap == nil or bounds == nil then
+            return targetIds
+        end
+
+        for _, actorId in ipairs(self.activeActorIds) do
+            if self:IsActorTargetAllowed(sponsorId, actorId, targetRule) == true then
+                local actorEntry = self.actorMap[actorId]
+                local actorPosition = self:GetActorEntryPosition(actorEntry)
+                if actorPosition ~= nil and self:IsPositionInsideBounds(actorPosition, bounds) == true then
+                    table.insert(targetIds, actorId)
+                end
+            end
+        end
+
+        return targetIds
+    end
+
+    @ExecSpace("ServerOnly")
+    method table FilterExplicitTargetIds(string sponsorId, string actionKey, table targetIds)
+        -- Keeps only requested target ids that exist and match the skill target rule.
+        local filteredTargetIds = {}
+        local rangeConfig = self:GetActionRangeConfig(actionKey)
+
+        for _, targetId in ipairs(targetIds) do
+            if self:IsActorTargetAllowed(sponsorId, targetId, rangeConfig.TargetRule) == true then
+                table.insert(filteredTargetIds, targetId)
+            end
+        end
+
+        return filteredTargetIds
+    end
+
+    @ExecSpace("ServerOnly")
+    method table FindAllAllowedActorIds(string sponsorId, string targetRule)
+        -- Returns every active actor id allowed by an all-target rule.
+        local targetIds = {}
+        if self.activeActorIds == nil then
+            return targetIds
+        end
+
+        for _, actorId in ipairs(self.activeActorIds) do
+            if self:IsActorTargetAllowed(sponsorId, actorId, targetRule) == true then
+                table.insert(targetIds, actorId)
+            end
+        end
+
+        return targetIds
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean IsActorTargetAllowed(string sponsorId, string targetId, string targetRule)
+        -- Checks whether one actor id can be targeted by the current skill rule.
+        if targetId == nil or targetId == "" or self.actorMap == nil or self.actorMap[targetId] == nil then
+            return false
+        end
+
+        if targetRule == _BattleKeys.targetSelf then
+            return targetId == sponsorId
+        end
+
+        local sponsorTeam = self:GetActorTeam(sponsorId)
+        local targetTeam = self:GetActorTeam(targetId)
+
+        if targetRule == _BattleKeys.targetAlly or targetRule == _BattleKeys.targetAllAllies then
+            return sponsorTeam ~= "" and sponsorTeam == targetTeam
+        end
+
+        if targetRule == _BattleKeys.targetEnemy or targetRule == _BattleKeys.targetAllEnemies then
+            return sponsorTeam ~= "" and targetTeam ~= "" and sponsorTeam ~= targetTeam
+        end
+
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method string GetActorTeam(string actorId)
+        -- Converts actorType into a broad side key for ally/enemy targeting.
+        if self.actorMap == nil or actorId == nil or actorId == "" then
+            return ""
+        end
+
+        local actorEntry = self.actorMap[actorId]
+        if actorEntry == nil then
+            return ""
+        end
+
+        local actorType = _DataUtil:GetTableString(actorEntry, "actorType", "")
+        if actorType == _BattleKeys.actorTypePlayer or actorType == _BattleKeys.actorTypeCompanion then
+            return "Player"
+        end
+
+        if actorType == _BattleKeys.actorTypeMonster or actorType == _BattleKeys.actorTypeBoss then
+            return "Enemy"
+        end
+
+        return actorType
+    end
+
+    @ExecSpace("ServerOnly")
+    method any GetActorEntryPosition(table actorEntry)
+        -- Reads a battle actor's world position from flexible payload field names.
+        if actorEntry == nil then
+            return nil
+        end
+
+        local position = actorEntry.Position or actorEntry.position or actorEntry.WorldPosition or actorEntry.worldPosition
+        if position ~= nil then
+            if position.x ~= nil and position.y ~= nil then
+                return Vector2(tonumber(position.x) or 0, tonumber(position.y) or 0)
+            end
+
+            if position.X ~= nil and position.Y ~= nil then
+                return Vector2(tonumber(position.X) or 0, tonumber(position.Y) or 0)
+            end
+
+            if position[1] ~= nil and position[2] ~= nil then
+                return Vector2(tonumber(position[1]) or 0, tonumber(position[2]) or 0)
+            end
+        end
+
+        if actorEntry.x ~= nil and actorEntry.y ~= nil then
+            return Vector2(tonumber(actorEntry.x) or 0, tonumber(actorEntry.y) or 0)
+        end
+
+        if actorEntry.X ~= nil and actorEntry.Y ~= nil then
+            return Vector2(tonumber(actorEntry.X) or 0, tonumber(actorEntry.Y) or 0)
+        end
+
+        return nil
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean IsPositionInsideActionRange(Vector2 actorPosition, Vector2 centerPoint, string shape, table rangeConfig)
+        -- Tests one actor position against a configured circle, box, or point range.
+        if actorPosition == nil or centerPoint == nil then
+            return false
+        end
+
+        if shape == "Box" or shape == "Rect" or shape == "Rectangle" then
+            local halfWidth = math.max(0, rangeConfig.Width) / 2
+            local halfHeight = math.max(0, rangeConfig.Height) / 2
+            return math.abs(actorPosition.x - centerPoint.x) <= halfWidth and math.abs(actorPosition.y - centerPoint.y) <= halfHeight
+        end
+
+        local radius = math.max(0, rangeConfig.Radius)
+        if radius <= 0 then
+            return actorPosition.x == centerPoint.x and actorPosition.y == centerPoint.y
+        end
+
+        return Vector2.Distance(actorPosition, centerPoint) <= radius
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean IsPositionInsideBounds(Vector2 actorPosition, table bounds)
+        -- Tests one actor position against explicit min/max or center/size bounds.
+        if actorPosition == nil or bounds == nil then
+            return false
+        end
+
+        local minX = tonumber(bounds.MinX or bounds.minX)
+        local maxX = tonumber(bounds.MaxX or bounds.maxX)
+        local minY = tonumber(bounds.MinY or bounds.minY)
+        local maxY = tonumber(bounds.MaxY or bounds.maxY)
+
+        local minPoint = bounds.Min or bounds.min
+        local maxPoint = bounds.Max or bounds.max
+        if minPoint ~= nil and maxPoint ~= nil then
+            minX = minX or tonumber(minPoint.x or minPoint.X or minPoint[1])
+            minY = minY or tonumber(minPoint.y or minPoint.Y or minPoint[2])
+            maxX = maxX or tonumber(maxPoint.x or maxPoint.X or maxPoint[1])
+            maxY = maxY or tonumber(maxPoint.y or maxPoint.Y or maxPoint[2])
+        end
+
+        local center = bounds.Center or bounds.center
+        local size = bounds.Size or bounds.size
+        if center ~= nil and size ~= nil then
+            local centerX = tonumber(center.x or center.X or center[1]) or 0
+            local centerY = tonumber(center.y or center.Y or center[2]) or 0
+            local halfWidth = (tonumber(size.x or size.X or size[1]) or 0) / 2
+            local halfHeight = (tonumber(size.y or size.Y or size[2]) or 0) / 2
+            minX = minX or (centerX - halfWidth)
+            maxX = maxX or (centerX + halfWidth)
+            minY = minY or (centerY - halfHeight)
+            maxY = maxY or (centerY + halfHeight)
+        end
+
+        if minX == nil or maxX == nil or minY == nil or maxY == nil then
+            return false
+        end
+
+        local lowX = math.min(minX, maxX)
+        local highX = math.max(minX, maxX)
+        local lowY = math.min(minY, maxY)
+        local highY = math.max(minY, maxY)
+        return actorPosition.x >= lowX and actorPosition.x <= highX and actorPosition.y >= lowY and actorPosition.y <= highY
     end
     
     @ExecSpace("ServerOnly")
@@ -435,13 +842,15 @@ script BattleSystem extends Component
         -- Returns every authoritative mutation in one RPC-safe table for client cache and presentation.
         -- Payload contract: { Revision = integer, Changes = table }.
         -- Changes must include all damage, healing, resource, buff, cooldown, movement, and death results.
+        local resolvedTargetIds = self:GetActionContextTargetIds(targetIds)
         self.battleStateRevision = self.battleStateRevision + 1
         local actionResultPayload = {}
         actionResultPayload.Revision = self.battleStateRevision
         actionResultPayload.Changes = {}
+        actionResultPayload.ActionContext = targetIds
 
         -- TODO: BattleCalculator appends all resolved change entries to actionResultPayload.Changes.
-        log("[BattleSystem] ResolveAction stub sponsor=" .. sponsorId .. ", action=" .. actionKey .. ", targetCount=" .. tostring(#targetIds))
+        log("[BattleSystem] ResolveAction stub sponsor=" .. sponsorId .. ", action=" .. actionKey .. ", targetCount=" .. tostring(#resolvedTargetIds))
         return actionResultPayload
     end
 
