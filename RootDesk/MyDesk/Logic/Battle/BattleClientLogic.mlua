@@ -1,14 +1,12 @@
 @Logic
 script BattleClientLogic extends Logic
 
-    -- Client-side shell for battle mode presentation: UI, local control lock, and camera.
+    -- Client-side shell for battle mode presentation: UI, player-control lock request, and camera.
     -- Stores the server-spawned battleEntity so BattleUIComponent can read @Sync on BattleSystem.
 
     property string currentBattleId = ""
     property boolean isInBattle = false
     property Entity battleEntity = nil
-    property boolean previousControllerEnabled = true
-    property boolean hasPreviousControllerState = false
     property string previousUIKey = ""
     property boolean hasPreviousUIState = false
     property number previousZoomRatio = 100
@@ -69,7 +67,7 @@ script BattleClientLogic extends Logic
         _UIManagerLogic:CloseCurrentUI()
         _UIManagerLogic:OpenBattleUI()
         self:AttachBattleUI(battleEntity)
-        self:DisablePlayerControl()
+        _PlayerControlLogic:PushControlLock(_PlayerControlLogic.battleLockKey)
         self:ApplyBattleCamera()
 
         log("[BattleClientLogic] EnterBattle battleId=" .. battleId)
@@ -91,7 +89,7 @@ script BattleClientLogic extends Logic
         _UIManagerLogic:CloseBattleUI()
         self:DetachBattleUI()
         self:RestorePreviousUIState()
-        self:RestorePlayerControl()
+        _PlayerControlLogic:PopControlLock(_PlayerControlLogic.battleLockKey)
         self:RestoreBattleCamera()
 
         log("[BattleClientLogic] ExitBattle battleId=" .. self.currentBattleId .. ", result=" .. tostring(result))
@@ -380,53 +378,6 @@ script BattleClientLogic extends Logic
     end
 
     @ExecSpace("ClientOnly")
-    method void DisablePlayerControl()
-        -- Disables local player input and stops residual movement.
-        local player = self:GetLocalPlayer()
-        if isvalid(player) == false then
-            log_warning("[BattleClientLogic] DisablePlayerControl failed: LocalPlayer missing.")
-            return
-        end
-
-        local controller = player.PlayerControllerComponent
-        if controller ~= nil then
-            self.previousControllerEnabled = controller.Enable
-            self.hasPreviousControllerState = true
-            controller.Enable = false
-        end
-
-        local movement = player.MovementComponent
-        if movement ~= nil then
-            movement:Stop()
-        end
-
-        log("[BattleClientLogic] DisablePlayerControl done.")
-    end
-
-    @ExecSpace("ClientOnly")
-    method void RestorePlayerControl()
-        -- Restores local player input state captured before battle mode.
-        local player = self:GetLocalPlayer()
-        if isvalid(player) == false then
-            log_warning("[BattleClientLogic] RestorePlayerControl failed: LocalPlayer missing.")
-            self.hasPreviousControllerState = false
-            return
-        end
-
-        local controller = player.PlayerControllerComponent
-        if controller ~= nil then
-            if self.hasPreviousControllerState == true then
-                controller.Enable = self.previousControllerEnabled
-            else
-                controller.Enable = true
-            end
-        end
-
-        self.hasPreviousControllerState = false
-        log("[BattleClientLogic] RestorePlayerControl done.")
-    end
-
-    @ExecSpace("ClientOnly")
     method void ApplyBattleCamera()
         -- Stores current zoom and applies a battle-focused zoom.
         local currentCamera = _CameraService:GetCurrentCameraComponent()
@@ -507,12 +458,6 @@ script BattleClientLogic extends Logic
         end
 
         return battleUIEntity:GetComponent("script.BattleUIComponent")
-    end
-
-    @ExecSpace("ClientOnly")
-    method Entity GetLocalPlayer()
-        -- Returns the local player entity for client-only presentation changes.
-        return _UserService.LocalPlayer
     end
 
 end

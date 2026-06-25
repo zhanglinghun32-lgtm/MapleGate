@@ -87,7 +87,7 @@ script PlayerDataLogic extends Logic
             return
         end
 
-        _SceneLogic:ChangeSceneForUser(senderUserId, self.mainMenuSceneKey)
+        _GameplayFlowLogic:ReturnToMainMenuForUser(senderUserId, "SaveAndReturnToMenu")
         log("[PlayerDataLogic] RequestSaveAndReturnToMenu complete. userId=" .. senderUserId)
     end
 
@@ -111,7 +111,7 @@ script PlayerDataLogic extends Logic
         if createdVirtualSlot == true then
             self:MarkDirty(userId)
         end
-        _SceneLogic:ChangeSceneForUser(userId, self.worldSceneKey)
+        _GameplayFlowLogic:EnterWorldForUser(userId, "ContinueGame")
         log("[PlayerDataLogic] ContinueGame complete. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
         return true
     end
@@ -127,7 +127,7 @@ script PlayerDataLogic extends Logic
         local slotData = self:CreateDefaultSlotData()
         self:ApplyLoadedSlotData(userId, slotIndex, slotData)
         self:SaveSlotData(userId, slotIndex, slotData)
-        _SceneLogic:ChangeSceneForUser(userId, self.worldSceneKey)
+        _GameplayFlowLogic:EnterWorldForUser(userId, "StartNewGame")
         log("[PlayerDataLogic] StartNewGame complete. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
         return true
     end

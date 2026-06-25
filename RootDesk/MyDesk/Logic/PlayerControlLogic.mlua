@@ -1,0 +1,187 @@
+@Logic
+script PlayerControlLogic extends Logic
+
+    -- Owns local player operation locks so battle, cutscene, dialogue, and UI locks can stack safely.
+
+    property string battleLockKey = "Battle"
+    property any controlLocks = nil
+    property boolean previousControllerEnabled = true
+    property boolean hasPreviousControllerState = false
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        -- Initializes the client-side local player control lock registry.
+        self.controlLocks = {}
+        self.hasPreviousControllerState = false
+        log("[PlayerControlLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnEndPlay()
+        -- Clears locks and restores local controller state before play ends.
+        self:ClearControlLocks()
+        log("[PlayerControlLogic] OnEndPlay.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void PushControlLock(string reasonKey)
+        -- Adds one lock reason and disables local player control while any lock remains.
+        if reasonKey == nil or reasonKey == "" then
+            log_warning("[PlayerControlLogic] PushControlLock ignored: reasonKey is empty.")
+            return
+        end
+
+        if self.controlLocks == nil then
+            self.controlLocks = {}
+        end
+
+        if self.controlLocks[reasonKey] == true then
+            log("[PlayerControlLogic] PushControlLock skipped duplicate. reason=" .. reasonKey .. ", count=" .. tostring(self:GetActiveLockCount()))
+            return
+        end
+
+        local wasUnlocked = self:GetActiveLockCount() == 0
+        self.controlLocks[reasonKey] = true
+
+        if wasUnlocked == true then
+            self:DisableLocalPlayerControl()
+        else
+            self:StopLocalPlayerMovement()
+        end
+
+        log("[PlayerControlLogic] PushControlLock reason=" .. reasonKey .. ", count=" .. tostring(self:GetActiveLockCount()))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void PopControlLock(string reasonKey)
+        -- Removes one lock reason and restores local player control when no locks remain.
+        if reasonKey == nil or reasonKey == "" then
+            log_warning("[PlayerControlLogic] PopControlLock ignored: reasonKey is empty.")
+            return
+        end
+
+        if self.controlLocks == nil or self.controlLocks[reasonKey] ~= true then
+            log("[PlayerControlLogic] PopControlLock skipped missing reason=" .. reasonKey)
+            return
+        end
+
+        self.controlLocks[reasonKey] = nil
+        local activeLockCount = self:GetActiveLockCount()
+        if activeLockCount == 0 then
+            self:RestoreLocalPlayerControl()
+        end
+
+        log("[PlayerControlLogic] PopControlLock reason=" .. reasonKey .. ", count=" .. tostring(activeLockCount))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ClearControlLocks()
+        -- Removes every lock reason and restores local player control.
+        self.controlLocks = {}
+        self:RestoreLocalPlayerControl()
+        log("[PlayerControlLogic] ClearControlLocks.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method boolean HasControlLock(string reasonKey)
+        -- Returns whether a specific reason currently blocks local player operation.
+        if reasonKey == nil or reasonKey == "" or self.controlLocks == nil then
+            return false
+        end
+
+        return self.controlLocks[reasonKey] == true
+    end
+
+    @ExecSpace("ClientOnly")
+    method boolean CanControl()
+        -- Returns true only when no active lock reason is present.
+        return self:GetActiveLockCount() == 0
+    end
+
+    @ExecSpace("ClientOnly")
+    method integer GetActiveLockCount()
+        -- Counts active local player control lock reasons.
+        if self.controlLocks == nil then
+            return 0
+        end
+
+        local count = 0
+        for _, isLocked in pairs(self.controlLocks) do
+            if isLocked == true then
+                count = count + 1
+            end
+        end
+
+        return count
+    end
+
+    @ExecSpace("ClientOnly")
+    method void DisableLocalPlayerControl()
+        -- Captures and disables the local PlayerControllerComponent, then stops movement.
+        local player = self:GetLocalPlayer()
+        if isvalid(player) == false then
+            log_warning("[PlayerControlLogic] DisableLocalPlayerControl failed: LocalPlayer missing.")
+            return
+        end
+
+        local controller = player.PlayerControllerComponent
+        if controller ~= nil then
+            self.previousControllerEnabled = controller.Enable
+            self.hasPreviousControllerState = true
+            controller.Enable = false
+        else
+            self.hasPreviousControllerState = false
+            log_warning("[PlayerControlLogic] DisableLocalPlayerControl: PlayerControllerComponent missing.")
+        end
+
+        self:StopLocalPlayerMovement()
+        log("[PlayerControlLogic] DisableLocalPlayerControl done.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RestoreLocalPlayerControl()
+        -- Restores the local PlayerControllerComponent to its pre-lock state.
+        local player = self:GetLocalPlayer()
+        if isvalid(player) == false then
+            log_warning("[PlayerControlLogic] RestoreLocalPlayerControl failed: LocalPlayer missing.")
+            self.hasPreviousControllerState = false
+            return
+        end
+
+        local controller = player.PlayerControllerComponent
+        if controller ~= nil then
+            if self.hasPreviousControllerState == true then
+                controller.Enable = self.previousControllerEnabled
+            else
+                controller.Enable = true
+            end
+        else
+            log_warning("[PlayerControlLogic] RestoreLocalPlayerControl: PlayerControllerComponent missing.")
+        end
+
+        self.hasPreviousControllerState = false
+        log("[PlayerControlLogic] RestoreLocalPlayerControl done.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void StopLocalPlayerMovement()
+        -- Stops residual local MovementComponent input while control is locked.
+        local player = self:GetLocalPlayer()
+        if isvalid(player) == false then
+            log_warning("[PlayerControlLogic] StopLocalPlayerMovement failed: LocalPlayer missing.")
+            return
+        end
+
+        local movement = player.MovementComponent
+        if movement ~= nil then
+            movement:Stop()
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method Entity GetLocalPlayer()
+        -- Returns the local player entity for client-only control changes.
+        return _UserService.LocalPlayer
+    end
+
+end

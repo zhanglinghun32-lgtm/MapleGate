@@ -1,0 +1,41 @@
+@Logic
+script GameplayFlowLogic extends Logic
+
+    -- Coordinates broad playable-world flow while SceneLogic remains the map/UI router.
+
+    property string worldSceneKey = "World"
+    property string mainMenuSceneKey = "MainMenu"
+
+    @ExecSpace("ServerOnly")
+    method void EnterWorldForUser(string userId, string sourceKey)
+        -- Routes a prepared user into the playable world scene.
+        if userId == nil or userId == "" then
+            log_warning("[GameplayFlowLogic] EnterWorldForUser ignored: userId is empty.")
+            return
+        end
+
+        if sourceKey == nil or sourceKey == "" then
+            sourceKey = "Unknown"
+        end
+
+        _SceneLogic:ChangeSceneForUser(userId, self.worldSceneKey)
+        log("[GameplayFlowLogic] EnterWorldForUser userId=" .. userId .. ", source=" .. sourceKey)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ReturnToMainMenuForUser(string userId, string sourceKey)
+        -- Routes a user out of playable world flow and back to the main menu scene.
+        if userId == nil or userId == "" then
+            log_warning("[GameplayFlowLogic] ReturnToMainMenuForUser ignored: userId is empty.")
+            return
+        end
+
+        if sourceKey == nil or sourceKey == "" then
+            sourceKey = "Unknown"
+        end
+
+        _SceneLogic:ChangeSceneForUser(userId, self.mainMenuSceneKey)
+        log("[GameplayFlowLogic] ReturnToMainMenuForUser userId=" .. userId .. ", source=" .. sourceKey)
+    end
+
+end
