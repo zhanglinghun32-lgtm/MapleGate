@@ -11,18 +11,26 @@ Update it whenever a saved field is added, renamed, moved, or removed.
 | Owner | The current MSW `userId` |
 | Key format | `Slot{slotIndex}` |
 | Current keys | `Slot1`, `Slot2`, `Slot3` |
-| Serialization | `_UtilLogic:TableToString(slotData)` |
+| Serialization | `_HttpService:JSONEncode(slotData)` / `_HttpService:JSONDecode(rawData)` |
 | Authority | Server only: `PlayerDataLogic` |
 
 Field names are case-sensitive. `Actors`, `actors`, and `Actor` are different
 keys. Public save-data keys use PascalCase exactly as written below.
 
+Legacy slots written with `_UtilLogic:TableToString` are still accepted on load,
+then rewritten as JSON on the next save. JSON is required because
+`TableToString` does not round-trip nested tables correctly.
+Before JSON encoding, empty Lua tables receive an internal `__MSWEmptyTable`
+sentinel in a serialization-only copy because MSW cannot infer whether an empty
+table is a JSON array or object. The sentinel is removed immediately after decode.
+
 ## Root Fields
 
 | Exact key | Type | Required | Owner | Notes |
 |---|---|---:|---|---|
-| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `1`. |
+| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `2`. Version 2 adds `PlayerPosition` and JSON serialization. |
 | `Profile` | table | Yes | `PlayerDataLogic` | Slot metadata. |
+| `PlayerPosition` | table | Yes | `PlayerDataLogic` | Last world position captured when the slot is saved. |
 | `Actors` | array<table> | Yes | `PlayerDataLogic` / `BattleActorCom` | `Actors[1]` is currently applied to DefaultPlayer. |
 | `Party` | table | Yes | `PartyLogic` | Party membership and formation. |
 | `Inventory` | table | Yes | `InventoryLogic` | Item stacks and equipment keys. |
@@ -38,6 +46,21 @@ Path: `slotData.Profile`
 | `DisplayName` | string | `"Player"` | Slot display name. |
 | `PlayTimeSeconds` | integer | `0` | Accumulated play time; update logic is not implemented yet. |
 | `LastSceneKey` | string | `"World"` | Public scene key, not a map name. |
+
+## PlayerPosition
+
+Path: `slotData.PlayerPosition`
+
+| Exact key | Type | Default | Source / meaning |
+|---|---|---:|---|
+| `X` | number | `0` | `TransformComponent.WorldPosition.x` at save time. |
+| `Y` | number | `0` | `TransformComponent.WorldPosition.y` at save time. |
+| `Z` | number | `0` | `TransformComponent.WorldPosition.z` at save time. |
+
+`ContinueGame` converts `X` and `Y` to a `Vector2` and passes it through
+`GameplayFlowLogic` to `SceneLogic`, which uses it as the target of
+`PlayerComponent:MoveToMapPosition`. `Z` is retained for schema completeness but
+the current 2D map-transition API consumes only `X` and `Y`.
 
 ## Actors
 
@@ -158,11 +181,16 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
 
 ```lua
 {
-    Version = 1,
+    Version = 2,
     Profile = {
         DisplayName = "Player",
         PlayTimeSeconds = 0,
         LastSceneKey = "World"
+    },
+    PlayerPosition = {
+        X = 0,
+        Y = 0,
+        Z = 0
     },
     Actors = {
         {
@@ -226,4 +254,3 @@ Before adding or changing a saved value:
 5. Increment `Version` when compatibility or migration logic is required.
 6. Update this document in the same change.
 7. Verify one save and one reload through Maker logs.
-

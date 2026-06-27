@@ -58,6 +58,45 @@ script SceneLogic extends Logic
         self:ApplySceneUI(sceneKey, userId)
     end
 
+    @ExecSpace("ServerOnly")
+    method void ChangeSceneForUserAtPosition(string userId, string sceneKey, Vector2 entryPosition)
+        -- Moves a player to a scene using an explicit entry position such as SaveSlot data.
+        if userId == nil or userId == "" then
+            log_warning("[SceneLogic] ChangeSceneForUserAtPosition ignored: userId is empty.")
+            return
+        end
+
+        if sceneKey == nil or sceneKey == "" then
+            log_warning("[SceneLogic] ChangeSceneForUserAtPosition ignored: sceneKey is empty. userId=" .. userId)
+            return
+        end
+
+        if entryPosition == nil then
+            self:ChangeSceneForUser(userId, sceneKey)
+            return
+        end
+
+        local mapName = self:GetMapName(sceneKey)
+        if mapName == "" then
+            log_warning("[SceneLogic] ChangeSceneForUserAtPosition unknown scene=" .. tostring(sceneKey) .. ", userId=" .. userId)
+            return
+        end
+
+        local userEntity = _UserService:GetUserEntityByUserId(userId)
+        if isvalid(userEntity) == false or userEntity.PlayerComponent == nil then
+            log_warning("[SceneLogic] ChangeSceneForUserAtPosition failed: user entity missing. userId=" .. userId)
+            return
+        end
+
+        userEntity.PlayerComponent:MoveToMapPosition(mapName, entryPosition)
+        log("[SceneLogic] ChangeSceneForUserAtPosition userId=" .. userId
+            .. ", scene=" .. sceneKey
+            .. ", map=" .. mapName
+            .. ", entry=" .. tostring(entryPosition))
+
+        self:ApplySceneUI(sceneKey, userId)
+    end
+
     @ExecSpace("Client")
     method void ApplySceneUI(string sceneKey)
         -- Applies scene UI after running the previous scene close callback.

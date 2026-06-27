@@ -23,6 +23,29 @@ script GameplayFlowLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
+    method void EnterWorldForUserAtPosition(string userId, string sourceKey, Vector2 entryPosition)
+        -- Routes a prepared user into the world at an explicit persisted position.
+        if userId == nil or userId == "" then
+            log_warning("[GameplayFlowLogic] EnterWorldForUserAtPosition ignored: userId is empty.")
+            return
+        end
+
+        if entryPosition == nil then
+            self:EnterWorldForUser(userId, sourceKey)
+            return
+        end
+
+        if sourceKey == nil or sourceKey == "" then
+            sourceKey = "Unknown"
+        end
+
+        _SceneLogic:ChangeSceneForUserAtPosition(userId, self.worldSceneKey, entryPosition)
+        log("[GameplayFlowLogic] EnterWorldForUserAtPosition userId=" .. userId
+            .. ", source=" .. sourceKey
+            .. ", entry=" .. tostring(entryPosition))
+    end
+
+    @ExecSpace("ServerOnly")
     method void ReturnToMainMenuForUser(string userId, string sourceKey)
         -- Routes a user out of playable world flow and back to the main menu scene.
         if userId == nil or userId == "" then

@@ -5,6 +5,7 @@ script PlayerDataLogic extends Logic
     property string mainMenuSceneKey = "MainMenu"
     property string slotKeyPrefix = "Slot"
     property integer maxSlotIndex = 3
+    property integer currentSchemaVersion = 2
     property number autoFlushSeconds = 30
     property any loadedSlotIndexes = nil
     property any slotDataCache = nil
@@ -111,7 +112,14 @@ script PlayerDataLogic extends Logic
         if createdVirtualSlot == true then
             self:MarkDirty(userId)
         end
-        _GameplayFlowLogic:EnterWorldForUser(userId, "ContinueGame")
+        local savedEntryPosition = self:GetSavedPlayerEntryPosition(slotData.PlayerPosition)
+        if savedEntryPosition ~= nil then
+            _GameplayFlowLogic:EnterWorldForUserAtPosition(userId, "ContinueGame", savedEntryPosition)
+            log("[PlayerDataLogic] ContinueGame restoring position. userId=" .. userId .. ", entry=" .. tostring(savedEntryPosition))
+        else
+            _GameplayFlowLogic:EnterWorldForUser(userId, "ContinueGame")
+            log_warning("[PlayerDataLogic] ContinueGame using default entry: saved position is missing. userId=" .. userId)
+        end
         log("[PlayerDataLogic] ContinueGame complete. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
         return true
     end
@@ -181,7 +189,13 @@ script PlayerDataLogic extends Logic
             return nil
         end
 
-        local slotData = _UtilLogic:StringToTable(rawData)
+        local slotData = nil
+        if string.sub(rawData, 1, 1) == "{" then
+            slotData = self:RestoreTableFromJson(_HttpService:JSONDecode(rawData))
+        else
+            slotData = _UtilLogic:StringToTable(rawData)
+            log_warning("[PlayerDataLogic] LoadSlotData loaded legacy table-string payload. userId=" .. userId .. ", slotKey=" .. slotKey)
+        end
         if slotData == nil then
             log_warning("[PlayerDataLogic] LoadSlotData failed: parse returned nil. userId=" .. userId .. ", slotKey=" .. slotKey)
             return nil
@@ -201,7 +215,8 @@ script PlayerDataLogic extends Logic
         end
 
         local slotKey = self:GetSlotStorageKey(slotIndex)
-        local rawData = _UtilLogic:TableToString(slotData)
+        local serializableSlotData = self:PrepareTableForJson(slotData)
+        local rawData = _HttpService:JSONEncode(serializableSlotData)
         local errorCode = storage:SetAndWait(slotKey, rawData)
         if errorCode ~= 0 then
             log_warning("[PlayerDataLogic] SaveSlotData failed. userId=" .. userId .. ", slotKey=" .. slotKey .. ", errorCode=" .. tostring(errorCode))
@@ -222,7 +237,7 @@ script PlayerDataLogic extends Logic
             slotData = self:CreateDefaultSlotData()
         end
 
-        slotData.Version = 1
+        slotData.Version = self.currentSchemaVersion
         if slotData.Profile == nil then
             slotData.Profile = self:CreateDefaultProfileData()
         end
@@ -232,6 +247,7 @@ script PlayerDataLogic extends Logic
         slotData.Skill = _SkillLogic:ExportUserData(userId)
         slotData.Mission = _MissionLogic:ExportUserData(userId)
         slotData.Actors = self:CollectPlayerActors(userId, slotData.Actors)
+        slotData.PlayerPosition = self:CollectPlayerPosition(userId, slotData.PlayerPosition)
 
         return slotData
     end
@@ -240,8 +256,9 @@ script PlayerDataLogic extends Logic
     method table CreateDefaultSlotData()
         -- Creates the full default save payload for one new slot.
         local slotData = {}
-        slotData.Version = 1
+        slotData.Version = self.currentSchemaVersion
         slotData.Profile = self:CreateDefaultProfileData()
+        slotData.PlayerPosition = self:CreateDefaultPlayerPositionData()
         slotData.Party = _PartyLogic:CreateDefaultData()
         slotData.Inventory = _InventoryLogic:CreateDefaultData()
         slotData.Skill = _SkillLogic:CreateDefaultData()
@@ -268,6 +285,106 @@ script PlayerDataLogic extends Logic
         actorData.Speed = 3
         actors[1] = actorData
         return actors
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CollectPlayerPosition(string userId, table fallbackPosition)
+        -- Captures the authoritative player's current world position for SaveSlot persistence.
+        local userEntity = _UserService:GetUserEntityByUserId(userId)
+        if isvalid(userEntity) == false or isvalid(userEntity.TransformComponent) == false then
+            log_warning("[PlayerDataLogic] CollectPlayerPosition fallback: player transform missing. userId=" .. tostring(userId))
+            return fallbackPosition or self:CreateDefaultPlayerPositionData()
+        end
+
+        local worldPosition = userEntity.TransformComponent.WorldPosition
+        local playerPosition = {}
+        playerPosition.X = worldPosition.x
+        playerPosition.Y = worldPosition.y
+        playerPosition.Z = worldPosition.z
+        log("[PlayerDataLogic] CollectPlayerPosition. userId=" .. userId
+            .. ", x=" .. tostring(playerPosition.X)
+            .. ", y=" .. tostring(playerPosition.Y)
+            .. ", z=" .. tostring(playerPosition.Z))
+        return playerPosition
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateDefaultPlayerPositionData()
+        -- Creates the backward-compatible position payload for new and legacy slots.
+        local playerPosition = {}
+        playerPosition.X = 0
+        playerPosition.Y = 0
+        playerPosition.Z = 0
+        return playerPosition
+    end
+
+    @ExecSpace("ServerOnly")
+    method Vector2 GetSavedPlayerEntryPosition(table playerPosition)
+        -- Converts persisted world coordinates to the 2D map-transition position.
+        if playerPosition == nil or playerPosition.X == nil or playerPosition.Y == nil then
+            return nil
+        end
+
+        local positionX = tonumber(playerPosition.X)
+        local positionY = tonumber(playerPosition.Y)
+        if positionX == nil or positionY == nil then
+            return nil
+        end
+
+        return Vector2(positionX, positionY)
+    end
+
+    @ExecSpace("ServerOnly")
+    method table PrepareTableForJson(table sourceTable)
+        -- Clones save data and marks empty tables so MSW JSONEncode can infer a shape.
+        local resultTable = {}
+        local entryCount = 0
+        for key, value in pairs(sourceTable) do
+            entryCount = entryCount + 1
+            if type(value) == "table" then
+                resultTable[key] = self:PrepareTableForJson(value)
+            else
+                resultTable[key] = value
+            end
+        end
+
+        if entryCount == 0 then
+            resultTable.__MSWEmptyTable = true
+        end
+        return resultTable
+    end
+
+    @ExecSpace("ServerOnly")
+    method table RestoreTableFromJson(table sourceTable)
+        -- Removes serialization-only empty-table markers after JSON decoding.
+        if sourceTable == nil then
+            return nil
+        end
+
+        if sourceTable.__MSWEmptyTable == true then
+            sourceTable.__MSWEmptyTable = nil
+            return sourceTable
+        end
+
+        for key, value in pairs(sourceTable) do
+            if type(value) == "table" then
+                sourceTable[key] = self:RestoreTableFromJson(value)
+            end
+        end
+        return sourceTable
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean ArePlayerPositionsEqual(table leftPosition, table rightPosition)
+        -- Ignores sub-pixel physics jitter when deciding whether a save is dirty.
+        if leftPosition == nil or rightPosition == nil then
+            return false
+        end
+
+        local epsilon = 0.0001
+        return math.abs((tonumber(leftPosition.X) or 0) - (tonumber(rightPosition.X) or 0)) <= epsilon
+            and math.abs((tonumber(leftPosition.Y) or 0) - (tonumber(rightPosition.Y) or 0)) <= epsilon
+            and math.abs((tonumber(leftPosition.Z) or 0) - (tonumber(rightPosition.Z) or 0)) <= epsilon
     end
 
     @ExecSpace("ServerOnly")
@@ -360,6 +477,23 @@ script PlayerDataLogic extends Logic
             log_warning("[PlayerDataLogic] FlushUser ignored: no loaded slot. userId=" .. tostring(userId))
             self.dirtyUsers[userId] = nil
             return false
+        end
+
+        local cachedSlotData = self.slotDataCache[userId]
+        if cachedSlotData == nil then
+            cachedSlotData = self:CreateDefaultSlotData()
+            self.slotDataCache[userId] = cachedSlotData
+        end
+
+        local currentPosition = self:CollectPlayerPosition(userId, cachedSlotData.PlayerPosition)
+        if self:ArePlayerPositionsEqual(cachedSlotData.PlayerPosition, currentPosition) == false then
+            cachedSlotData.PlayerPosition = currentPosition
+            self:MarkDirty(userId)
+        end
+
+        if self.dirtyUsers[userId] ~= true then
+            log("[PlayerDataLogic] FlushUser skipped unchanged data. userId=" .. userId)
+            return true
         end
 
         local slotData = self:CollectSlotData(userId)

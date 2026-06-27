@@ -23,6 +23,7 @@ transitions and is shared by multiple systems.
 ## Responsibilities
 
 - Route a loaded user into the playable `World` scene.
+- Route a continuing user into the playable `World` scene at the loaded slot position.
 - Route a user back to the `MainMenu` scene.
 - Provide stable public entry points for future systems such as cutscenes,
   dialogue, field encounters, and battle entry.
@@ -41,6 +42,7 @@ transitions and is shared by multiple systems.
 
 ```text
 EnterWorldForUser(userId, sourceKey)
+EnterWorldForUserAtPosition(userId, sourceKey, entryPosition)
 ReturnToMainMenuForUser(userId, sourceKey)
 ```
 
@@ -56,8 +58,9 @@ ReturnToMainMenuForUser(userId, sourceKey)
 MainMenuUIComponent
   -> PlayerDataLogic:RequestContinueGame / RequestNewGame
   -> PlayerDataLogic loads or creates save data
-  -> GameplayFlowLogic:EnterWorldForUser(...)
-  -> SceneLogic:ChangeSceneForUser(userId, "World")
+  -> ContinueGame: GameplayFlowLogic:EnterWorldForUserAtPosition(..., savedPosition)
+  -> NewGame: GameplayFlowLogic:EnterWorldForUser(...)
+  -> SceneLogic moves the player to map01 with the selected entry position
 ```
 
 Returning to menu:
