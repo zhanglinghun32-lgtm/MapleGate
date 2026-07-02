@@ -13574,6 +13574,147 @@
           ],
           "@version": 1
         }
+      },
+      {
+        "id": "41a67d28-45d6-4f96-b035-54ad06b46b01",
+        "path": "/maps/map01/monsters",
+        "componentNames": "MOD.Core.TransformComponent",
+        "jsonString": {
+          "name": "monsters",
+          "path": "/maps/map01/monsters",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": false,
+          "displayOrder": 8,
+          "pathConstraints": "///",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "mapempty",
+            "sub_entity_id": null,
+            "root_entity_id": "41a67d28-45d6-4f96-b035-54ad06b46b01",
+            "replaced_model_id": null
+          },
+          "modelId": "mapempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.TransformComponent",
+              "Position": {
+                "x": -6.551523,
+                "y": 2.68173218,
+                "z": 999.999
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "cb5558aa-e9c7-4f25-9d01-5266b9f123b2",
+        "path": "/maps/map01/monsters/TrainingDummy",
+        "componentNames": "MOD.Core.TransformComponent,MOD.Core.SpriteRendererComponent,script.BattleActorCom,MOD.Core.HitComponent",
+        "jsonString": {
+          "name": "TrainingDummy",
+          "path": "/maps/map01/monsters/TrainingDummy",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": false,
+          "displayOrder": 0,
+          "pathConstraints": "////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "mapobject",
+            "sub_entity_id": null,
+            "root_entity_id": "cb5558aa-e9c7-4f25-9d01-5266b9f123b2",
+            "replaced_model_id": null
+          },
+          "modelId": "mapobject",
+          "@components": [
+            {
+              "@type": "MOD.Core.TransformComponent",
+              "Position": {
+                "x": -1.6661,
+                "y": 1.5407,
+                "z": -999.999
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteRendererComponent",
+              "ActionSheet": {},
+              "DrawMode": 0,
+              "EndFrameIndex": 2147483647,
+              "FlipX": false,
+              "FlipY": false,
+              "OrderInLayer": 10,
+              "PlayRate": 1.0,
+              "RenderSetting": 0,
+              "SpriteRUID": "4b1d55e35ae9462b944297691025429a",
+              "StartFrameIndex": 0,
+              "Color": {
+                "r": 1.0,
+                "g": 1.0,
+                "b": 1.0,
+                "a": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "script.BattleActorCom",
+              "Enable": true,
+              "actorConfigTableName": "actorConfig",
+              "configId": "",
+              "level": 1,
+              "hp": 1000,
+              "maxHp": 1000,
+              "mp": 0,
+              "maxMp": 0,
+              "stamina": 0,
+              "maxStamina": 0,
+              "baseAttack": 0,
+              "totalAttack": 0,
+              "baseDefense": 0,
+              "totalDefense": 0,
+              "speed": 0.0
+            },
+            {
+              "@type": "MOD.Core.HitComponent",
+              "BoxSize": {
+                "x": 1.2,
+                "y": 1.8
+              },
+              "ColliderOffset": {
+                "x": 0.0,
+                "y": 0.9
+              },
+              "ColliderType": 1,
+              "IsLegacy": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
       }
     ]
   }

@@ -1,0 +1,98 @@
+@Component
+script FieldNormalAttack extends AttackComponent
+
+    -- World-field basic attack. A is mapped to the native Attack action on the client;
+    -- damage/hit detection and battle entry remain server-authoritative.
+    property string actionKey = "normalAttack"
+    property Vector2 attackSize = Vector2(1.2, 1.2)
+    property number attackForwardOffset = 0.8
+    property number attackVerticalOffset = 0.6
+    property number attackCooldownSeconds = 0.35
+    property number nextAttackTime = 0
+    property boolean battleStarting = false
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        local controller = self.Entity.PlayerControllerComponent
+        if controller == nil then
+            log_warning("[FieldNormalAttack] PlayerControllerComponent missing.")
+            return
+        end
+
+        controller:SetActionKey(KeyboardKey.A, "Attack")
+        log("[FieldNormalAttack] Bound A to normalAttack. entity=" .. tostring(self.Entity.Name))
+    end
+
+    @ExecSpace("ServerOnly")
+    @EventSender("Self")
+    handler HandlePlayerActionEvent(PlayerActionEvent event)
+        if event.ActionName ~= "Attack" or self.battleStarting == true then
+            return
+        end
+
+        if _UtilLogic.ElapsedSeconds < self.nextAttackTime then
+            return
+        end
+        self.nextAttackTime = _UtilLogic.ElapsedSeconds + self.attackCooldownSeconds
+
+        if isvalid(self.Entity.CurrentMap) == false or self.Entity.CurrentMap.Name ~= "map01" then
+            return
+        end
+
+        local lookDirectionX = -1
+        if self.Entity.PlayerControllerComponent ~= nil then
+            lookDirectionX = self.Entity.PlayerControllerComponent.LookDirectionX
+        end
+        if lookDirectionX == 0 then
+            lookDirectionX = -1
+        end
+
+        local attackOffset = Vector2(
+            lookDirectionX * self.attackForwardOffset,
+            self.attackVerticalOffset
+        )
+        log("[FieldNormalAttack] normalAttack fired. direction=" .. tostring(lookDirectionX))
+        self:Attack(self.attackSize, attackOffset, self.actionKey)
+    end
+
+    method boolean IsAttackTarget(Entity defender, string attackInfo)
+        if attackInfo ~= self.actionKey or isvalid(defender) == false or defender == self.Entity then
+            return false
+        end
+
+        if defender.CurrentMap ~= self.Entity.CurrentMap then
+            return false
+        end
+
+        return defender:GetComponent("script.BattleActorCom") ~= nil
+    end
+
+    method integer CalcDamage(Entity attacker, Entity defender, string attackInfo)
+        local battleActor = attacker:GetComponent("script.BattleActorCom")
+        if battleActor == nil then
+            return 1
+        end
+
+        return math.max(1, battleActor.totalAttack)
+    end
+
+    method void OnAttack(Entity defender)
+        if self.battleStarting == true then
+            return
+        end
+
+        self.battleStarting = true
+        log("[FieldNormalAttack] normalAttack hit. target=" .. tostring(defender.Name))
+        local started = _BattleFlowLogic:StartFieldBattle(self.Entity, defender, self.actionKey)
+        if started == false then
+            self.battleStarting = false
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ResetAfterBattle()
+        self.battleStarting = false
+        log("[FieldNormalAttack] Battle lock reset.")
+    end
+
+end

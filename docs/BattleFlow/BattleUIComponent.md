@@ -8,7 +8,8 @@ and sends player actions under the current project architecture.
 ```text
 Open/Close BattleUI shell  -> BattleFlowLogic Client RPC -> BattleClientLogic -> UIManagerLogic
 Battle phase / turn actor  -> BattleSystem @Sync (server writes, client reads)
-Player skill / action tap  -> BattleUIComponent -> BattleSystem RequestAction (Client->Server RPC)
+Player skill tap           -> BattleUIComponent local selection + description popup
+Target confirm             -> BattleUIComponent -> BattleSystem RequestAction (Client->Server RPC)
 Battle session entity      -> Server spawn only (BattleFlowLogic); client never spawns it
 ```
 
@@ -75,7 +76,9 @@ instead of relying on Sync to open the UI.
 
 ## Player Input (RequestAction)
 
-When the synced phase is `AwaitingInput` and `currentActorId` is set:
+When the synced phase is `AwaitingInput` and `currentActorId` is set, clicking a
+skill first updates local selection state and opens `BattleSkillDescriptionPopup`.
+It does not send an action yet. After target selection and confirmation:
 
 ```text
 BattleUIComponent button click
@@ -116,11 +119,42 @@ BattleSystem:FinishBattle(result)
 4. Confirm battle session `.model` has both `BattleSystem` and `BattleQueue`.
 5. Battle entity must be spawned on the **server** with a non-nil map parent.
 
+## Skill Selection Flow
+
+```text
+Skill slot click
+  -> BattleUIComponent:OnSkillSlotClicked(event, skillIndex)
+  -> resolve skillKeysByIndex[skillIndex] + slot entity
+  -> BattleUIComponent:SelectSkill(skillKey, slotEntity)
+  -> cache selectedSkillKey + sponsor actorData
+  -> BattleSkillDescriptionPopup:ShowSkill(skillKey, sponsorActorData, slotEntity)
+  -> popup calculates selection overlay X/Y and enables it
+```
+
+`BattleSkillDescriptionPopup` owns its config lookup and close button. Its display
+interface accepts the skill key, sponsor actorData, and selected slot entity; the
+caller does not calculate popup/overlay position or pass preformatted UI strings.
+
+## Skill Slot Binding
+
+`BattleUIComponent` scans sequential `SkillSlot_N` children under `SkillGrid` and
+connects every button to the shared `OnSkillSlotClicked(event, skillIndex)` handler.
+The current UI keeps the legacy first-slot name `SkillSlot_01`; later slots use
+`SkillSlot_2`, `SkillSlot_3`, and so on. Adding the next continuous slot therefore
+does not require another property, handler field, or click method.
+
+Use `SetSkillSlotKey(skillIndex, skillKey)` when another UI update path assigns a
+skill to a slot. A slot is interactable whenever its skill key is populated, so
+local browsing and the description popup still work before action submission is
+legal. `inputEnabled` is enforced later by the RequestAction confirmation path.
+
 ## Current MVP Scope
 
-- First skill slot (`SkillSlot_01`) sends placeholder action `normalAttack`.
-- Target list is empty until target selection UI exists.
-- HP bars, skill icons, and multi-slot binding are follow-up tasks.
+- Skill slots use one loop-based binding and one indexed click handler.
+- First skill slot (`SkillSlot_01`) currently maps to `normalAttack` and opens its description.
+- Selection overlay is a transparent placeholder until the final animation entity exists.
+- Target selection and confirmation are follow-up work; skill tap does not call RequestAction.
+- HP bars, skill icons, and population of the remaining slot keys are follow-up tasks.
 
 ## Related Docs
 

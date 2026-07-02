@@ -129,6 +129,22 @@ Expected first-pass flow:
 15. BattleFlowLogic applies rewards, save changes, mission progress, and scene flow.
 ```
 
+### World-field normal attack entry
+
+```text
+Player presses A
+  -> PlayerControllerComponent emits Attack
+  -> FieldNormalAttack performs normalAttack in front of the player
+  -> target HitComponent confirms the hit
+  -> FieldNormalAttack.OnAttack(target)
+  -> BattleFlowLogic.StartFieldBattle(player, target, "normalAttack")
+  -> regular BattleSystem start flow
+```
+
+`normalAttack` is the mandatory basic attack for every playable Actor. It is
+attached with `FieldNormalAttack` when `PlayerDataLogic` applies the primary Actor.
+Pressing A without hitting a battle Actor does not enter battle.
+
 Recommended ownership diagram:
 
 ```text

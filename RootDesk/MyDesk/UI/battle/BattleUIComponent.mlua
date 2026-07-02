@@ -11,16 +11,22 @@ script BattleUIComponent extends Component
     property string syncedBattlePhase = "None"
     property string syncedCurrentActorId = ""
 	property table syncActorMap = {}
+    property string selectedSkillKey = ""
+    property any selectedSponsorActorData = nil
 
     property any battleSystem = nil
 
-    property ButtonComponent skillSlot01Button = "584e30fa-7f87-4cf5-9cf8-e90179b4bea2"
+    property Entity skillGrid = "752d0ebe-20fa-4ca1-af7a-ef6096e20b26"
+    property Entity skillDescriptionPopupEntity = "f2aa244a-ba2d-4da6-872c-c7515931aa49"
 
-    property any skillSlot01ClickHandler = nil
+    property table skillSlotButtons = {}
+    property table skillSlotClickHandlers = {}
+    property table skillKeysByIndex = {}
 
     method void OnBeginPlay()
         -- Binds skill slot buttons; session attach happens when battle mode opens.
         log("[BattleUIComponent] OnBeginPlay.")
+        self.skillKeysByIndex[1] = self.defaultActionKey
         self:BindButtons()
     end
 
@@ -53,6 +59,8 @@ script BattleUIComponent extends Component
         self.inputEnabled = false
         self.syncedBattlePhase = _BattleKeys.phaseNone
         self.syncedCurrentActorId = ""
+        self.syncActorMap = {}
+        self:ClearSkillSelection()
         self:RefreshSkillSlotInteractable()
         log("[BattleUIComponent] DetachBattleSession.")
     end
@@ -93,37 +101,93 @@ script BattleUIComponent extends Component
         end
 
         self.inputEnabled = canInput
+        if self.inputEnabled == false then
+            self:ClearSkillSelection()
+        end
         self:RefreshSkillSlotInteractable()
     end
 
     method void RefreshSkillSlotInteractable()
-        -- Toggles the first skill slot button while server authority decides whether input is legal.
-        if self.skillSlot01Button == nil then
-            return
+        -- Skill browsing is local UI state; only empty slots are disabled.
+        local enabledCount = 0
+        for skillIndex, skillSlotButton in pairs(self.skillSlotButtons) do
+            local skillKey = self.skillKeysByIndex[skillIndex]
+            local hasSkill = skillKey ~= nil and skillKey ~= ""
+            skillSlotButton.Enable = hasSkill
+            if hasSkill then
+                enabledCount = enabledCount + 1
+            end
         end
-
-        self.skillSlot01Button.Enable = self.inputEnabled
+        log("[BattleUIComponent] RefreshSkillSlotInteractable enabledCount=" .. tostring(enabledCount) .. ", inputEnabled=" .. tostring(self.inputEnabled))
     end
 
     method void BindButtons()
-        -- Connects battle HUD buttons to local input handlers.
+        -- Discovers sequential SkillSlot entities and binds them to one indexed handler.
         self:UnbindButtons()
 
-        if self.skillSlot01Button ~= nil then
-            self.skillSlot01ClickHandler = self.skillSlot01Button.Entity:ConnectEvent(ButtonClickEvent, self.OnSkillSlot01Clicked)
-        else
-            log_warning("[BattleUIComponent] skillSlot01Button is nil.")
+        if isvalid(self.skillGrid) == false then
+            log_warning("[BattleUIComponent] BindButtons failed: skillGrid is invalid.")
+            return
         end
 
-        log("[BattleUIComponent] BindButtons complete.")
+        local skillIndex = 1
+        while true do
+            local slotEntity = self:GetSkillSlotEntity(skillIndex)
+            if isvalid(slotEntity) == false then
+                break
+            end
+
+            local skillSlotButton = slotEntity.ButtonComponent
+            if skillSlotButton == nil then
+                log_warning("[BattleUIComponent] ButtonComponent missing. slot=" .. slotEntity.Name)
+            else
+                local capturedSkillIndex = skillIndex
+                local clickHandler = slotEntity:ConnectEvent(ButtonClickEvent, function(event)
+                    self:OnSkillSlotClicked(event, capturedSkillIndex)
+                end)
+                self.skillSlotButtons[skillIndex] = skillSlotButton
+                self.skillSlotClickHandlers[skillIndex] = clickHandler
+            end
+
+            skillIndex = skillIndex + 1
+        end
+
+        self:RefreshSkillSlotInteractable()
+        log("[BattleUIComponent] BindButtons complete. slotCount=" .. tostring(skillIndex - 1))
     end
 
     method void UnbindButtons()
-        -- Disconnects previously connected button handlers.
-        if self.skillSlot01ClickHandler ~= nil and self.skillSlot01Button ~= nil then
-            self.skillSlot01Button.Entity:DisconnectEvent(ButtonClickEvent, self.skillSlot01ClickHandler)
-            self.skillSlot01ClickHandler = nil
+        -- Disconnects every indexed skill-slot handler created by BindButtons.
+        for skillIndex, clickHandler in pairs(self.skillSlotClickHandlers) do
+            local skillSlotButton = self.skillSlotButtons[skillIndex]
+            if clickHandler ~= nil and skillSlotButton ~= nil then
+                skillSlotButton.Entity:DisconnectEvent(ButtonClickEvent, clickHandler)
+            end
         end
+
+        self.skillSlotButtons = {}
+        self.skillSlotClickHandlers = {}
+    end
+
+    method Entity GetSkillSlotEntity(integer skillIndex)
+        -- Resolves the legacy SkillSlot_01 name and the regular SkillSlot_N sequence.
+        local slotName = "SkillSlot_" .. tostring(skillIndex)
+        if skillIndex == 1 then
+            slotName = "SkillSlot_01"
+        end
+
+        return self.skillGrid:GetChildByName(slotName, false)
+    end
+
+    method void SetSkillSlotKey(integer skillIndex, string skillKey)
+        -- Updates the skill assigned to one slot without changing its click binding.
+        if skillIndex < 1 then
+            log_warning("[BattleUIComponent] SetSkillSlotKey ignored: skillIndex must be positive.")
+            return
+        end
+
+        self.skillKeysByIndex[skillIndex] = skillKey
+        self:RefreshSkillSlotInteractable()
     end
 
     method void RequestBattleAction(string actionKey, table targetIds)
@@ -211,10 +275,75 @@ script BattleUIComponent extends Component
         self.battleSystem:RequestActionWithContext(self.syncedCurrentActorId, actionKey, actionContext)
     end
 
-    method void OnSkillSlot01Clicked(ButtonClickEvent event)
-        -- First skill slot placeholder: sends the default action for the current turn actor.
-        log("[BattleUIComponent] OnSkillSlot01Clicked.")
-        self:RequestBattleAction(self.defaultActionKey, {})
+    method void OnSkillSlotClicked(ButtonClickEvent event, integer skillIndex)
+        -- Selection is local UI state. RequestAction happens only after target confirmation.
+        local skillSlotButton = self.skillSlotButtons[skillIndex]
+        local skillKey = self.skillKeysByIndex[skillIndex]
+        if skillSlotButton == nil then
+            log_warning("[BattleUIComponent] OnSkillSlotClicked ignored: slot missing. index=" .. tostring(skillIndex))
+            return
+        end
+        if skillKey == nil or skillKey == "" then
+            log_warning("[BattleUIComponent] OnSkillSlotClicked ignored: skill key missing. index=" .. tostring(skillIndex))
+            return
+        end
+
+        log("[BattleUIComponent] OnSkillSlotClicked index=" .. tostring(skillIndex) .. ", key=" .. skillKey)
+        self:SelectSkill(skillKey, skillSlotButton.Entity)
+    end
+
+    method void SelectSkill(string skillKey, Entity slotEntity)
+        -- Allows local skill browsing even before action submission becomes legal.
+        if skillKey == nil or skillKey == "" then
+            log_warning("[BattleUIComponent] SelectSkill ignored: skillKey is empty.")
+            return
+        end
+
+        if isvalid(slotEntity) == false then
+            log_warning("[BattleUIComponent] SelectSkill ignored: slotEntity is invalid.")
+            return
+        end
+
+        local sponsorActorData = nil
+        if self.syncActorMap ~= nil then
+            sponsorActorData = self.syncActorMap[self.syncedCurrentActorId]
+        end
+        if sponsorActorData == nil then
+            sponsorActorData = {}
+            log_warning("[BattleUIComponent] SelectSkill sponsor actorData missing. actor=" .. self.syncedCurrentActorId)
+        end
+
+        self.selectedSkillKey = skillKey
+        self.selectedSponsorActorData = sponsorActorData
+
+        local skillDescriptionPopup = self:GetSkillDescriptionPopup()
+        if skillDescriptionPopup ~= nil then
+            skillDescriptionPopup:ShowSkill(skillKey, sponsorActorData, slotEntity)
+        else
+            log_warning("[BattleUIComponent] SelectSkill failed to show description: popup is nil.")
+        end
+
+        log("[BattleUIComponent] SelectSkill key=" .. skillKey .. ", sponsor=" .. self.syncedCurrentActorId)
+    end
+
+    method void ClearSkillSelection()
+        -- Clears selection data and delegates presentation cleanup to the popup component.
+        self.selectedSkillKey = ""
+        self.selectedSponsorActorData = nil
+
+        local skillDescriptionPopup = self:GetSkillDescriptionPopup()
+        if skillDescriptionPopup ~= nil then
+            skillDescriptionPopup:HideSkill()
+        end
+    end
+
+    method any GetSkillDescriptionPopup()
+        -- Resolves the popup component without exposing its presentation internals.
+        if isvalid(self.skillDescriptionPopupEntity) == false then
+            return nil
+        end
+
+        return self.skillDescriptionPopupEntity:GetComponent("script.BattleSkillDescriptionPopup")
     end
 
 end

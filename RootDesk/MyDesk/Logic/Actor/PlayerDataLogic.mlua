@@ -412,6 +412,18 @@ script PlayerDataLogic extends Logic
             return false
         end
 
+        -- Every playable Actor owns normalAttack. The component maps A to the native
+        -- Attack action and performs server-authoritative world-field hit detection.
+        local fieldNormalAttack = userEntity:GetComponent("script.FieldNormalAttack")
+        if isvalid(fieldNormalAttack) == false then
+            userEntity:AddComponent("FieldNormalAttack")
+            fieldNormalAttack = userEntity:GetComponent("script.FieldNormalAttack")
+        end
+        if isvalid(fieldNormalAttack) == false then
+            log_warning("[PlayerDataLogic] ApplyPrimaryActorToPlayer failed: FieldNormalAttack missing. userId=" .. userId)
+            return false
+        end
+
         battleActor:ImportSaveData(actors[1])
         log("[PlayerDataLogic] ApplyPrimaryActorToPlayer complete. userId=" .. userId
             .. ", configId=" .. tostring(battleActor.configId)

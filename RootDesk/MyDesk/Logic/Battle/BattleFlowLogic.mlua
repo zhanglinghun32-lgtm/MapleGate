@@ -4,6 +4,117 @@ script BattleFlowLogic extends Logic
     -- Server-side battle orchestration boundary.
     -- It prepares or receives payloads, starts BattleSystem, and notifies BattleClientLogic by Client RPC.
 
+    property table activeFieldBattlesByUser = {}
+
+    @ExecSpace("ServerOnly")
+    method boolean StartFieldBattle(Entity playerEntity, Entity targetEntity, string actionKey)
+        -- Called only from a confirmed world-field AttackComponent hit.
+        if isvalid(playerEntity) == false or isvalid(targetEntity) == false then
+            log_warning("[BattleFlowLogic] StartFieldBattle failed: player or target is invalid.")
+            return false
+        end
+
+        if actionKey ~= "normalAttack" then
+            log_warning("[BattleFlowLogic] StartFieldBattle rejected action=" .. tostring(actionKey))
+            return false
+        end
+
+        local mapEntity = playerEntity.CurrentMap
+        if isvalid(mapEntity) == false or targetEntity.CurrentMap ~= mapEntity then
+            log_warning("[BattleFlowLogic] StartFieldBattle failed: entities are not on the same map.")
+            return false
+        end
+
+        local playerComponent = playerEntity.PlayerComponent
+        if playerComponent == nil or playerComponent.UserId == nil or playerComponent.UserId == "" then
+            log_warning("[BattleFlowLogic] StartFieldBattle failed: player UserId is empty.")
+            return false
+        end
+
+        local playerUserId = playerComponent.UserId
+        if self.activeFieldBattlesByUser[playerUserId] ~= nil then
+            log_warning("[BattleFlowLogic] StartFieldBattle ignored: battle already active. userId=" .. playerUserId)
+            return false
+        end
+
+        local playerActor = playerEntity:GetComponent("script.BattleActorCom")
+        local targetActor = targetEntity:GetComponent("script.BattleActorCom")
+        if playerActor == nil or targetActor == nil then
+            log_warning("[BattleFlowLogic] StartFieldBattle failed: BattleActorCom missing.")
+            return false
+        end
+
+        local sequence = tostring(math.floor(_UtilLogic.ElapsedSeconds * 1000))
+        local battleId = "Field_" .. playerUserId .. "_" .. sequence
+        self.activeFieldBattlesByUser[playerUserId] = battleId
+
+        local battleEntity = _SpawnService:SpawnByModelId(
+            "battlesystem",
+            "FieldBattleSession_" .. sequence,
+            Vector3(0, 0, 0),
+            mapEntity
+        )
+        if isvalid(battleEntity) == false then
+            self.activeFieldBattlesByUser[playerUserId] = nil
+            log_warning("[BattleFlowLogic] StartFieldBattle failed: BattleSystem spawn returned invalid entity.")
+            return false
+        end
+
+        local playerPosition = playerEntity.TransformComponent.WorldPosition
+        local targetPosition = targetEntity.TransformComponent.WorldPosition
+        local playerActorId = "Player_" .. playerUserId
+        local targetActorId = targetEntity.Id
+        local payload = {
+            battleId = battleId,
+            sceneKey = "World",
+            mapName = mapEntity.Name,
+            sponsorEntityId = playerEntity.Id,
+            playerUserId = playerUserId,
+            encounterKey = targetEntity.Name,
+            rewardKey = "",
+            battleRuleKey = "FieldEncounter",
+            canEscape = true,
+            maxTurnCount = 0,
+            openingActionKey = actionKey,
+            playerParty = {
+                self:BuildFieldActorEntry(playerActorId, _BattleKeys.actorTypePlayer, playerEntity, playerActor, playerPosition)
+            },
+            enemyParty = {
+                self:BuildFieldActorEntry(targetActorId, _BattleKeys.actorTypeMonster, targetEntity, targetActor, targetPosition)
+            }
+        }
+
+        log("[BattleFlowLogic] StartFieldBattle hit confirmed. battleId=" .. battleId
+            .. ", action=" .. actionKey .. ", target=" .. tostring(targetEntity.Name))
+        local started = self:StartBattle(payload, battleEntity)
+        if started == false then
+            self.activeFieldBattlesByUser[playerUserId] = nil
+        end
+        return started
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildFieldActorEntry(string actorId, string actorType, Entity entity, any battleActor, Vector3 position)
+        return {
+            actorId = actorId,
+            actorType = actorType,
+            entityId = entity.Id,
+            configId = battleActor.configId,
+            level = battleActor.level,
+            hp = battleActor.hp,
+            maxHp = battleActor.maxHp,
+            mp = battleActor.mp,
+            maxMp = battleActor.maxMp,
+            stamina = battleActor.stamina,
+            maxStamina = battleActor.maxStamina,
+            totalAttack = battleActor.totalAttack,
+            totalDefense = battleActor.totalDefense,
+            speed = battleActor.speed,
+            x = position.x,
+            y = position.y
+        }
+    end
+
     @ExecSpace("ServerOnly")
     method boolean StartBattle(table payload, Entity battleEntity)
         -- Starts a prepared BattleSystem session and then enters battle mode on the owning client.
@@ -65,6 +176,18 @@ script BattleFlowLogic extends Logic
 
         if result == nil or result == "" then
             result = _BattleKeys.resultCancel
+        end
+
+        if self.activeFieldBattlesByUser[playerUserId] == battleId then
+            self.activeFieldBattlesByUser[playerUserId] = nil
+        end
+
+        local playerEntity = _UserService:GetUserEntityByUserId(playerUserId)
+        if isvalid(playerEntity) == true then
+            local fieldNormalAttack = playerEntity:GetComponent("script.FieldNormalAttack")
+            if fieldNormalAttack ~= nil then
+                fieldNormalAttack:ResetAfterBattle()
+            end
         end
 
         self:NotifyBattleExited(playerUserId, battleId, result)
