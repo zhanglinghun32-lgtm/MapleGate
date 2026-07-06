@@ -1,7 +1,7 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "directory://81d4566ba8c14d16be81322db1f16eff",
+  "EntryKey": "directory://56215be63f374f9ea0898bbf2dabbcd7",
   "ContentType": "x-mod/directory",
   "Content": "",
   "Usage": 0,
@@ -13,8 +13,8 @@
   "ContentProto": {
     "Use": "Json",
     "Json": {
-      "entry_id": "directory://81d4566ba8c14d16be81322db1f16eff",
-      "name": "battle",
+      "entry_id": "directory://56215be63f374f9ea0898bbf2dabbcd7",
+      "name": "skillAnimation",
       "lock": false,
       "folding": false,
       "nameEditable": true

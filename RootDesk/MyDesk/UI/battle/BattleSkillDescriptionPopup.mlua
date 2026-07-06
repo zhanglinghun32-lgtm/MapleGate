@@ -3,19 +3,15 @@
 script BattleSkillDescriptionPopup extends Component
 
     -- Small battle-skill description popup.
-    -- Public display contract: ShowSkill(skillKey, sponsorActorData, slotEntity).
+    -- Public display contract: ShowSkill(skillKey, sponsorActorData).
 
     property string skillConfigDataSetName = "skillConfig"
     property string actorConfigDataSetName = "actorConfig"
-    property number selectionOverlayOffsetX = 10
-
     property TextComponent skillNameText = "bbc20df2-1697-4b57-bc1d-7c646cb39954"
     property TextComponent sponsorText = "a63e7d1e-54dd-45c2-a77b-e627fae7acf5"
     property TextComponent descriptionText = "04de0507-e727-44ff-99f1-34aacbb8333d"
     property TextComponent costText = "f746addf-75f1-4962-99ba-e9739b341eca"
     property ButtonComponent closeButton = "26b63d36-9153-458c-b194-1352ae93b1a9"
-    property Entity skillSelectionOverlay = "477eb56e-1b26-49e8-ab97-0d333b35bbe7"
-
     property any closeClickHandler = nil
 
     method void OnBeginPlay()
@@ -30,8 +26,8 @@ script BattleSkillDescriptionPopup extends Component
         self:UnbindCloseButton()
     end
 
-    method void ShowSkill(string skillKey, table sponsorActorData, Entity slotEntity)
-        -- Loads skill text, positions the selection overlay, and shows the description popup.
+    method void ShowSkill(string skillKey, table sponsorActorData)
+        -- Loads and shows skill details only. Selection feedback is owned by the controller.
         if skillKey == nil or skillKey == "" then
             log_warning("[BattleSkillDescriptionPopup] ShowSkill ignored: skillKey is empty.")
             return
@@ -53,48 +49,14 @@ script BattleSkillDescriptionPopup extends Component
         self.descriptionText.Text = _DataUtil:GetRowString(skillRow, "description", "")
         self.costText.Text = self:BuildCostText(skillRow)
         self.sponsorText.Text = self:ResolveSponsorName(sponsorActorData)
-        self:ShowSelectionForSlot(slotEntity)
         self.Entity.Enable = true
 
         log("[BattleSkillDescriptionPopup] ShowSkill key=" .. skillKey .. ", sponsor=" .. self.sponsorText.Text)
     end
 
-    method void ShowSelectionForSlot(Entity slotEntity)
-        -- Calculates only the target X/Y values, leaving anchor and pivot untouched.
-        if isvalid(self.skillSelectionOverlay) == false or isvalid(slotEntity) == false then
-            log_warning("[BattleSkillDescriptionPopup] ShowSelectionForSlot ignored: invalid UI entity.")
-            return
-        end
-
-        local slotTransform = slotEntity.UITransformComponent
-        local overlayTransform = self.skillSelectionOverlay.UITransformComponent
-        local slotPosition = slotTransform.anchoredPosition
-        local slotSize = slotTransform.RectSize
-        local overlaySize = overlayTransform.RectSize
-        local x = slotPosition.x + (slotSize.x - overlaySize.x) / 2 + self.selectionOverlayOffsetX
-        local y = slotPosition.y + (overlaySize.y - slotSize.y) / 2
-
-        self:SetSelectionOverlayPosition(x, y)
-    end
-
-    method void SetSelectionOverlayPosition(number x, number y)
-        -- Sets anchored X/Y and enables the animation without changing anchor or pivot data.
-        if isvalid(self.skillSelectionOverlay) == false then
-            return
-        end
-
-        self.skillSelectionOverlay.UITransformComponent.anchoredPosition = Vector2(x, y)
-        self.skillSelectionOverlay.Enable = false
-        self.skillSelectionOverlay.Enable = true
-        log("[BattleSkillDescriptionPopup] Selection overlay x=" .. tostring(x) .. ", y=" .. tostring(y))
-    end
-
     method void HideSkill()
-        -- Hides both the description popup and its selection overlay.
+        -- Hides only the details popup.
         self.Entity.Enable = false
-        if isvalid(self.skillSelectionOverlay) then
-            self.skillSelectionOverlay.Enable = false
-        end
     end
 
     method string BuildCostText(any skillRow)

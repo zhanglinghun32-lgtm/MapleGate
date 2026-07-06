@@ -1,0 +1,160 @@
+@Logic
+script SkillActionLogic extends Logic
+
+    property string executionModeBattle = "Battle"
+    property string executionModeField = "Field"
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        log("[SkillActionLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("Server")
+    method void RequestSkill(integer requestId, string actionKey, table actionContext)
+        local userId = senderUserId
+        if requestId <= 0 then
+            self:RejectSkillRequest(userId, requestId, actionKey, "InvalidRequestId")
+            return
+        end
+        if userId == nil or userId == "" then
+            log_warning("[SkillActionLogic] RequestSkill rejected: senderUserId is empty.")
+            return
+        end
+
+        local playerEntity = _UserService:GetUserEntityByUserId(userId)
+        local validation = _SkillLogic:ValidateSkillUse(userId, playerEntity, actionKey)
+        if validation.Success ~= true then
+            self:RejectSkillRequest(userId, requestId, actionKey, tostring(validation.Reason))
+            return
+        end
+
+        if actionContext == nil then
+            actionContext = {}
+        end
+
+        local battleEntity = _BattleFlowLogic:GetActiveBattleEntity(userId)
+        if isvalid(battleEntity) then
+            self:RouteBattleSkill(userId, requestId, actionKey, actionContext, battleEntity)
+            return
+        end
+
+        self:ExecuteFieldSkill(userId, requestId, actionKey, actionContext, playerEntity)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RouteBattleSkill(string userId, integer requestId, string actionKey, table actionContext, Entity battleEntity)
+        local battleSystem = battleEntity:GetComponent("script.BattleSystem")
+        if battleSystem == nil then
+            self:RejectSkillRequest(userId, requestId, actionKey, "BattleSystemMissing")
+            return
+        end
+
+        local sponsorId = "Player_" .. userId
+        local accepted = battleSystem:RequestValidatedActionForUser(userId, sponsorId, actionKey, actionContext)
+        if accepted == false then
+            self:RejectSkillRequest(userId, requestId, actionKey, "BattleContextRejected")
+            return
+        end
+
+        self:AcceptSkillRequest(userId, requestId, actionKey, self.executionModeBattle, "")
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ExecuteFieldSkill(string userId, integer requestId, string actionKey, table actionContext, Entity playerEntity)
+        if isvalid(playerEntity) == false then
+            self:RejectSkillRequest(userId, requestId, actionKey, "PlayerEntityMissing")
+            return
+        end
+
+        local targetEntity = self:ResolveFieldTarget(playerEntity, actionContext)
+        -- TODO(FieldSkillExecution): resolve range, consume resources, apply authoritative
+        -- effects, and publish result payloads before the presentation callback.
+        local targetEntityId = ""
+        if isvalid(targetEntity) then
+            targetEntityId = targetEntity.Id
+        end
+        self:AcceptSkillRequest(userId, requestId, actionKey, self.executionModeField, targetEntityId)
+        log("[SkillActionLogic] Field skill accepted. userId=" .. userId .. ", action=" .. actionKey)
+    end
+
+    @ExecSpace("ServerOnly")
+    method Entity ResolveFieldTarget(Entity playerEntity, table actionContext)
+        if actionContext == nil then
+            return nil
+        end
+
+        local targetIds = actionContext.TargetIds
+        if targetIds == nil or #targetIds == 0 then
+            return nil
+        end
+
+        local targetEntity = _EntityService:GetEntity(tostring(targetIds[1]))
+        if isvalid(targetEntity) == false then
+            return nil
+        end
+        if targetEntity.CurrentMap ~= playerEntity.CurrentMap then
+            return nil
+        end
+        return targetEntity
+    end
+
+    @ExecSpace("ServerOnly")
+    method void AcceptSkillRequest(string userId, integer requestId, string actionKey, string executionMode, string targetEntityId)
+        self:NotifySkillRequestAcceptedClient(requestId, actionKey, executionMode, targetEntityId, userId)
+        log("[SkillActionLogic] Request accepted. id=" .. tostring(requestId)
+            .. ", mode=" .. executionMode .. ", action=" .. actionKey)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RejectSkillRequest(string userId, integer requestId, string actionKey, string reason)
+        if userId == nil or userId == "" then
+            return
+        end
+        self:NotifySkillRequestRejectedClient(requestId, actionKey, reason, userId)
+        log_warning("[SkillActionLogic] Request rejected. id=" .. tostring(requestId)
+            .. ", action=" .. tostring(actionKey) .. ", reason=" .. tostring(reason))
+    end
+
+    @ExecSpace("Client")
+    method void NotifySkillRequestAcceptedClient(integer requestId, string actionKey, string executionMode, string targetEntityId)
+        local controlCharacterUI = self:GetControlCharacterUIComponent()
+        if controlCharacterUI ~= nil then
+            controlCharacterUI:OnSkillRequestAccepted(requestId, actionKey, executionMode)
+        end
+
+        if executionMode ~= self.executionModeField then
+            return
+        end
+
+        local playerEntity = _UserService.LocalPlayer
+        if isvalid(playerEntity) == false then
+            return
+        end
+        local presentation = playerEntity:GetComponent("script.BattleSkillPresentationComponent")
+        if presentation ~= nil then
+            local targetEntity = nil
+            if targetEntityId ~= nil and targetEntityId ~= "" then
+                targetEntity = _EntityService:GetEntity(targetEntityId)
+            end
+            presentation:PlayPresentation(requestId, actionKey, playerEntity, targetEntity)
+        end
+    end
+
+    @ExecSpace("Client")
+    method void NotifySkillRequestRejectedClient(integer requestId, string actionKey, string reason)
+        local controlCharacterUI = self:GetControlCharacterUIComponent()
+        if controlCharacterUI ~= nil then
+            controlCharacterUI:OnSkillRequestRejected(requestId, actionKey, reason)
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method any GetControlCharacterUIComponent()
+        local uiEntity = _UIManagerLogic:GetUIEntity(_UIManagerLogic.controlCharacterUIKey)
+        if isvalid(uiEntity) == false then
+            return nil
+        end
+        return uiEntity:GetComponent("script.ControlCharacterUIComponent")
+    end
+
+end

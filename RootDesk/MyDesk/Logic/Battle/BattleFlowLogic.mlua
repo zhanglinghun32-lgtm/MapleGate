@@ -5,6 +5,7 @@ script BattleFlowLogic extends Logic
     -- It prepares or receives payloads, starts BattleSystem, and notifies BattleClientLogic by Client RPC.
 
     property table activeFieldBattlesByUser = {}
+    property table activeBattleEntitiesByUser = {}
 
     @ExecSpace("ServerOnly")
     method boolean StartFieldBattle(Entity playerEntity, Entity targetEntity, string actionKey)
@@ -64,6 +65,10 @@ script BattleFlowLogic extends Logic
         local targetPosition = targetEntity.TransformComponent.WorldPosition
         local playerActorId = "Player_" .. playerUserId
         local targetActorId = targetEntity.Id
+        local playerActorEntry = self:BuildFieldActorEntry(playerActorId, _BattleKeys.actorTypePlayer, playerEntity, playerActor, playerPosition)
+        playerActorEntry.skillKeys = _SkillLogic:GetLearnedSkillKeys(playerUserId)
+        local targetActorEntry = self:BuildFieldActorEntry(targetActorId, _BattleKeys.actorTypeMonster, targetEntity, targetActor, targetPosition)
+        targetActorEntry.skillKeys = { "normalAttack" }
         local payload = {
             battleId = battleId,
             sceneKey = "World",
@@ -77,10 +82,10 @@ script BattleFlowLogic extends Logic
             maxTurnCount = 0,
             openingActionKey = actionKey,
             playerParty = {
-                self:BuildFieldActorEntry(playerActorId, _BattleKeys.actorTypePlayer, playerEntity, playerActor, playerPosition)
+                playerActorEntry
             },
             enemyParty = {
-                self:BuildFieldActorEntry(targetActorId, _BattleKeys.actorTypeMonster, targetEntity, targetActor, targetPosition)
+                targetActorEntry
             }
         }
 
@@ -154,6 +159,8 @@ script BattleFlowLogic extends Logic
             return false
         end
 
+        self.activeBattleEntitiesByUser[playerUserId] = battleEntity
+
         -- Only notify the client after the server session is valid.
         -- battleEntity crosses RPC so the client can read @Sync fields on BattleSystem.
         self:NotifyBattleEntered(playerUserId, battleId, battleEntity)
@@ -181,6 +188,7 @@ script BattleFlowLogic extends Logic
         if self.activeFieldBattlesByUser[playerUserId] == battleId then
             self.activeFieldBattlesByUser[playerUserId] = nil
         end
+        self.activeBattleEntitiesByUser[playerUserId] = nil
 
         local playerEntity = _UserService:GetUserEntityByUserId(playerUserId)
         if isvalid(playerEntity) == true then
@@ -192,6 +200,19 @@ script BattleFlowLogic extends Logic
 
         self:NotifyBattleExited(playerUserId, battleId, result)
         log("[BattleFlowLogic] HandleBattleFinished battleId=" .. battleId .. ", result=" .. result .. ", userId=" .. playerUserId)
+    end
+
+    @ExecSpace("ServerOnly")
+    method Entity GetActiveBattleEntity(string userId)
+        if userId == nil or userId == "" then
+            return nil
+        end
+        local battleEntity = self.activeBattleEntitiesByUser[userId]
+        if isvalid(battleEntity) then
+            return battleEntity
+        end
+        self.activeBattleEntitiesByUser[userId] = nil
+        return nil
     end
 
     @ExecSpace("ServerOnly")

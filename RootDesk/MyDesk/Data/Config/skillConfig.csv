@@ -8,3 +8,4 @@ venomEdge,Venom Edge,淬毒刀鋒。較低直接傷害，但附加較長中毒�
 guardStrike,Guard Strike,防禦反擊。造成少量傷害，之後可擴充 Guard 條目。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01027.png""",Enemy,Damage,0.75,0,0,6,1,Guard,1,1,Circle,1.2,0,0,1
 healPulse,Heal Pulse,治癒脈衝。恢復單一友方 HP。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01028.png""",Ally,Heal,0,30,8,0,1,,0,2,Circle,2,0,0,1
 focusBreath,Focus Breath,專注呼吸。恢復自身耐力。,,"""RootDesk/MyDesk/UI/skill_icon/sk_01029.png""",Self,StaminaChange,0,20,0,0,1,,0,2,Circle,0,0,0,1
+spearPower,using spear attack fast,用槍連續攻擊,012ff529f8c04302bc72128d83a19da6,,Enemy,Damage,1.6,0,0,0,3,,0,3,0,1.2,0,0,1

@@ -5,7 +5,7 @@ script BattleSystem extends Component
     -- Does not load encounter Config, bind UI buttons, or decide post-battle scene flow.
     --
     -- @Sync battlePhase / currentActorId: server writes; client copies replicate for UI display.
-    -- UI open/close stays on BattleFlowLogic Client RPC — do not use @Sync to open BattleUI.
+    -- UI open/close stays on BattleFlowLogic Client RPC — do not use @Sync to open ControlCharacterUI.
     
     @Sync property string battlePhase = "None"
     property string battleId = ""
@@ -61,7 +61,7 @@ script BattleSystem extends Component
     @ExecSpace("ClientOnly")
     method void OnSyncProperty(string name, any value)
         -- Fires on the client when server-updated @Sync fields replicate.
-        -- BattleUIComponent lives on the UI entity, so forward sync here instead of opening UI from Sync.
+        -- ControlCharacterUIComponent lives on the UI entity, so forward sync here instead of opening the control UI from Sync.
         if name ~= "battlePhase" and name ~= "currentActorId" then
             return
         end
@@ -139,37 +139,47 @@ script BattleSystem extends Component
 
     @ExecSpace("ServerOnly")
     method void ValidateAndRequestAction(string userId, string sponsorId, string actionKey, table actionContext)
-        -- Validates one client action request before applying the resolved action context.
+        -- Legacy direct request path. New callers enter through SkillActionLogic.
+        local playerEntity = _UserService:GetUserEntityByUserId(userId)
+        local validation = _SkillLogic:ValidateSkillUse(userId, playerEntity, actionKey)
+        if validation.Success ~= true then
+            log_warning("[BattleSystem] RequestAction ignored: " .. tostring(validation.Reason))
+            return
+        end
+        self:RequestValidatedActionForUser(userId, sponsorId, actionKey, actionContext)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean RequestValidatedActionForUser(string userId, string sponsorId, string actionKey, table actionContext)
+        -- Applies battle-only validation after SkillActionLogic completes common validation.
         if userId == nil or userId == "" then
             log_warning("[BattleSystem] RequestAction ignored: userId is empty.")
-            return
+            return false
         end
         if self.battlePhase ~= _BattleKeys.phaseAwaitingInput then
             log_warning("[BattleSystem] RequestAction ignored: phase=" .. tostring(self.battlePhase))
-            return
+            return false
         end
         if sponsorId == nil or sponsorId == "" then
             log_warning("[BattleSystem] RequestAction ignored: sponsorId is empty.")
-            return
+            return false
         end
         if sponsorId ~= self.currentActorId then
             log_warning("[BattleSystem] RequestAction ignored: not current actor. sponsor=" .. sponsorId .. ", current=" .. tostring(self.currentActorId))
-            return
+            return false
         end
         if actionKey == nil or actionKey == "" then
             log_warning("[BattleSystem] RequestAction ignored: actionKey is empty.")
-            return
+            return false
         end
         if self.playerUserId == "" or userId ~= self.playerUserId then
             log_warning("[BattleSystem] RequestAction ignored: user mismatch.")
-            return
-        end
-        if _SkillLogic:IsSkillReady(userId, actionKey) == false then
-            log_warning("[BattleSystem] RequestAction ignored: skill unavailable.")
-            return
+            return false
         end
 
+        actionContext = self:ResolveActionContext(sponsorId, actionKey, self:BuildActionContext(actionContext))
         self:RequestActionForUser(userId, sponsorId, actionKey, actionContext)
+        return true
     end
     
     @ExecSpace("ServerOnly")
@@ -829,12 +839,33 @@ script BattleSystem extends Component
         end
         
         self.currentActorId = nextActorId
+        self:PublishCurrentActorSkills(nextActorId)
         self:TransitionTo(_BattleKeys.phaseTurnStart)
         if self:CheckBattleEnd() == true then
             return
         end
 
         self:TransitionTo(_BattleKeys.phaseAwaitingInput)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void PublishCurrentActorSkills(string actorId)
+        local skillKeys = {}
+        if self.actorMap ~= nil and self.actorMap[actorId] ~= nil then
+            local configuredSkillKeys = self.actorMap[actorId].skillKeys
+            if configuredSkillKeys ~= nil then
+                for _, skillKey in ipairs(configuredSkillKeys) do
+                    table.insert(skillKeys, tostring(skillKey))
+                end
+            end
+        end
+        self:UpdateCurrentActorSkillsClient(actorId, skillKeys, self.playerUserId)
+        log("[BattleSystem] PublishCurrentActorSkills actor=" .. tostring(actorId) .. ", count=" .. tostring(#skillKeys))
+    end
+
+    @ExecSpace("Client")
+    method void UpdateCurrentActorSkillsClient(string actorId, table skillKeys)
+        _BattleClientLogic:UpdateCurrentActorSkillKeys(self.Entity, actorId, skillKeys)
     end
     
     @ExecSpace("ServerOnly")

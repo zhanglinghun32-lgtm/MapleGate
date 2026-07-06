@@ -15,11 +15,11 @@
     "Entities": [
       {
         "id": "c86e684e-cb5a-441d-844b-d507d6e71ef9",
-        "path": "/ui/BattleUI",
-        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.UIGroupComponent,MOD.Core.CanvasGroupComponent,script.BattleUIComponent",
+        "path": "/ui/ControlCharacterUI",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.UIGroupComponent,MOD.Core.CanvasGroupComponent,script.ControlCharacterUIComponent",
         "jsonString": {
-          "name": "BattleUI",
-          "path": "/ui/BattleUI",
+          "name": "ControlCharacterUI",
+          "path": "/ui/ControlCharacterUI",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -96,7 +96,7 @@
             },
             {
               "@type": "MOD.Core.UIGroupComponent",
-              "DefaultShow": false,
+              "DefaultShow": true,
               "GroupOrder": 4,
               "GroupType": 1,
               "Enable": true
@@ -109,7 +109,259 @@
               "Enable": true
             },
             {
-              "@type": "script.BattleUIComponent",
+              "@type": "script.ControlCharacterUIComponent",
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "4914d5bf-c2db-468b-8fb4-b8e34d825ba4",
+        "path": "/ui/ControlCharacterUI/ToggleControlUIButton",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
+        "jsonString": {
+          "name": "ToggleControlUIButton",
+          "path": "/ui/ControlCharacterUI/ToggleControlUIButton",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "///",
+          "revision": 0,
+          "origin": {
+            "type": "Model",
+            "entry_id": "UIButton",
+            "sub_entity_id": null,
+            "root_entity_id": null,
+            "replaced_model_id": null
+          },
+          "modelId": "uibutton",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "ActivePlatform": 255,
+              "AlignmentOption": 8,
+              "AnchorsMax": {
+                "x": 1.0,
+                "y": 0.0
+              },
+              "AnchorsMin": {
+                "x": 1.0,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": -84.0,
+                "y": 124.0
+              },
+              "OffsetMin": {
+                "x": -204.0,
+                "y": 80.0
+              },
+              "Pivot": {
+                "x": 1.0,
+                "y": 0.0
+              },
+              "RectSize": {
+                "x": 120.0,
+                "y": 44.0
+              },
+              "UIMode": 1,
+              "UIScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -84.0,
+                "y": 80.0
+              },
+              "Position": {
+                "x": 876.0,
+                "y": -460.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "AnimClipPlayType": 0,
+              "EndFrameIndex": 2147483647,
+              "IgnoreMapLayerCheck": false,
+              "ImageRUID": {
+                "DataId": "4fea64a3307cda641809ad8be0d4890b"
+              },
+              "LocalPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "LocalScale": {
+                "x": 1.0,
+                "y": 1.0
+              },
+              "MaterialId": "",
+              "OrderInLayer": 0,
+              "OverrideSorting": false,
+              "PlayRate": 1.0,
+              "PreserveSprite": 0,
+              "SortingLayer": "UI",
+              "StartFrameIndex": 0,
+              "Color": {
+                "r": 1.0,
+                "g": 1.0,
+                "b": 1.0,
+                "a": 1.0
+              },
+              "DropShadow": false,
+              "DropShadowAngle": 120.0,
+              "DropShadowColor": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 0.72
+              },
+              "DropShadowDistance": 3.0,
+              "FillAmount": 1.0,
+              "FillCenter": true,
+              "FillClockWise": true,
+              "FillMethod": 0,
+              "FillOrigin": 0,
+              "FlipX": false,
+              "FlipY": false,
+              "FrameColumn": 1,
+              "FrameRate": 0,
+              "FrameRow": 1,
+              "Outline": false,
+              "OutlineColor": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 1.0
+              },
+              "OutlineWidth": 3.0,
+              "RaycastTarget": true,
+              "Type": 0,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ButtonComponent",
+              "Colors": {
+                "NormalColor": {
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0,
+                  "a": 1.0
+                },
+                "HighlightedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "PressedColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 1.0
+                },
+                "SelectedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "DisabledColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 0.5019608
+                },
+                "ColorMultiplier": 1.0,
+                "FadeDuration": 0.1
+              },
+              "IgnoreMapLayerCheck": false,
+              "ImageRUIDs": {
+                "HighlightedSprite": null,
+                "PressedSprite": null,
+                "SelectedSprite": null,
+                "DisabledSprite": null
+              },
+              "KeyCode": 0,
+              "OrderInLayer": 0,
+              "OverrideSorting": false,
+              "SortingLayer": "UI",
+              "Transition": 1,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.TextComponent",
+              "Alignment": 4,
+              "AllowAutomaticTranslation": true,
+              "BestFit": false,
+              "Bold": false,
+              "ConstraintX": 100.0,
+              "ConstraintY": 100.0,
+              "DropShadow": false,
+              "DropShadowAngle": 120.0,
+              "DropShadowColor": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 0.72
+              },
+              "DropShadowDistance": 3.0,
+              "Font": 0,
+              "FontColor": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 1.0
+              },
+              "FontSize": 18,
+              "IgnoreMapLayerCheck": false,
+              "IsLocalizationKey": false,
+              "MaxSize": 40,
+              "MinSize": 10,
+              "OrderInLayer": 0,
+              "OutlineColor": {
+                "r": 0.698039234,
+                "g": 0.698039234,
+                "b": 0.698039234,
+                "a": 1.0
+              },
+              "OutlineDistance": {
+                "x": 1.0,
+                "y": -1.0
+              },
+              "OutlineWidth": 1.0,
+              "Overflow": 0,
+              "OverrideSorting": false,
+              "Padding": {
+                "left": 0,
+                "right": 0,
+                "top": 0,
+                "bottom": 0
+              },
+              "SizeFit": false,
+              "SortingLayer": "UI",
+              "Text": "收合/展開",
+              "UseConstraintX": false,
+              "UseConstraintY": false,
+              "UseOutLine": false,
               "Enable": true
             }
           ],
@@ -118,16 +370,16 @@
       },
       {
         "id": "36672110-1de8-4658-9db5-f8b45b6e2046",
-        "path": "/ui/BattleUI/skillSelectScrollView",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
-          "name": "skillSelectScrollView",
-          "path": "/ui/BattleUI/skillSelectScrollView",
+          "name": "SkillSelectUI",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI",
           "nameEditable": true,
           "enable": true,
           "visible": true,
           "localize": true,
-          "displayOrder": 0,
+          "displayOrder": 1,
           "pathConstraints": "///",
           "revision": 1,
           "origin": {
@@ -208,11 +460,11 @@
       },
       {
         "id": "752d0ebe-20fa-4ca1-af7a-ef6096e20b26",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.ScrollLayoutGroupComponent,MOD.Core.MaskComponent",
         "jsonString": {
           "name": "SkillGrid",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -352,11 +604,11 @@
       },
       {
         "id": "584e30fa-7f87-4cf5-9cf8-e90179b4bea2",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_01",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_01",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_01",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_01",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_01",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -604,11 +856,11 @@
       },
       {
         "id": "84eb55b1-cf47-45a5-81af-258b29f9ebc2",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_01/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_01/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_01/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_01/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -749,11 +1001,11 @@
       },
       {
         "id": "b46b982a-eb03-4178-8fb4-6328ba223693",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_2",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_2",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_2",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_2",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_2",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -1001,11 +1253,11 @@
       },
       {
         "id": "2058bde1-fe4c-458c-8538-5b2e51f7e855",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_2/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_2/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_2/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_2/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -1146,11 +1398,11 @@
       },
       {
         "id": "ba6d1599-e34d-402c-9ebf-2a9d5763e470",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_3",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_3",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_3",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_3",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_3",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -1398,11 +1650,11 @@
       },
       {
         "id": "55ca9ca0-6a74-403d-9727-59255e5b1b1c",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_3/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_3/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_3/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_3/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -1543,11 +1795,11 @@
       },
       {
         "id": "57191093-d75a-4a34-a75c-c55a5db3fa9b",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_4",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_4",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_4",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_4",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_4",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -1795,11 +2047,11 @@
       },
       {
         "id": "f78e7cb2-3688-4b3c-adff-7601e0d2705b",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_4/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_4/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_4/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_4/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -1940,11 +2192,11 @@
       },
       {
         "id": "bb721506-e398-41b2-a159-b638809cb213",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_5",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_5",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_5",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_5",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_5",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -2192,11 +2444,11 @@
       },
       {
         "id": "9fe56212-eeb1-4431-af6e-f08c3ad539f2",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_5/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_5/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_5/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_5/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -2337,11 +2589,11 @@
       },
       {
         "id": "f285d6d4-a9d0-4ab4-b3c0-d38e3503805f",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_6",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_6",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_6",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_6",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_6",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -2589,11 +2841,11 @@
       },
       {
         "id": "d57aa877-e848-4651-8181-768a6b97460a",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_6/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_6/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_6/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_6/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -2734,11 +2986,11 @@
       },
       {
         "id": "3ecf9663-43b4-466e-a133-d99107c3c9d5",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_7",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_7",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_7",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_7",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_7",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -2986,11 +3238,11 @@
       },
       {
         "id": "cc8c3deb-81b5-4853-91c7-fbaca5803ce0",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_7/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_7/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_7/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_7/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -3131,11 +3383,11 @@
       },
       {
         "id": "5d2833c7-43da-438f-ae9e-19bd1118fe5f",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_8",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_8",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_8",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_8",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_8",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -3383,11 +3635,11 @@
       },
       {
         "id": "50cdfba5-85f8-4455-bf75-8f0b76c1c610",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_8/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_8/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_8/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_8/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -3528,11 +3780,11 @@
       },
       {
         "id": "25fee66c-dd97-4cf2-9c2d-fce4daacd324",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_9",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_9",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_9",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_9",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_9",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -3780,11 +4032,11 @@
       },
       {
         "id": "eb77d77e-edcf-4024-8435-8a8980a374fa",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_9/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_9/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_9/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_9/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -3925,11 +4177,11 @@
       },
       {
         "id": "e2175508-c7a9-4aaa-8ed6-ab5cc60ce438",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_10",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_10",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_10",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_10",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_10",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -4177,11 +4429,11 @@
       },
       {
         "id": "28e08939-5545-49b5-bd69-677429710fb3",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_10/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_10/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_10/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_10/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -4322,11 +4574,11 @@
       },
       {
         "id": "4da150a0-36bc-4d67-8125-915ee9c047f5",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_11",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_11",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "SkillSlot_11",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_11",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_11",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -4574,11 +4826,11 @@
       },
       {
         "id": "e362ece1-45c1-4f47-9665-cdfc2608b4d4",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_11/Icon",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_11/Icon",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "Icon",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillGrid/SkillSlot_11/Icon",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillGrid/SkillSlot_11/Icon",
           "nameEditable": true,
           "enable": true,
           "visible": true,
@@ -4719,11 +4971,11 @@
       },
       {
         "id": "477eb56e-1b26-49e8-ab97-0d333b35bbe7",
-        "path": "/ui/BattleUI/skillSelectScrollView/SkillSelectionOverlay",
+        "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillSelectionOverlay",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
           "name": "SkillSelectionOverlay",
-          "path": "/ui/BattleUI/skillSelectScrollView/SkillSelectionOverlay",
+          "path": "/ui/ControlCharacterUI/SkillSelectUI/SkillSelectionOverlay",
           "nameEditable": true,
           "enable": false,
           "visible": true,
@@ -4807,7 +5059,7 @@
             {
               "@type": "MOD.Core.SpriteGUIRendererComponent",
               "AnimClipPlayType": 1,
-              "EndFrameIndex": 19,
+              "EndFrameIndex": 2147483647,
               "IgnoreMapLayerCheck": false,
               "ImageRUID": {
                 "DataId": "3b53c747eb94458ca80b9f582ab8821f"
@@ -4869,17 +5121,215 @@
         }
       },
       {
+        "id": "56bcfa11-5c5b-43b5-9dfd-b5533c8d0718",
+        "path": "/ui/ControlCharacterUI/PartyMemberList",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.UIGroupComponent,MOD.Core.CanvasGroupComponent",
+        "jsonString": {
+          "name": "PartyMemberList",
+          "path": "/ui/ControlCharacterUI/PartyMemberList",
+          "nameEditable": true,
+          "enable": false,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 2,
+          "pathConstraints": "///",
+          "revision": 0,
+          "origin": {
+            "type": "Model",
+            "entry_id": "UIGroup",
+            "sub_entity_id": null,
+            "root_entity_id": null,
+            "replaced_model_id": null
+          },
+          "modelId": "uigroup",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "ActivePlatform": 255,
+              "AlignmentOption": 15,
+              "AnchorsMax": {
+                "x": 1.0,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "OffsetMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 1920.0,
+                "y": 1080.0
+              },
+              "UIMode": 1,
+              "UIScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.UIGroupComponent",
+              "DefaultShow": false,
+              "GroupOrder": 0,
+              "GroupType": 1,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.CanvasGroupComponent",
+              "BlocksRaycasts": true,
+              "GroupAlpha": 1.0,
+              "Interactable": true,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "1035f06d-7110-41f4-a360-dd9abb2a486f",
+        "path": "/ui/ControlCharacterUI/MoveJoyStick",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.UIGroupComponent,MOD.Core.CanvasGroupComponent",
+        "jsonString": {
+          "name": "MoveJoyStick",
+          "path": "/ui/ControlCharacterUI/MoveJoyStick",
+          "nameEditable": true,
+          "enable": false,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 3,
+          "pathConstraints": "///",
+          "revision": 0,
+          "origin": {
+            "type": "Model",
+            "entry_id": "UIGroup",
+            "sub_entity_id": null,
+            "root_entity_id": null,
+            "replaced_model_id": null
+          },
+          "modelId": "uigroup",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "ActivePlatform": 255,
+              "AlignmentOption": 15,
+              "AnchorsMax": {
+                "x": 1.0,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "OffsetMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 1920.0,
+                "y": 1080.0
+              },
+              "UIMode": 1,
+              "UIScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.UIGroupComponent",
+              "DefaultShow": false,
+              "GroupOrder": 0,
+              "GroupType": 1,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.CanvasGroupComponent",
+              "BlocksRaycasts": true,
+              "GroupAlpha": 1.0,
+              "Interactable": true,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
         "id": "f2aa244a-ba2d-4da6-872c-c7515931aa49",
-        "path": "/ui/BattleUI/SkillDescriptionPopup",
+        "path": "/ui/ControlCharacterUI/SkillDescriptionPopup",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,script.BattleSkillDescriptionPopup",
         "jsonString": {
           "name": "SkillDescriptionPopup",
-          "path": "/ui/BattleUI/SkillDescriptionPopup",
+          "path": "/ui/ControlCharacterUI/SkillDescriptionPopup",
           "nameEditable": true,
           "enable": true,
           "visible": true,
           "localize": true,
-          "displayOrder": 1,
+          "displayOrder": 4,
           "pathConstraints": "///",
           "revision": 0,
           "origin": {
@@ -4955,7 +5405,7 @@
               "EndFrameIndex": 2147483647,
               "IgnoreMapLayerCheck": false,
               "ImageRUID": {
-                "DataId": "ea423dd9a6ae44dc83f64a3ea329b0f5"
+                "DataId": "1f59ebf803b24a1594039fdb8dc6ec41"
               },
               "LocalPosition": {
                 "x": 0.0,
@@ -4973,9 +5423,9 @@
               "SortingLayer": "UI",
               "StartFrameIndex": 0,
               "Color": {
-                "r": 0.07058824,
-                "g": 0.09019608,
-                "b": 0.129411772,
+                "r": 0.9277344,
+                "g": 0.9277344,
+                "b": 0.9277344,
                 "a": 0.94
               },
               "DropShadow": false,
@@ -5006,8 +5456,8 @@
               },
               "OutlineWidth": 3.0,
               "RaycastTarget": true,
-              "Type": 0,
-              "Enable": true
+              "Type": 1,
+              "Enable": false
             },
             {
               "@type": "script.BattleSkillDescriptionPopup",
@@ -5018,17 +5468,116 @@
         }
       },
       {
-        "id": "bbc20df2-1697-4b57-bc1d-7c646cb39954",
-        "path": "/ui/BattleUI/SkillDescriptionPopup/SkillName",
-        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.TextComponent",
+        "id": "6cf69dd7-bd10-490b-a4d2-e09c09ec36b3",
+        "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/UISprite",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
         "jsonString": {
-          "name": "SkillName",
-          "path": "/ui/BattleUI/SkillDescriptionPopup/SkillName",
+          "name": "UISprite",
+          "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/UISprite",
           "nameEditable": true,
           "enable": true,
           "visible": true,
           "localize": true,
           "displayOrder": 0,
+          "pathConstraints": "////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uisprite",
+            "sub_entity_id": null,
+            "root_entity_id": "6cf69dd7-bd10-490b-a4d2-e09c09ec36b3",
+            "replaced_model_id": null
+          },
+          "modelId": "uisprite",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 383.651367,
+                "y": 218.587036
+              },
+              "OffsetMin": {
+                "x": -427.409,
+                "y": -184.167633
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 811.060364,
+                "y": 402.754669
+              },
+              "UIMode": 1,
+              "UIScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -21.8788,
+                "y": 17.2097
+              },
+              "Rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "Position": {
+                "x": -21.8788,
+                "y": 17.2097,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": -1.0
+              },
+              "Scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "ZRotation": 0.0,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "ImageRUID": {
+                "DataId": "1f59ebf803b24a1594039fdb8dc6ec41"
+              },
+              "OverrideSorting": false,
+              "FillCenter": true,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "bbc20df2-1697-4b57-bc1d-7c646cb39954",
+        "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/SkillName",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.TextComponent",
+        "jsonString": {
+          "name": "SkillName",
+          "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/SkillName",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 1,
           "pathConstraints": "////",
           "revision": 0,
           "origin": {
@@ -5054,20 +5603,20 @@
               },
               "MobileOnly": false,
               "OffsetMax": {
-                "x": 474.0,
-                "y": -18.0
+                "x": 473.999847,
+                "y": 0.8826809
               },
               "OffsetMin": {
-                "x": 24.0,
-                "y": -56.0
+                "x": 8.864349,
+                "y": -56.0000839
               },
               "Pivot": {
                 "x": 0.0,
                 "y": 1.0
               },
               "RectSize": {
-                "x": 450.0,
-                "y": 38.0
+                "x": 465.1355,
+                "y": 56.8827629
               },
               "UIMode": 1,
               "UIScale": {
@@ -5077,12 +5626,12 @@
               },
               "UIVersion": 2,
               "anchoredPosition": {
-                "x": 24.0,
-                "y": -18.0
+                "x": 8.864349,
+                "y": 0.8826809
               },
               "Position": {
-                "x": -296.0,
-                "y": 92.0,
+                "x": -311.135651,
+                "y": 110.882683,
                 "z": 0.0
               },
               "QuaternionRotation": {
@@ -5122,9 +5671,9 @@
               "SortingLayer": "UI",
               "StartFrameIndex": 0,
               "Color": {
-                "r": 1.0,
-                "g": 1.0,
-                "b": 1.0,
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
                 "a": 0.0
               },
               "DropShadow": false,
@@ -5177,9 +5726,9 @@
               "DropShadowDistance": 3.0,
               "Font": 0,
               "FontColor": {
-                "r": 1.0,
-                "g": 1.0,
-                "b": 1.0,
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
                 "a": 1.0
               },
               "FontSize": 28,
@@ -5221,16 +5770,16 @@
       },
       {
         "id": "a63e7d1e-54dd-45c2-a77b-e627fae7acf5",
-        "path": "/ui/BattleUI/SkillDescriptionPopup/Sponsor",
+        "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/Sponsor",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "Sponsor",
-          "path": "/ui/BattleUI/SkillDescriptionPopup/Sponsor",
+          "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/Sponsor",
           "nameEditable": true,
           "enable": true,
           "visible": true,
           "localize": true,
-          "displayOrder": 1,
+          "displayOrder": 2,
           "pathConstraints": "////",
           "revision": 0,
           "origin": {
@@ -5256,12 +5805,12 @@
               },
               "MobileOnly": false,
               "OffsetMax": {
-                "x": 474.0,
-                "y": -56.0
+                "x": 841.505,
+                "y": -18.8027859
               },
               "OffsetMin": {
-                "x": 24.0,
-                "y": -84.0
+                "x": 391.505,
+                "y": -63.16941
               },
               "Pivot": {
                 "x": 0.0,
@@ -5269,7 +5818,7 @@
               },
               "RectSize": {
                 "x": 450.0,
-                "y": 28.0
+                "y": 44.3666267
               },
               "UIMode": 1,
               "UIScale": {
@@ -5279,12 +5828,12 @@
               },
               "UIVersion": 2,
               "anchoredPosition": {
-                "x": 24.0,
-                "y": -56.0
+                "x": 391.505,
+                "y": -18.8027859
               },
               "Position": {
-                "x": -296.0,
-                "y": 54.0,
+                "x": 71.5050049,
+                "y": 91.19721,
                 "z": 0.0
               },
               "QuaternionRotation": {
@@ -5384,7 +5933,7 @@
                 "b": 1.0,
                 "a": 1.0
               },
-              "FontSize": 18,
+              "FontSize": 30,
               "IgnoreMapLayerCheck": false,
               "IsLocalizationKey": false,
               "MaxSize": 40,
@@ -5411,7 +5960,7 @@
               },
               "SizeFit": false,
               "SortingLayer": "UI",
-              "Text": "",
+              "Text": "sponsor",
               "UseConstraintX": false,
               "UseConstraintY": false,
               "UseOutLine": false,
@@ -5423,16 +5972,16 @@
       },
       {
         "id": "04de0507-e727-44ff-99f1-34aacbb8333d",
-        "path": "/ui/BattleUI/SkillDescriptionPopup/Description",
+        "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/Description",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "Description",
-          "path": "/ui/BattleUI/SkillDescriptionPopup/Description",
+          "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/Description",
           "nameEditable": true,
           "enable": true,
           "visible": true,
           "localize": true,
-          "displayOrder": 2,
+          "displayOrder": 3,
           "pathConstraints": "////",
           "revision": 0,
           "origin": {
@@ -5458,12 +6007,12 @@
               },
               "MobileOnly": false,
               "OffsetMax": {
-                "x": 494.0,
-                "y": -92.0
+                "x": 496.1786,
+                "y": -68.1938
               },
               "OffsetMin": {
-                "x": 24.0,
-                "y": -160.0
+                "x": 26.1785889,
+                "y": -136.1938
               },
               "Pivot": {
                 "x": 0.0,
@@ -5481,12 +6030,12 @@
               },
               "UIVersion": 2,
               "anchoredPosition": {
-                "x": 24.0,
-                "y": -92.0
+                "x": 26.1785889,
+                "y": -68.1938
               },
               "Position": {
-                "x": -296.0,
-                "y": 18.0,
+                "x": -293.8214,
+                "y": 41.8062,
                 "z": 0.0
               },
               "QuaternionRotation": {
@@ -5581,12 +6130,12 @@
               "DropShadowDistance": 3.0,
               "Font": 0,
               "FontColor": {
-                "r": 0.9490196,
-                "g": 0.956862748,
-                "b": 0.972549,
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
                 "a": 1.0
               },
-              "FontSize": 20,
+              "FontSize": 30,
               "IgnoreMapLayerCheck": false,
               "IsLocalizationKey": false,
               "MaxSize": 40,
@@ -5613,7 +6162,7 @@
               },
               "SizeFit": false,
               "SortingLayer": "UI",
-              "Text": "",
+              "Text": "des",
               "UseConstraintX": false,
               "UseConstraintY": false,
               "UseOutLine": false,
@@ -5625,16 +6174,16 @@
       },
       {
         "id": "f746addf-75f1-4962-99ba-e9739b341eca",
-        "path": "/ui/BattleUI/SkillDescriptionPopup/Cost",
+        "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/Cost",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "Cost",
-          "path": "/ui/BattleUI/SkillDescriptionPopup/Cost",
+          "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/Cost",
           "nameEditable": true,
           "enable": true,
           "visible": true,
           "localize": true,
-          "displayOrder": 3,
+          "displayOrder": 4,
           "pathConstraints": "////",
           "revision": 0,
           "origin": {
@@ -5660,12 +6209,12 @@
               },
               "MobileOnly": false,
               "OffsetMax": {
-                "x": 474.0,
-                "y": 50.0
+                "x": 835.5536,
+                "y": 128.857239
               },
               "OffsetMin": {
-                "x": 24.0,
-                "y": 20.0
+                "x": 385.5536,
+                "y": 61.6603661
               },
               "Pivot": {
                 "x": 0.0,
@@ -5673,7 +6222,7 @@
               },
               "RectSize": {
                 "x": 450.0,
-                "y": 30.0
+                "y": 67.19688
               },
               "UIMode": 1,
               "UIScale": {
@@ -5683,12 +6232,12 @@
               },
               "UIVersion": 2,
               "anchoredPosition": {
-                "x": 24.0,
-                "y": 20.0
+                "x": 385.5536,
+                "y": 61.6603661
               },
               "Position": {
-                "x": -296.0,
-                "y": -90.0,
+                "x": 65.55359,
+                "y": -48.3396339,
                 "z": 0.0
               },
               "QuaternionRotation": {
@@ -5783,12 +6332,12 @@
               "DropShadowDistance": 3.0,
               "Font": 0,
               "FontColor": {
-                "r": 1.0,
-                "g": 0.8352941,
-                "b": 0.5411765,
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
                 "a": 1.0
               },
-              "FontSize": 18,
+              "FontSize": 30,
               "IgnoreMapLayerCheck": false,
               "IsLocalizationKey": false,
               "MaxSize": 40,
@@ -5815,7 +6364,7 @@
               },
               "SizeFit": false,
               "SortingLayer": "UI",
-              "Text": "",
+              "Text": "cos",
               "UseConstraintX": false,
               "UseConstraintY": false,
               "UseOutLine": false,
@@ -5827,16 +6376,16 @@
       },
       {
         "id": "26b63d36-9153-458c-b194-1352ae93b1a9",
-        "path": "/ui/BattleUI/SkillDescriptionPopup/CloseButton",
+        "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/CloseButton",
         "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
         "jsonString": {
           "name": "CloseButton",
-          "path": "/ui/BattleUI/SkillDescriptionPopup/CloseButton",
+          "path": "/ui/ControlCharacterUI/SkillDescriptionPopup/CloseButton",
           "nameEditable": true,
           "enable": true,
           "visible": true,
           "localize": true,
-          "displayOrder": 4,
+          "displayOrder": 5,
           "pathConstraints": "////",
           "revision": 0,
           "origin": {
@@ -5862,12 +6411,12 @@
               },
               "MobileOnly": false,
               "OffsetMax": {
-                "x": -18.0,
-                "y": -16.0
+                "x": -5.43359375,
+                "y": 55.41809
               },
               "OffsetMin": {
-                "x": -106.0,
-                "y": -104.0
+                "x": -93.43359,
+                "y": -32.58191
               },
               "Pivot": {
                 "x": 1.0,
@@ -5885,12 +6434,12 @@
               },
               "UIVersion": 2,
               "anchoredPosition": {
-                "x": -18.0,
-                "y": -16.0
+                "x": -5.43359375,
+                "y": 55.41809
               },
               "Position": {
-                "x": 302.0,
-                "y": 94.0,
+                "x": 314.5664,
+                "y": 165.418091,
                 "z": 0.0
               },
               "QuaternionRotation": {
@@ -5912,7 +6461,7 @@
               "EndFrameIndex": 2147483647,
               "IgnoreMapLayerCheck": false,
               "ImageRUID": {
-                "DataId": "4fea64a3307cda641809ad8be0d4890b"
+                "DataId": "f5a2f52edbd147309c570de85c1bf95e"
               },
               "LocalPosition": {
                 "x": 0.0,
@@ -5930,9 +6479,9 @@
               "SortingLayer": "UI",
               "StartFrameIndex": 0,
               "Color": {
-                "r": 0.22,
-                "g": 0.25,
-                "b": 0.31,
+                "r": 1.0,
+                "g": 1.0,
+                "b": 1.0,
                 "a": 1.0
               },
               "DropShadow": false,
@@ -6068,6 +6617,258 @@
               "SizeFit": false,
               "SortingLayer": "UI",
               "Text": "X",
+              "UseConstraintX": false,
+              "UseConstraintY": false,
+              "UseOutLine": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "d495af5d-037c-4b1d-bd0a-a5d39bfb8595",
+        "path": "/ui/ControlCharacterUI/ConfirmSkillButton",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent,MOD.Core.TextComponent",
+        "jsonString": {
+          "name": "ConfirmSkillButton",
+          "path": "/ui/ControlCharacterUI/ConfirmSkillButton",
+          "nameEditable": true,
+          "enable": false,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 5,
+          "pathConstraints": "///",
+          "revision": 0,
+          "origin": {
+            "type": "Model",
+            "entry_id": "UIButton",
+            "sub_entity_id": null,
+            "root_entity_id": null,
+            "replaced_model_id": null
+          },
+          "modelId": "uibutton",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "ActivePlatform": 255,
+              "AlignmentOption": 8,
+              "AnchorsMax": {
+                "x": 1.0,
+                "y": 0.0
+              },
+              "AnchorsMin": {
+                "x": 1.0,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": -130.0,
+                "y": 172.0
+              },
+              "OffsetMin": {
+                "x": -310.0,
+                "y": 100.0
+              },
+              "Pivot": {
+                "x": 1.0,
+                "y": 0.0
+              },
+              "RectSize": {
+                "x": 180.0,
+                "y": 72.0
+              },
+              "UIMode": 1,
+              "UIScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -130.0,
+                "y": 100.0
+              },
+              "Position": {
+                "x": 830.0,
+                "y": -440.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "AnimClipPlayType": 0,
+              "EndFrameIndex": 2147483647,
+              "IgnoreMapLayerCheck": false,
+              "ImageRUID": {
+                "DataId": "4fea64a3307cda641809ad8be0d4890b"
+              },
+              "LocalPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "LocalScale": {
+                "x": 1.0,
+                "y": 1.0
+              },
+              "MaterialId": "",
+              "OrderInLayer": 0,
+              "OverrideSorting": false,
+              "PlayRate": 1.0,
+              "PreserveSprite": 0,
+              "SortingLayer": "UI",
+              "StartFrameIndex": 0,
+              "Color": {
+                "r": 0.12,
+                "g": 0.38,
+                "b": 0.68,
+                "a": 1.0
+              },
+              "DropShadow": false,
+              "DropShadowAngle": 120.0,
+              "DropShadowColor": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 0.72
+              },
+              "DropShadowDistance": 3.0,
+              "FillAmount": 1.0,
+              "FillCenter": true,
+              "FillClockWise": true,
+              "FillMethod": 0,
+              "FillOrigin": 0,
+              "FlipX": false,
+              "FlipY": false,
+              "FrameColumn": 1,
+              "FrameRate": 0,
+              "FrameRow": 1,
+              "Outline": false,
+              "OutlineColor": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 1.0
+              },
+              "OutlineWidth": 3.0,
+              "RaycastTarget": true,
+              "Type": 0,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ButtonComponent",
+              "Colors": {
+                "NormalColor": {
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0,
+                  "a": 1.0
+                },
+                "HighlightedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "PressedColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 1.0
+                },
+                "SelectedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "DisabledColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 0.5019608
+                },
+                "ColorMultiplier": 1.0,
+                "FadeDuration": 0.1
+              },
+              "IgnoreMapLayerCheck": false,
+              "ImageRUIDs": {
+                "HighlightedSprite": null,
+                "PressedSprite": null,
+                "SelectedSprite": null,
+                "DisabledSprite": null
+              },
+              "KeyCode": 0,
+              "OrderInLayer": 0,
+              "OverrideSorting": false,
+              "SortingLayer": "UI",
+              "Transition": 1,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.TextComponent",
+              "Alignment": 4,
+              "AllowAutomaticTranslation": true,
+              "BestFit": false,
+              "Bold": false,
+              "ConstraintX": 100.0,
+              "ConstraintY": 100.0,
+              "DropShadow": false,
+              "DropShadowAngle": 120.0,
+              "DropShadowColor": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 0.72
+              },
+              "DropShadowDistance": 3.0,
+              "Font": 0,
+              "FontColor": {
+                "r": 1.0,
+                "g": 1.0,
+                "b": 1.0,
+                "a": 1.0
+              },
+              "FontSize": 28,
+              "IgnoreMapLayerCheck": false,
+              "IsLocalizationKey": false,
+              "MaxSize": 40,
+              "MinSize": 10,
+              "OrderInLayer": 0,
+              "OutlineColor": {
+                "r": 0.698039234,
+                "g": 0.698039234,
+                "b": 0.698039234,
+                "a": 1.0
+              },
+              "OutlineDistance": {
+                "x": 1.0,
+                "y": -1.0
+              },
+              "OutlineWidth": 1.0,
+              "Overflow": 0,
+              "OverrideSorting": false,
+              "Padding": {
+                "left": 0,
+                "right": 0,
+                "top": 0,
+                "bottom": 0
+              },
+              "SizeFit": false,
+              "SortingLayer": "UI",
+              "Text": "確定",
               "UseConstraintX": false,
               "UseConstraintY": false,
               "UseOutLine": false,

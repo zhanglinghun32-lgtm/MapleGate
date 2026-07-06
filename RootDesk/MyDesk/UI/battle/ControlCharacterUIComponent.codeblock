@@ -1,7 +1,7 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "codeblock://55d72a3d-1d3a-4077-b018-68cb06ddb4ca",
+  "EntryKey": "codeblock://a892f10a-3482-4608-9a13-c64173824fb2",
   "ContentType": "x-mod/codeblock",
   "Content": "",
   "Usage": 0,
@@ -22,9 +22,9 @@
         "Minor": 1
       },
       "Description": "",
-      "Id": "55d72a3d-1d3a-4077-b018-68cb06ddb4ca",
+      "Id": "a892f10a-3482-4608-9a13-c64173824fb2",
       "Language": 1,
-      "Name": "BattleUIComponent",
+      "Name": "ControlCharacterUIComponent",
       "Type": 1,
       "Source": 0,
       "Target": null

@@ -1,0 +1,249 @@
+@Component
+@ExecSpace("ClientOnly")
+script BattleSkillPresentationComponent extends Component
+
+    -- Plays one client-side skill presentation at a time. BattleSystem remains authoritative.
+    property string movementLockKey = "BattlePresentation"
+    property integer currentPresentationId = 0
+    property boolean isPlaying = false
+    property Entity currentSponsorEntity = nil
+
+    property string presentationConfigDataSetName = "skillPresentationConfig"
+    property string presentationStepDataSetName = "skillPresentationStepConfig"
+    property table presentationConfigCache = {}
+    property table timelineStepCache = {}
+
+    method void OnBeginPlay()
+        self:BuildPresentationCaches()
+    end
+
+    method void OnEndPlay()
+        self:CancelPresentation(self.currentPresentationId)
+    end
+
+    method boolean PlayPresentation(integer presentationId, string actionKey, Entity sponsorEntity, Entity targetEntity)
+        if presentationId <= 0 or isvalid(sponsorEntity) == false then
+            log_warning("[BattleSkillPresentationComponent] PlayPresentation rejected: invalid presentation or sponsor.")
+            return false
+        end
+
+        if self.isPlaying == true then
+            self:CancelPresentation(self.currentPresentationId)
+        end
+
+        self.currentPresentationId = presentationId
+        self.currentSponsorEntity = sponsorEntity
+        self.isPlaying = true
+        _PlayerControlLogic:PushControlLock(self.movementLockKey)
+        log("[BattleSkillPresentationComponent] Started id=" .. tostring(presentationId) .. ", action=" .. tostring(actionKey))
+
+        local completed = self:PlayConfiguredTimeline(presentationId, actionKey, sponsorEntity, targetEntity)
+
+        self:FinishPresentation(presentationId, completed)
+        return completed
+    end
+
+    method boolean PlayConfiguredTimeline(integer presentationId, string skillKey, Entity sponsorEntity, Entity targetEntity)
+        local presentationConfig = self.presentationConfigCache[skillKey]
+        if presentationConfig == nil then
+            log_warning("[BattleSkillPresentationComponent] Presentation row missing. skillKey=" .. skillKey)
+            return false
+        end
+
+        local actionName = presentationConfig.ActionName
+        local actionRate = presentationConfig.ActionRate
+        local duration = presentationConfig.Duration
+        if actionName ~= "" then
+            self:PlayAvatarAction(sponsorEntity, actionName, actionRate)
+        end
+
+        local timelineSteps = self:LoadTimelineSteps(skillKey)
+        local startedAt = _UtilLogic.ElapsedSeconds
+        for _, timelineStep in ipairs(timelineSteps) do
+            if self:WaitUntilTimelineTime(presentationId, startedAt, timelineStep.AtSeconds) == false then
+                return false
+            end
+            self:ExecuteTimelineStep(timelineStep, sponsorEntity, targetEntity)
+        end
+
+        if self:WaitUntilTimelineTime(presentationId, startedAt, duration) == false then
+            return false
+        end
+        return self:IsCurrentPresentation(presentationId)
+    end
+
+    method table LoadTimelineSteps(string skillKey)
+        local timelineSteps = self.timelineStepCache[skillKey]
+        if timelineSteps == nil then
+            return {}
+        end
+        return timelineSteps
+    end
+
+    method void BuildPresentationCaches()
+        self.presentationConfigCache = {}
+        self.timelineStepCache = {}
+
+        local presentationDataSet = _DataService:GetTable(self.presentationConfigDataSetName)
+        if presentationDataSet == nil then
+            log_warning("[BattleSkillPresentationComponent] Presentation config missing. table=" .. self.presentationConfigDataSetName)
+            return
+        end
+        local presentationRowCount = presentationDataSet:GetRowCount()
+        for rowIndex = 1, presentationRowCount do
+            local skillKey = tostring(presentationDataSet:GetCell(rowIndex, "skillKey"))
+            if skillKey ~= "" and skillKey ~= "nil" then
+                self.presentationConfigCache[skillKey] = {
+                    ActionName = tostring(presentationDataSet:GetCell(rowIndex, "actionName")),
+                    ActionRate = tonumber(presentationDataSet:GetCell(rowIndex, "actionRate")) or 1,
+                    Duration = math.max(0, tonumber(presentationDataSet:GetCell(rowIndex, "duration")) or 0)
+                }
+            end
+        end
+
+        local stepDataSet = _DataService:GetTable(self.presentationStepDataSetName)
+        if stepDataSet == nil then
+            log_warning("[BattleSkillPresentationComponent] Presentation step config missing. table=" .. self.presentationStepDataSetName)
+            return
+        end
+
+        local rowCount = stepDataSet:GetRowCount()
+        for rowIndex = 1, rowCount do
+            local skillKey = tostring(stepDataSet:GetCell(rowIndex, "skillKey"))
+            if skillKey ~= "" and skillKey ~= "nil" then
+                if self.timelineStepCache[skillKey] == nil then
+                    self.timelineStepCache[skillKey] = {}
+                end
+                local timelineStep = {}
+                timelineStep.StepIndex = tonumber(stepDataSet:GetCell(rowIndex, "stepIndex")) or rowIndex
+                timelineStep.AtSeconds = tonumber(stepDataSet:GetCell(rowIndex, "atSeconds")) or 0
+                timelineStep.EventType = tostring(stepDataSet:GetCell(rowIndex, "eventType"))
+                timelineStep.AttachTo = tostring(stepDataSet:GetCell(rowIndex, "attachTo"))
+                timelineStep.Ruid = tostring(stepDataSet:GetCell(rowIndex, "ruid"))
+                timelineStep.Offset = Vector3(
+                    tonumber(stepDataSet:GetCell(rowIndex, "offsetX")) or 0,
+                    tonumber(stepDataSet:GetCell(rowIndex, "offsetY")) or 0,
+                    tonumber(stepDataSet:GetCell(rowIndex, "offsetZ")) or 0
+                )
+                timelineStep.Scale = Vector3(
+                    tonumber(stepDataSet:GetCell(rowIndex, "scaleX")) or 1,
+                    tonumber(stepDataSet:GetCell(rowIndex, "scaleY")) or 1,
+                    tonumber(stepDataSet:GetCell(rowIndex, "scaleZ")) or 1
+                )
+                timelineStep.FlipWithSponsor = string.lower(tostring(stepDataSet:GetCell(rowIndex, "flipWithSponsor"))) == "true"
+                table.insert(self.timelineStepCache[skillKey], timelineStep)
+            end
+        end
+
+        for _, timelineSteps in pairs(self.timelineStepCache) do
+            table.sort(timelineSteps, function(left, right)
+                if left.AtSeconds == right.AtSeconds then
+                    return left.StepIndex < right.StepIndex
+                end
+                return left.AtSeconds < right.AtSeconds
+            end)
+        end
+        log("[BattleSkillPresentationComponent] Presentation cache built. count=" .. tostring(presentationRowCount))
+    end
+
+    method boolean WaitUntilTimelineTime(integer presentationId, number startedAt, number atSeconds)
+        local elapsed = _UtilLogic.ElapsedSeconds - startedAt
+        local remaining = atSeconds - elapsed
+        if remaining > 0 then
+            wait(remaining)
+        end
+        return self:IsCurrentPresentation(presentationId)
+    end
+
+    method void ExecuteTimelineStep(table timelineStep, Entity sponsorEntity, Entity targetEntity)
+        if timelineStep.EventType ~= "Effect" then
+            log_warning("[BattleSkillPresentationComponent] Unsupported timeline event=" .. tostring(timelineStep.EventType))
+            return
+        end
+
+        local parentEntity = sponsorEntity
+        if timelineStep.AttachTo == "Target" then
+            parentEntity = targetEntity
+        end
+        if isvalid(parentEntity) == false then
+            return
+        end
+
+        self:PlayAttachedEffect(
+            timelineStep.Ruid,
+            parentEntity,
+            timelineStep.Offset,
+            timelineStep.Scale,
+            timelineStep.FlipWithSponsor,
+            sponsorEntity
+        )
+    end
+
+    method void PlayAvatarAction(Entity sponsorEntity, string actionName, number playRate)
+        if isvalid(sponsorEntity) == false or actionName == nil or actionName == "" then
+            return
+        end
+
+        sponsorEntity:SendEvent(BodyActionTypeChangeEvent(true, actionName, 0, 2147483647, playRate))
+    end
+
+    method integer PlayAttachedEffect(string effectRuid, Entity parentEntity, Vector3 localPosition, Vector3 localScale, boolean flipWithSponsor, Entity sponsorEntity)
+        if effectRuid == nil or effectRuid == "" or isvalid(parentEntity) == false then
+            return 0
+        end
+
+        local lookDirectionX = -1
+        if flipWithSponsor and isvalid(sponsorEntity) and sponsorEntity.PlayerControllerComponent ~= nil then
+            lookDirectionX = sponsorEntity.PlayerControllerComponent.LookDirectionX
+        end
+        local options = { ["FlipX"] = lookDirectionX > 0 }
+        return _EffectService:PlayEffectAttached(
+            effectRuid,
+            parentEntity,
+            localPosition,
+            0,
+            localScale,
+            false,
+            options
+        )
+    end
+
+    method boolean IsCurrentPresentation(integer presentationId)
+        return self.isPlaying == true and self.currentPresentationId == presentationId
+    end
+
+    method void FinishPresentation(integer presentationId, boolean completed)
+        if self.currentPresentationId ~= presentationId then
+            return
+        end
+
+        if isvalid(self.currentSponsorEntity) then
+            self.currentSponsorEntity:SendEvent(
+                BodyActionStateChangeEvent(true, MapleAvatarBodyActionState.Stand)
+            )
+        end
+
+        self.isPlaying = false
+        self.currentPresentationId = 0
+        self.currentSponsorEntity = nil
+        _PlayerControlLogic:PopControlLock(self.movementLockKey)
+        log("[BattleSkillPresentationComponent] Finished id=" .. tostring(presentationId) .. ", completed=" .. tostring(completed))
+    end
+
+    method void CancelPresentation(integer presentationId)
+        if self.isPlaying == false then
+            return
+        end
+        if presentationId > 0 and self.currentPresentationId ~= presentationId then
+            return
+        end
+
+        local cancelledId = self.currentPresentationId
+        self.isPlaying = false
+        self.currentPresentationId = 0
+        self.currentSponsorEntity = nil
+        _PlayerControlLogic:PopControlLock(self.movementLockKey)
+        log("[BattleSkillPresentationComponent] Cancelled id=" .. tostring(cancelledId))
+    end
+
+end

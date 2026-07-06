@@ -155,6 +155,7 @@ script PlayerDataLogic extends Logic
 
         self.loadedSlotIndexes[userId] = slotIndex
         self.slotDataCache[userId] = slotData
+        self.dirtyUsers[userId] = nil
 
         _PartyLogic:LoadUserData(userId, slotData.Party)
         _InventoryLogic:LoadUserData(userId, slotData.Inventory)
@@ -162,7 +163,6 @@ script PlayerDataLogic extends Logic
         _MissionLogic:LoadUserData(userId, slotData.Mission)
         self:ApplyPrimaryActorToPlayer(userId, slotData.Actors)
 
-        self.dirtyUsers[userId] = nil
         if createdVirtualActors == true then
             self:MarkDirty(userId)
         end
@@ -421,6 +421,18 @@ script PlayerDataLogic extends Logic
         end
         if isvalid(fieldNormalAttack) == false then
             log_warning("[PlayerDataLogic] ApplyPrimaryActorToPlayer failed: FieldNormalAttack missing. userId=" .. userId)
+            return false
+        end
+
+        -- Client-side battle skill presentation runner. It is attached to the runtime player
+        -- so BattleClientLogic can play avatar actions and effects without owning entity visuals.
+        local skillPresentation = userEntity:GetComponent("script.BattleSkillPresentationComponent")
+        if isvalid(skillPresentation) == false then
+            userEntity:AddComponent("BattleSkillPresentationComponent")
+            skillPresentation = userEntity:GetComponent("script.BattleSkillPresentationComponent")
+        end
+        if isvalid(skillPresentation) == false then
+            log_warning("[PlayerDataLogic] ApplyPrimaryActorToPlayer failed: BattleSkillPresentationComponent missing. userId=" .. userId)
             return false
         end
 

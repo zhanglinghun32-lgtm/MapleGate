@@ -36,7 +36,23 @@ script SkillLogic extends Logic
             skillData.Hotkeys = {}
         end
 
+        local migrated = false
+        migrated = self:EnsureSkillEntry(skillData, "normalAttack", 1) or migrated
+        migrated = self:EnsureSkillEntry(skillData, "spearPower", 1) or migrated
+        if skillData.Hotkeys.Slot1 == nil or skillData.Hotkeys.Slot1 == "" then
+            skillData.Hotkeys.Slot1 = "normalAttack"
+            migrated = true
+        end
+        if skillData.Hotkeys.Slot2 == nil or skillData.Hotkeys.Slot2 == "" then
+            skillData.Hotkeys.Slot2 = "spearPower"
+            migrated = true
+        end
+
         self.userSkills[userId] = skillData
+        if migrated == true then
+            _PlayerDataLogic:MarkDirty(userId)
+        end
+        self:SyncLearnedSkillsClient(self:GetLearnedSkillKeys(userId), userId)
         log("[SkillLogic] LoadUserData. userId=" .. userId .. ", learnedCount=" .. tostring(#skillData.Learned))
     end
 
@@ -64,7 +80,9 @@ script SkillLogic extends Logic
         skillData.Hotkeys = {}
 
         skillData.Learned[1] = self:CreateSkillEntry("normalAttack", 1)
+        skillData.Learned[2] = self:CreateSkillEntry("spearPower", 1)
         skillData.Hotkeys.Slot1 = "normalAttack"
+        skillData.Hotkeys.Slot2 = "spearPower"
 
         return skillData
     end
@@ -79,6 +97,55 @@ script SkillLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
+    method boolean EnsureSkillEntry(table skillData, string skillKey, integer level)
+        if skillData == nil or skillKey == nil or skillKey == "" then
+            return false
+        end
+        if skillData.Learned == nil then
+            skillData.Learned = {}
+        end
+        for _, skillEntry in ipairs(skillData.Learned) do
+            if tostring(skillEntry.SkillKey) == skillKey then
+                return false
+            end
+        end
+        skillData.Learned[#skillData.Learned + 1] = self:CreateSkillEntry(skillKey, level)
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean HasSkill(string userId, string skillKey)
+        if userId == nil or userId == "" or skillKey == nil or skillKey == "" then
+            return false
+        end
+        local skillData = self:ExportUserData(userId)
+        for _, skillEntry in ipairs(skillData.Learned) do
+            if tostring(skillEntry.SkillKey) == skillKey then
+                return true
+            end
+        end
+        return false
+    end
+
+    @ExecSpace("ServerOnly")
+    method table GetLearnedSkillKeys(string userId)
+        local skillKeys = {}
+        local skillData = self:ExportUserData(userId)
+        for _, skillEntry in ipairs(skillData.Learned) do
+            local skillKey = tostring(skillEntry.SkillKey)
+            if skillKey ~= "" and skillKey ~= "nil" then
+                table.insert(skillKeys, skillKey)
+            end
+        end
+        return skillKeys
+    end
+
+    @ExecSpace("Client")
+    method void SyncLearnedSkillsClient(table skillKeys)
+        _BattleClientLogic:UpdateLocalPlayerSkillKeys(skillKeys)
+    end
+
+    @ExecSpace("ServerOnly")
     method boolean LearnSkill(string userId, string skillKey, integer level)
         -- Adds a skill if it is not learned yet.
         if self:HasSkill(userId, skillKey) == true then
@@ -88,6 +155,7 @@ script SkillLogic extends Logic
         local skillData = self:ExportUserData(userId)
         skillData.Learned[#skillData.Learned + 1] = self:CreateSkillEntry(skillKey, level)
         _PlayerDataLogic:MarkDirty(userId)
+        self:SyncLearnedSkillsClient(self:GetLearnedSkillKeys(userId), userId)
         log("[SkillLogic] LearnSkill. userId=" .. userId .. ", skillKey=" .. skillKey)
         return true
     end
@@ -107,9 +175,74 @@ script SkillLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
-	method boolean IsSkillReady(string actorId, string actionKey)
-		-- Todo
-		return true;
+    method table ValidateSkillUse(string userId, Entity actorEntity, string actionKey)
+        local result = {}
+        result.Success = false
+        result.Reason = "Unknown"
+
+        if userId == nil or userId == "" then
+            result.Reason = "InvalidUser"
+            return result
+        end
+        if actionKey == nil or actionKey == "" then
+            result.Reason = "InvalidAction"
+            return result
+        end
+        if self:HasSkill(userId, actionKey) == false then
+            result.Reason = "SkillNotLearned"
+            return result
+        end
+
+        local skillDataSet = _DataService:GetTable("skillConfig")
+        if skillDataSet == nil then
+            result.Reason = "SkillConfigMissing"
+            return result
+        end
+        local skillRow = skillDataSet:FindRow("skillKey", actionKey)
+        if skillRow == nil then
+            result.Reason = "SkillConfigRowMissing"
+            return result
+        end
+
+        if isvalid(actorEntity) == false then
+            actorEntity = _UserService:GetUserEntityByUserId(userId)
+        end
+        if isvalid(actorEntity) == false then
+            result.Reason = "ActorEntityMissing"
+            return result
+        end
+
+        local battleActor = actorEntity:GetComponent("script.BattleActorCom")
+        if battleActor == nil then
+            result.Reason = "BattleActorMissing"
+            return result
+        end
+        if battleActor.hp <= 0 then
+            result.Reason = "ActorDead"
+            return result
+        end
+
+        local mpCost = _DataUtil:GetRowInteger(skillRow, "mpCost", 0)
+        local staminaCost = _DataUtil:GetRowInteger(skillRow, "staminaCost", 0)
+        if battleActor.mp < mpCost then
+            result.Reason = "NotEnoughMp"
+            return result
+        end
+        if battleActor.stamina < staminaCost then
+            result.Reason = "NotEnoughStamina"
+            return result
+        end
+
+        -- TODO(SkillCooldown): validate the actor's shared cooldown state here.
+        result.Success = true
+        result.Reason = ""
+        return result
+    end
+
+    @ExecSpace("ServerOnly")
+	method boolean IsSkillReady(string userId, string actionKey)
+        local validation = self:ValidateSkillUse(userId, nil, actionKey)
+		return validation.Success == true
 	end
 
 end

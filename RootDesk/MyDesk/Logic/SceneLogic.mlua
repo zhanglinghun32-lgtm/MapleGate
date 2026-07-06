@@ -11,6 +11,7 @@ script SceneLogic extends Logic
     property string worldMapName = "map01"
     property string mainMenuUIKey = "MainMenu"
     property string systemMenuUIKey = "SystemMenuUI"
+    property string controlCharacterUIKey = "ControlCharacterUI"
 
     property Vector2 transitionFallbackPosition = Vector2(0, 0)
     property any closeCallback = nil
@@ -102,6 +103,11 @@ script SceneLogic extends Logic
         -- Applies scene UI after running the previous scene close callback.
         self:RunCloseCallback()
         _UIManagerLogic:SetOverlayUIVisible(self.systemMenuUIKey, sceneKey == self.worldSceneKey)
+        if sceneKey == self.worldSceneKey then
+            _UIManagerLogic:OpenControlCharacterUI()
+        else
+            _UIManagerLogic:SetOverlayUIVisible(self.controlCharacterUIKey, false)
+        end
 
         if sceneKey == self.mainMenuSceneKey then
             _UIManagerLogic:OpenUI(self.mainMenuUIKey)

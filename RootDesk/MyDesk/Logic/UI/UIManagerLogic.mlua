@@ -2,7 +2,7 @@
 script UIManagerLogic extends Logic
 
     property string uiRegistryDataSetName = "UIRegistry"
-    property string battleUIKey = "BattleUI"
+    property string controlCharacterUIKey = "ControlCharacterUI"
     property any uiMap = nil
     property any currentOpenUI = nil
     property string currentUIKey = ""
@@ -57,17 +57,26 @@ script UIManagerLogic extends Logic
     end
 
     @ExecSpace("ClientOnly")
-    method void OpenBattleUI()
-        -- Opens the battle HUD when combat starts.
-        log("[UIManagerLogic] OpenBattleUI requested.")
-        self:OpenUI(self.battleUIKey)
+    method void OpenControlCharacterUI()
+        -- Keeps the character-control overlay available in and out of combat.
+        local uiEntity = self:GetUIEntity(self.controlCharacterUIKey)
+        if isvalid(uiEntity) == false then
+            log_warning("[UIManagerLogic] OpenControlCharacterUI failed: UI missing.")
+            return
+        end
+
+        uiEntity.Enable = true
+        local controlCharacterUI = uiEntity:GetComponent("script.ControlCharacterUIComponent")
+        if controlCharacterUI ~= nil then
+            controlCharacterUI:ShowControls()
+        end
+        log("[UIManagerLogic] OpenControlCharacterUI requested.")
     end
 
     @ExecSpace("ClientOnly")
-    method void CloseBattleUI()
-        -- Closes the battle HUD when combat ends.
-        log("[UIManagerLogic] CloseBattleUI requested.")
-        self:CloseUI(self.battleUIKey)
+    method void SetControlCharacterUIVisible(boolean visible)
+        -- Changes only the overlay root; it does not replace the currently tracked screen UI.
+        self:SetOverlayUIVisible(self.controlCharacterUIKey, visible)
     end
 
     @ExecSpace("ClientOnly")

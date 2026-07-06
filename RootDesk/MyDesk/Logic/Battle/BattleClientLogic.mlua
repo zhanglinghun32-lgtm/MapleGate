@@ -2,13 +2,11 @@
 script BattleClientLogic extends Logic
 
     -- Client-side shell for battle mode presentation: UI, player-control lock request, and camera.
-    -- Stores the server-spawned battleEntity so BattleUIComponent can read @Sync on BattleSystem.
+    -- Stores the server-spawned battleEntity so ControlCharacterUIComponent can read @Sync on BattleSystem.
 
     property string currentBattleId = ""
     property boolean isInBattle = false
     property Entity battleEntity = nil
-    property string previousUIKey = ""
-    property boolean hasPreviousUIState = false
     property number previousZoomRatio = 100
     property boolean hasPreviousZoomRatio = false
     property number battleZoomRatio = 120
@@ -20,6 +18,10 @@ script BattleClientLogic extends Logic
     property integer battleStateRevision = 0
     property any latestActionResultPayload = nil
     property boolean needsBattleSnapshot = false
+    property table localPlayerSkillKeys = {}
+    property table currentActorSkillKeys = {}
+    property string currentSkillActorId = ""
+    property Entity currentSkillBattleEntity = nil
 
     @ExecSpace("ClientOnly")
     method void OnBeginPlay()
@@ -63,11 +65,15 @@ script BattleClientLogic extends Logic
         self.isInBattle = true
         self:ResetBattleViewState()
 
-        self:CapturePreviousUIState()
-        _UIManagerLogic:CloseCurrentUI()
-        _UIManagerLogic:OpenBattleUI()
-        self:AttachBattleUI(battleEntity)
-        _PlayerControlLogic:PushControlLock(_PlayerControlLogic.battleLockKey)
+        _UIManagerLogic:OpenControlCharacterUI()
+        self:AttachControlCharacterUI(battleEntity)
+        local controlCharacterUI = self:GetControlCharacterUIComponent()
+        if controlCharacterUI ~= nil then
+            controlCharacterUI:SetControlledActorSkills(_UserService.LocalPlayer, "LocalPlayer", self.localPlayerSkillKeys)
+        end
+        -- TODO(BattleTurnMovement): while phaseAwaitingInput, enable movement only for
+        -- currentActorId and charge that actor's stamina from authoritative movement distance.
+        -- Presentation movement is locked separately by BattleSkillPresentationComponent.
         self:ApplyBattleCamera()
 
         log("[BattleClientLogic] EnterBattle battleId=" .. battleId)
@@ -86,10 +92,8 @@ script BattleClientLogic extends Logic
             return
         end
 
-        _UIManagerLogic:CloseBattleUI()
-        self:DetachBattleUI()
-        self:RestorePreviousUIState()
-        _PlayerControlLogic:PopControlLock(_PlayerControlLogic.battleLockKey)
+        self:CancelSkillPresentation()
+        self:DetachControlCharacterUI()
         self:RestoreBattleCamera()
 
         log("[BattleClientLogic] ExitBattle battleId=" .. self.currentBattleId .. ", result=" .. tostring(result))
@@ -97,11 +101,53 @@ script BattleClientLogic extends Logic
         self.currentBattleId = ""
         self.battleEntity = nil
         self.isInBattle = false
-        self.previousUIKey = ""
-        self.hasPreviousUIState = false
         self.isPlayingActionPresentation = false
         self.currentPresentationId = 0
+        self.currentActorSkillKeys = {}
+        self.currentSkillActorId = ""
+        self.currentSkillBattleEntity = nil
         self:ResetBattleViewState()
+    end
+
+    @ExecSpace("ClientOnly")
+    method void UpdateLocalPlayerSkillKeys(table skillKeys)
+        self.localPlayerSkillKeys = self:CopySkillKeys(skillKeys)
+        local controlCharacterUI = self:GetControlCharacterUIComponent()
+        if controlCharacterUI ~= nil then
+            controlCharacterUI:SetControlledActorSkills(_UserService.LocalPlayer, "LocalPlayer", self.localPlayerSkillKeys)
+        end
+        log("[BattleClientLogic] UpdateLocalPlayerSkillKeys count=" .. tostring(#self.localPlayerSkillKeys))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void UpdateCurrentActorSkillKeys(Entity sourceBattleEntity, string actorId, table skillKeys)
+        if isvalid(sourceBattleEntity) == false then
+            return
+        end
+        if self.isInBattle == true and isvalid(self.battleEntity) and self.battleEntity ~= sourceBattleEntity then
+            return
+        end
+        self.currentSkillBattleEntity = sourceBattleEntity
+        self.currentSkillActorId = tostring(actorId)
+        self.currentActorSkillKeys = self:CopySkillKeys(skillKeys)
+        -- Battle actor skills are cached for battle presentation only. The skill browser
+        -- always follows the locally controlled character and its learned skill list.
+        log("[BattleClientLogic] UpdateCurrentActorSkillKeys actor=" .. tostring(actorId) .. ", count=" .. tostring(#self.currentActorSkillKeys))
+    end
+
+    @ExecSpace("ClientOnly")
+    method table CopySkillKeys(table sourceSkillKeys)
+        local copiedSkillKeys = {}
+        if sourceSkillKeys == nil then
+            return copiedSkillKeys
+        end
+        for _, skillKey in ipairs(sourceSkillKeys) do
+            local normalizedSkillKey = tostring(skillKey)
+            if normalizedSkillKey ~= "" and normalizedSkillKey ~= "nil" then
+                table.insert(copiedSkillKeys, normalizedSkillKey)
+            end
+        end
+        return copiedSkillKeys
     end
 
     @ExecSpace("ClientOnly")
@@ -122,9 +168,23 @@ script BattleClientLogic extends Logic
         self:ApplyActionResultPayload(battleId, actionResultPayload)
         self:OnActionPresentationStarted(sponsorId, actionKey, actionContext, actionResultPayload)
 
-        local duration = self:GetActionPresentationDuration(actionKey)
-        if duration > 0 then
-            wait(duration)
+        local presentation = self:GetBattleSkillPresentationComponent()
+        local sponsorEntity = self:ResolvePresentationActorEntity(sponsorId)
+        local targetEntity = self:ResolveFirstPresentationTarget(actionContext)
+        local completed = false
+        if presentation ~= nil then
+            completed = presentation:PlayPresentation(presentationId, actionKey, sponsorEntity, targetEntity)
+        end
+
+        if self.isPlayingActionPresentation == false or self.currentPresentationId ~= presentationId then
+            return
+        end
+
+        if completed == false then
+            local duration = self:GetActionPresentationDuration(actionKey)
+            if duration > 0 then
+                wait(duration)
+            end
         end
 
         if self.isPlayingActionPresentation == false or self.currentPresentationId ~= presentationId then
@@ -162,8 +222,74 @@ script BattleClientLogic extends Logic
 
     @ExecSpace("ClientOnly")
     method number GetActionPresentationDuration(string actionKey)
-        -- Returns the placeholder duration until action-specific animation callbacks are implemented.
+        -- Fallback duration for actions without a BattleSkillPresentationComponent sequence.
         return self.defaultActionPresentationDuration
+    end
+
+    @ExecSpace("ClientOnly")
+    method any GetBattleSkillPresentationComponent()
+        local localPlayer = _UserService.LocalPlayer
+        if isvalid(localPlayer) == false then
+            return nil
+        end
+        return localPlayer:GetComponent("script.BattleSkillPresentationComponent")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void CancelSkillPresentation()
+        local presentation = self:GetBattleSkillPresentationComponent()
+        if presentation ~= nil then
+            presentation:CancelPresentation(self.currentPresentationId)
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method Entity ResolvePresentationActorEntity(string actorId)
+        if actorId == nil or actorId == "" then
+            return nil
+        end
+
+        local directEntity = _EntityService:GetEntity(actorId)
+        if isvalid(directEntity) then
+            return directEntity
+        end
+
+        if self.battleViewState ~= nil and self.battleViewState.Actors ~= nil then
+            local actorState = self.battleViewState.Actors[actorId]
+            if actorState ~= nil then
+                local entityId = tostring(actorState.EntityId or actorState.entityId or "")
+                if entityId ~= "" then
+                    local mappedEntity = _EntityService:GetEntity(entityId)
+                    if isvalid(mappedEntity) then
+                        return mappedEntity
+                    end
+                end
+            end
+        end
+
+        if string.sub(actorId, 1, 7) == "Player_" then
+            return _UserService.LocalPlayer
+        end
+        return nil
+    end
+
+    @ExecSpace("ClientOnly")
+    method Entity ResolveFirstPresentationTarget(table actionContext)
+        if actionContext == nil then
+            return nil
+        end
+
+        local targetIds = actionContext.ResolvedTargetIds
+        if targetIds == nil or #targetIds == 0 then
+            targetIds = actionContext.TargetIds
+        end
+        if targetIds == nil or #targetIds == 0 then
+            targetIds = actionContext
+        end
+        if targetIds == nil or #targetIds == 0 then
+            return nil
+        end
+        return self:ResolvePresentationActorEntity(tostring(targetIds[1]))
     end
 
     @ExecSpace("ClientOnly")
@@ -348,36 +474,6 @@ script BattleClientLogic extends Logic
     end
 
     @ExecSpace("ClientOnly")
-    method void CapturePreviousUIState()
-        -- Stores the UI key that was open before battle mode took over the screen.
-        self.previousUIKey = ""
-        self.hasPreviousUIState = false
-
-        if _UIManagerLogic.currentUIKey == nil or _UIManagerLogic.currentUIKey == "" then
-            return
-        end
-
-        if _UIManagerLogic.currentUIKey == _UIManagerLogic.battleUIKey then
-            return
-        end
-
-        self.previousUIKey = _UIManagerLogic.currentUIKey
-        self.hasPreviousUIState = true
-        log("[BattleClientLogic] CapturePreviousUIState key=" .. self.previousUIKey)
-    end
-
-    @ExecSpace("ClientOnly")
-    method void RestorePreviousUIState()
-        -- Reopens the UI that was active before battle mode when one was captured.
-        if self.hasPreviousUIState == false or self.previousUIKey == "" then
-            return
-        end
-
-        _UIManagerLogic:OpenUI(self.previousUIKey)
-        log("[BattleClientLogic] RestorePreviousUIState key=" .. self.previousUIKey)
-    end
-
-    @ExecSpace("ClientOnly")
     method void ApplyBattleCamera()
         -- Stores current zoom and applies a battle-focused zoom.
         local currentCamera = _CameraService:GetCurrentCameraComponent()
@@ -406,33 +502,34 @@ script BattleClientLogic extends Logic
     end
 
     @ExecSpace("ClientOnly")
-    method void AttachBattleUI(Entity battleEntity)
-        -- Gives BattleUIComponent the server-spawned battle entity so it can read synced BattleSystem state.
-        local battleUI = self:GetBattleUIComponent()
-        if battleUI == nil then
-            log_warning("[BattleClientLogic] AttachBattleUI failed: BattleUIComponent missing.")
+    method void AttachControlCharacterUI(Entity battleEntity)
+        -- Gives ControlCharacterUIComponent the server-spawned battle entity for synced battle state.
+        local controlCharacterUI = self:GetControlCharacterUIComponent()
+        if controlCharacterUI == nil then
+            log_warning("[BattleClientLogic] AttachControlCharacterUI failed: component missing.")
             return
         end
 
-        battleUI:AttachBattleSession(battleEntity)
-        log("[BattleClientLogic] AttachBattleUI battleId=" .. self.currentBattleId)
+        controlCharacterUI:AttachBattleSession(battleEntity)
+        log("[BattleClientLogic] AttachControlCharacterUI battleId=" .. self.currentBattleId)
     end
 
     @ExecSpace("ClientOnly")
-    method void DetachBattleUI()
-        -- Clears BattleUIComponent session binding when battle mode ends.
-        local battleUI = self:GetBattleUIComponent()
-        if battleUI == nil then
+    method void DetachControlCharacterUI()
+        -- Clears only battle-session state; the character-control overlay remains available.
+        local controlCharacterUI = self:GetControlCharacterUIComponent()
+        if controlCharacterUI == nil then
             return
         end
 
-        battleUI:DetachBattleSession()
-        log("[BattleClientLogic] DetachBattleUI.")
+        controlCharacterUI:DetachBattleSession()
+        controlCharacterUI:SetControlledActorSkills(_UserService.LocalPlayer, "LocalPlayer", self.localPlayerSkillKeys)
+        log("[BattleClientLogic] DetachControlCharacterUI.")
     end
 
     @ExecSpace("ClientOnly")
     method void DispatchBattleSyncToUI(Entity battleEntity, string propertyName, any value)
-        -- Forwards BattleSystem @Sync updates to BattleUIComponent.OnSyncProperty.
+        -- Forwards BattleSystem @Sync updates to ControlCharacterUIComponent.OnSyncProperty.
         if self.isInBattle == false then
             return
         end
@@ -441,23 +538,23 @@ script BattleClientLogic extends Logic
             return
         end
 
-        local battleUI = self:GetBattleUIComponent()
-        if battleUI == nil then
+        local controlCharacterUI = self:GetControlCharacterUIComponent()
+        if controlCharacterUI == nil then
             return
         end
 
-        battleUI:OnSyncProperty(propertyName, value)
+        controlCharacterUI:OnSyncProperty(propertyName, value)
     end
 
     @ExecSpace("ClientOnly")
-    method any GetBattleUIComponent()
-        -- Resolves the BattleUI root component from UIManagerLogic.
-        local battleUIEntity = _UIManagerLogic:GetUIEntity(_UIManagerLogic.battleUIKey)
-        if isvalid(battleUIEntity) == false then
+    method any GetControlCharacterUIComponent()
+        -- Resolves the persistent character-control overlay component.
+        local controlCharacterUIEntity = _UIManagerLogic:GetUIEntity(_UIManagerLogic.controlCharacterUIKey)
+        if isvalid(controlCharacterUIEntity) == false then
             return nil
         end
 
-        return battleUIEntity:GetComponent("script.BattleUIComponent")
+        return controlCharacterUIEntity:GetComponent("script.ControlCharacterUIComponent")
     end
 
 end

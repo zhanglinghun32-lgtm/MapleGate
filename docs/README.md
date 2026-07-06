@@ -24,6 +24,8 @@ Read **`ScriptRules.md`** first. It defines:
 | [UI/SystemMenuUI.md](UI/SystemMenuUI.md) | Persistent gameplay system menu and save actions |
 | [GameplayFlow/GameplayFlowLogic.md](GameplayFlow/GameplayFlowLogic.md) | Playable world entry/exit coordination |
 | [PlayerControl/PlayerControlLogic.md](PlayerControl/PlayerControlLogic.md) | Local player operation lock ownership |
+| [SkillAction/SkillActionSystem.md](SkillAction/SkillActionSystem.md) | Shared skill requests in field and battle contexts |
+| [SkillPresentation/SkillPresentationSystem.md](SkillPresentation/SkillPresentationSystem.md) | Data-driven avatar action and effect timelines |
 
 ## Adding A New System
 
