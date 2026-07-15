@@ -21,7 +21,10 @@ script ControlCharacterUIComponent extends Component
     property Entity skillGrid = "752d0ebe-20fa-4ca1-af7a-ef6096e20b26"
     property Entity skillDescriptionPopupEntity = "f2aa244a-ba2d-4da6-872c-c7515931aa49"
     property Entity skillSelectionOverlay = "477eb56e-1b26-49e8-ab97-0d333b35bbe7"
+    property Entity skillRangePreviewEntity = "dca903f9-3414-4f18-92a6-89c3b165a5c3"
     property number selectionOverlayOffsetX = 10
+    property integer rangePreviewCircleSegments = 36
+    property number rangePreviewMinimumPixels = 8
     property Entity confirmSkillButtonEntity = "d495af5d-037c-4b1d-bd0a-a5d39bfb8595"
     property Entity skillSelectUI = "36672110-1de8-4658-9db5-f8b45b6e2046"
     property Entity toggleButtonEntity = "4914d5bf-c2db-468b-8fb4-b8e34d825ba4"
@@ -48,6 +51,7 @@ script ControlCharacterUIComponent extends Component
         self:BindToggleButton()
         self:BindConfirmSkillButton()
         self:SetControlsVisible(true)
+        self:HideSkillRangePreview()
     end
 
     method void OnEndPlay()
@@ -56,7 +60,13 @@ script ControlCharacterUIComponent extends Component
         self:UnbindToggleButton()
         self:UnbindConfirmSkillButton()
         self:DetachBattleSession()
+        self:HideSkillRangePreview()
         log("[ControlCharacterUIComponent] OnEndPlay.")
+    end
+
+    method void OnUpdate(number delta)
+        -- Keeps the selected skill range preview attached to the controlled actor while the actor moves.
+        self:UpdateSkillRangePreviewPosition()
     end
 
     method void ShowControls()
@@ -489,6 +499,7 @@ script ControlCharacterUIComponent extends Component
         self.selectedSkillKey = skillKey
         self.selectedSponsorActorData = sponsorActorData
         self:ShowSelectionForSlot(slotEntity)
+        self:ShowSkillRangePreview(skillKey)
         self:RefreshConfirmSkillButton()
 
         log("[ControlCharacterUIComponent] SelectSkill key=" .. skillKey .. ", sponsor=" .. self.displayedActorId)
@@ -521,6 +532,304 @@ script ControlCharacterUIComponent extends Component
         end
     end
 
+    method void ShowSkillRangePreview(string skillKey)
+        -- Draws the selected skill's default range before the confirm button is pressed.
+        if isvalid(self.skillRangePreviewEntity) == false then
+            log_warning("[ControlCharacterUIComponent] SkillRangePreview entity is missing.")
+            return
+        end
+
+        local rangeConfig = self:GetSkillRangePreviewConfig(skillKey)
+        if rangeConfig == nil then
+            self:HideSkillRangePreview()
+            return
+        end
+
+        local centerPoint = self:GetRangePreviewWorldCenter()
+        if centerPoint == nil then
+            self:HideSkillRangePreview()
+            log_warning("[ControlCharacterUIComponent] Skill range preview skipped: center point missing.")
+            return
+        end
+
+        local centerUiPoint = self:WorldToUIPosition(centerPoint)
+        local scaleX = self:GetWorldToUIPixelScaleX(centerPoint)
+        local scaleY = self:GetWorldToUIPixelScaleY(centerPoint)
+        local shape = self:NormalizeRangeShape(rangeConfig.Shape)
+        local points = self:BuildRangePreviewPoints(shape, rangeConfig, scaleX, scaleY)
+        if points == nil or #points < 3 then
+            self:HideSkillRangePreview()
+            log("[ControlCharacterUIComponent] Skill range preview hidden: no drawable range. key=" .. tostring(skillKey) .. ", shape=" .. tostring(rangeConfig.Shape))
+            return
+        end
+
+        local previewTransform = self.skillRangePreviewEntity.UITransformComponent
+        local previewPolygon = self.skillRangePreviewEntity.PolygonGUIRendererComponent
+        if previewTransform == nil or previewPolygon == nil then
+            self:HideSkillRangePreview()
+            log_warning("[ControlCharacterUIComponent] SkillRangePreview components missing.")
+            return
+        end
+
+        previewTransform.anchoredPosition = centerUiPoint
+        self:ApplyRangePreviewPoints(previewPolygon, points)
+        previewPolygon.Color = Color(1, 1, 1, 0.28)
+        self.skillRangePreviewEntity.Enable = true
+        log("[ControlCharacterUIComponent] Skill range preview shown. key=" .. tostring(skillKey)
+            .. ", shape=" .. tostring(rangeConfig.Shape)
+            .. ", pointCount=" .. tostring(#points))
+    end
+
+    method void HideSkillRangePreview()
+        -- Hides the world-space attack range preview polygon.
+        if isvalid(self.skillRangePreviewEntity) then
+            self.skillRangePreviewEntity.Enable = false
+        end
+    end
+
+    method void UpdateSkillRangePreviewPosition()
+        -- Repositions the active range preview without rebuilding its polygon vertices.
+        if self.selectedSkillKey == nil or self.selectedSkillKey == "" then
+            return
+        end
+        if isvalid(self.skillRangePreviewEntity) == false or self.skillRangePreviewEntity.Enable == false then
+            return
+        end
+
+        local centerPoint = self:GetRangePreviewWorldCenter()
+        if centerPoint == nil then
+            self:HideSkillRangePreview()
+            return
+        end
+
+        local previewTransform = self.skillRangePreviewEntity.UITransformComponent
+        if previewTransform == nil then
+            self:HideSkillRangePreview()
+            return
+        end
+
+        previewTransform.anchoredPosition = self:WorldToUIPosition(centerPoint)
+    end
+
+    method void ApplyRangePreviewPoints(PolygonGUIRendererComponent previewPolygon, table points)
+        -- Replaces the polygon SyncList with freshly calculated preview vertices.
+        previewPolygon.Points:Clear()
+        for _, point in ipairs(points) do
+            previewPolygon.Points:Add(point)
+        end
+    end
+
+    method table GetSkillRangePreviewConfig(string skillKey)
+        -- Reads targetShape and size fields from skillConfig for preview drawing.
+        if skillKey == nil or skillKey == "" then
+            return nil
+        end
+
+        local skillDataSet = _DataService:GetTable("skillConfig")
+        if skillDataSet == nil then
+            log_warning("[ControlCharacterUIComponent] GetSkillRangePreviewConfig failed: skillConfig missing.")
+            return nil
+        end
+
+        local skillRow = skillDataSet:FindRow("skillKey", skillKey)
+        if skillRow == nil then
+            log_warning("[ControlCharacterUIComponent] GetSkillRangePreviewConfig failed: skill row missing. key=" .. tostring(skillKey))
+            return nil
+        end
+
+        local rangeConfig = {}
+        rangeConfig.Shape = _DataUtil:GetRowString(skillRow, "targetShape", "Single")
+        rangeConfig.Radius = _DataUtil:GetRowNumber(skillRow, "targetRadius", 0)
+        rangeConfig.Width = _DataUtil:GetRowNumber(skillRow, "targetWidth", 0)
+        rangeConfig.Height = _DataUtil:GetRowNumber(skillRow, "targetHeight", 0)
+        return rangeConfig
+    end
+
+    method Vector2 GetRangePreviewWorldCenter()
+        -- Uses the controlled actor as the preview origin, falling back to the local player.
+        local actorEntity = self.controlledActorEntity
+        if isvalid(actorEntity) == false then
+            actorEntity = _UserService.LocalPlayer
+            self.controlledActorEntity = actorEntity
+        end
+        if isvalid(actorEntity) == false or actorEntity.TransformComponent == nil then
+            return nil
+        end
+
+        local worldPosition = actorEntity.TransformComponent.WorldPosition
+        return Vector2(worldPosition.x, worldPosition.y)
+    end
+
+    method Vector2 WorldToUIPosition(Vector2 worldPoint)
+        -- Converts a world point into this screen UI's coordinate space.
+        local screenPoint = _UILogic:WorldToScreenPosition(worldPoint)
+        return _UILogic:ScreenToUIPosition(screenPoint)
+    end
+
+    method number GetWorldToUIPixelScaleX(Vector2 worldPoint)
+        -- Measures current camera/UI scale for one world unit on the X axis.
+        local centerPoint = self:WorldToUIPosition(worldPoint)
+        local edgePoint = self:WorldToUIPosition(Vector2(worldPoint.x + 1, worldPoint.y))
+        local scale = math.abs(edgePoint.x - centerPoint.x)
+        if scale < self.rangePreviewMinimumPixels then
+            return 100
+        end
+        return scale
+    end
+
+    method number GetWorldToUIPixelScaleY(Vector2 worldPoint)
+        -- Measures current camera/UI scale for one world unit on the Y axis.
+        local centerPoint = self:WorldToUIPosition(worldPoint)
+        local edgePoint = self:WorldToUIPosition(Vector2(worldPoint.x, worldPoint.y + 1))
+        local scale = math.abs(edgePoint.y - centerPoint.y)
+        if scale < self.rangePreviewMinimumPixels then
+            return 100
+        end
+        return scale
+    end
+
+    method string NormalizeRangeShape(string shape)
+        -- Normalizes targetShape spelling and legacy numeric values from skillConfig.
+        local normalizedShape = string.lower(tostring(shape or ""))
+        if normalizedShape == "0" or normalizedShape == "circle" or normalizedShape == "cicle" or normalizedShape == "circular" then
+            return "circle"
+        end
+        if normalizedShape == "1" or normalizedShape == "box" or normalizedShape == "rect" or normalizedShape == "rectangle" then
+            return "rectangle"
+        end
+        if normalizedShape == "2" or normalizedShape == "cone" or normalizedShape == "sector" or normalizedShape == "fan" then
+            return "cone"
+        end
+        if normalizedShape == "3" or normalizedShape == "projectile" or normalizedShape == "trajectory" or normalizedShape == "special" then
+            return "projectile"
+        end
+        return normalizedShape
+    end
+
+    method table BuildRangePreviewPoints(string shape, table rangeConfig, number scaleX, number scaleY)
+        -- Builds local polygon points in UI pixels for the requested target shape.
+        if shape == "circle" then
+            return self:BuildCirclePreviewPoints(math.max(0, rangeConfig.Radius), scaleX, scaleY)
+        end
+
+        if shape == "rectangle" then
+            local width = rangeConfig.Width
+            local height = rangeConfig.Height
+            if width <= 0 then
+                width = rangeConfig.Radius * 2
+            end
+            if height <= 0 then
+                height = rangeConfig.Radius * 2
+            end
+            return self:BuildRectanglePreviewPoints(width, height, scaleX, scaleY)
+        end
+
+        if shape == "cone" then
+            local length = rangeConfig.Height
+            local width = rangeConfig.Width
+            if length <= 0 then
+                length = rangeConfig.Radius
+            end
+            if width <= 0 then
+                width = math.max(0, rangeConfig.Radius) * 2
+            end
+            return self:BuildConePreviewPoints(length, width, scaleX, scaleY)
+        end
+
+        if shape == "projectile" then
+            local length = rangeConfig.Height
+            local width = rangeConfig.Width
+            if length <= 0 then
+                length = math.max(0, rangeConfig.Radius)
+            end
+            if width <= 0 then
+                width = 0.35
+            end
+            return self:BuildForwardRectanglePreviewPoints(length, width, scaleX, scaleY)
+        end
+
+        return nil
+    end
+
+    method table BuildCirclePreviewPoints(number radius, number scaleX, number scaleY)
+        -- Approximates a circle with a filled polygon.
+        if radius <= 0 then
+            return nil
+        end
+
+        local points = {}
+        local segments = math.max(12, self.rangePreviewCircleSegments)
+        for segmentIndex = 0, segments - 1 do
+            local radians = (math.pi * 2 * segmentIndex) / segments
+            table.insert(points, Vector2(math.cos(radians) * radius * scaleX, math.sin(radians) * radius * scaleY))
+        end
+        return points
+    end
+
+    method table BuildRectanglePreviewPoints(number width, number height, number scaleX, number scaleY)
+        -- Builds a centered rectangle preview.
+        if width <= 0 or height <= 0 then
+            return nil
+        end
+
+        local halfWidth = width * scaleX / 2
+        local halfHeight = height * scaleY / 2
+        return {
+            Vector2(-halfWidth, -halfHeight),
+            Vector2(-halfWidth, halfHeight),
+            Vector2(halfWidth, halfHeight),
+            Vector2(halfWidth, -halfHeight)
+        }
+    end
+
+    method table BuildConePreviewPoints(number length, number width, number scaleX, number scaleY)
+        -- Builds a simple forward-facing cone preview.
+        if length <= 0 or width <= 0 then
+            return nil
+        end
+
+        local directionX = self:GetPreviewDirectionX()
+        local forwardX = directionX * length * scaleX
+        local halfWidth = width * scaleY / 2
+        return {
+            Vector2(0, 0),
+            Vector2(forwardX, halfWidth),
+            Vector2(forwardX, -halfWidth)
+        }
+    end
+
+    method table BuildForwardRectanglePreviewPoints(number length, number width, number scaleX, number scaleY)
+        -- Builds a simple projectile lane preview in the actor's facing direction.
+        if length <= 0 or width <= 0 then
+            return nil
+        end
+
+        local directionX = self:GetPreviewDirectionX()
+        local forwardX = directionX * length * scaleX
+        local halfWidth = width * scaleY / 2
+        return {
+            Vector2(0, -halfWidth),
+            Vector2(0, halfWidth),
+            Vector2(forwardX, halfWidth),
+            Vector2(forwardX, -halfWidth)
+        }
+    end
+
+    method number GetPreviewDirectionX()
+        -- Reads the current actor facing direction for cone and projectile previews.
+        local actorEntity = self.controlledActorEntity
+        if isvalid(actorEntity) == false then
+            actorEntity = _UserService.LocalPlayer
+        end
+        if isvalid(actorEntity) and actorEntity.PlayerControllerComponent ~= nil then
+            local directionX = actorEntity.PlayerControllerComponent.LookDirectionX
+            if directionX > 0 then
+                return 1
+            end
+        end
+        return -1
+    end
+
     method boolean CanConfirmSelectedSkill()
         -- TODO(SkillConfirmCondition): check cost, cooldown, target rules, and actor state per skill.
         return self.selectedSkillKey ~= nil and self.selectedSkillKey ~= ""
@@ -547,6 +856,7 @@ script ControlCharacterUIComponent extends Component
 
         local actionKey = self.selectedSkillKey
         log("[ControlCharacterUIComponent] Confirm skill action=" .. actionKey)
+        self:HideSkillRangePreview()
         self:RequestSkillAction(actionKey, {})
     end
 
@@ -594,6 +904,7 @@ script ControlCharacterUIComponent extends Component
         self.selectedSkillKey = ""
         self.selectedSponsorActorData = nil
         self:HideSkillSelectionOverlay()
+        self:HideSkillRangePreview()
         self:RefreshConfirmSkillButton()
 
         local skillDescriptionPopup = self:GetSkillDescriptionPopup()
