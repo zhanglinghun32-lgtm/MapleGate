@@ -71,7 +71,8 @@ Examples:
 - Register all battle actors.
 - Own active actor ids and turn queue.
 - Decide whose turn it is.
-- Receive action requests.
+- Receive battle action requests from `SkillActionLogic` via
+  `RequestValidatedActionForUser`.
 - Validate that the sponsor can act and the target is valid.
 - Ask `BattleCalculator` to calculate action results.
 - Apply action results through `BattleActorComponent` interfaces.
@@ -86,15 +87,27 @@ Examples:
 - Do not load encounter Config by key.
 - Do not read or write permanent save data directly.
 - Do not decide scene transitions after battle ends.
-- Do not bind battle UI buttons.
+- Do not bind battle UI buttons or skill hotbars.
 - Do not own field monster movement or chase AI.
 - Do not directly mutate actor resources without `BattleActorComponent`.
 - Do not route every battle event through `BattleFlowLogic`.
+- Do not act as the public skill request gateway; UI must call `SkillActionLogic`.
 
 ## Action Flow
 
+Public UI entry:
+
 ```text
-RequestAction(sponsorId, actionKey, targetIds/actionContext)
+ControlCharacterUI confirm
+  -> SkillActionLogic:RequestSkill(requestId, actionKey, actionContext)
+  -> SkillLogic common validation
+  -> BattleSystem:RequestValidatedActionForUser(userId, sponsorId, actionKey, actionContext)
+```
+
+Battle session continuation:
+
+```text
+RequestValidatedActionForUser(...)
   -> validate battle is active
   -> validate sponsorId is current turn actor
   -> resolve click/bounds targeting into authoritative target ids
@@ -111,25 +124,33 @@ RequestAction(sponsorId, actionKey, targetIds/actionContext)
   -> advance turn
 ```
 
+`BattleSystem:RequestAction*` may remain as temporary legacy server APIs.
+New UI callers must not use them. See `docs/SkillAction/SkillActionSystem.md`.
+
 ## Synced Display State
 
 `BattleSystem` exposes server-authoritative display fields to clients:
 
 | Property | Purpose |
 |----------|---------|
-| `@Sync battlePhase` | Turn phase for enabling HUD input |
+| `@Sync battlePhase` | Turn phase for enabling HUD input and sequence cues |
 | `@Sync currentActorId` | Current turn actor id |
 
 Server-only fields such as `battleId`, `playerUserId`, and `isActive` stay
 non-synced unless a future HUD requirement needs them.
 
-Do **not** use `@Sync` to open `BattleUI`. UI shell open/close stays on
-`BattleFlowLogic` Client RPC -> `BattleClientLogic` -> `UIManagerLogic`.
+Do **not** use `@Sync` to open `BattleUI`. Opening the turn-sequence overlay stays
+on `BattleFlowLogic` Client RPC -> `BattleClientLogic` -> `UIManagerLogic`.
 
-On the client, `BattleSystem:OnSyncProperty` forwards phase/actor updates to
-`BattleUIComponent` through `BattleClientLogic`.
+On the client, `BattleSystem:OnSyncProperty` forwards phase/actor updates through
+`BattleClientLogic` to:
 
-See `docs/BattleFlow/BattleUIComponent.md`.
+- `ControlCharacterUIComponent` (skill input gating / controlled actor)
+- `BattleUIComponent` (turn-sequence overlay)
+
+Persistent field UIs (`ControlCharacterUI`, Party UI, System UI) stay available
+during battle; `BattleUI` is an additional overlay. See
+`docs/BattleFlow/BattleUIComponent.md`.
 
 ## Client Presentation RPC
 

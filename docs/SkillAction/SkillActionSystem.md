@@ -62,11 +62,24 @@ Field-only validation:
 - field range/collision rules (TODO)
 - resource consumption and gameplay effects (TODO)
 
+## UI Callers
+
+Current UI path:
+
+```text
+ControlCharacterUIComponent
+  -> SkillActionLogic:RequestSkill
+```
+
+`BattleUI` does **not** send skill requests. It is the turn-sequence overlay only.
+See `docs/BattleFlow/BattleUIComponent.md`.
+
 ## Migration
 
-1. Route UI through `SkillActionLogic`.
-2. Keep legacy `BattleSystem.RequestAction*` APIs temporarily.
-3. Route battle requests through `RequestValidatedActionForUser`.
+1. ~~Route UI through `SkillActionLogic`.~~ Done for `ControlCharacterUI`.
+2. Keep legacy `BattleSystem.RequestAction*` APIs temporarily for compatibility.
+3. Battle requests already enter through `RequestValidatedActionForUser`.
 4. Implement authoritative field effects and resource consumption.
-5. Remove legacy direct UI-to-BattleSystem request APIs after all callers migrate.
+5. Remove legacy direct UI-to-`BattleSystem` request APIs once no callers remain.
+   Do not add new UI callers to `RequestAction*`.
 

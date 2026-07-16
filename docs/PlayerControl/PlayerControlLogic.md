@@ -32,7 +32,7 @@ movement stopping, and local UI presentation happen on the client.
 ## Non-Responsibilities
 
 - Do not decide when battle starts or ends.
-- Do not open or close BattleUI.
+- Do not open or close `BattleUI` (turn-sequence overlay) or `ControlCharacterUI`.
 - Do not move the player between maps.
 - Do not serialize player data.
 - Do not own Actor HP, MP, stamina, or battle stats.

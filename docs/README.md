@@ -19,7 +19,9 @@ Read **`ScriptRules.md`** first. It defines:
 | [ScriptRules.md](ScriptRules.md) | Architecture, folders, naming, responsibilities |
 | [BattleFlow/BattleFlowLogic.md](BattleFlow/BattleFlowLogic.md) | Battle entry and finalization (`BattleFlowLogic`) |
 | [BattleFlow/BattleSystem.md](BattleFlow/BattleSystem.md) | Server-authoritative battle session (`BattleSystem`) |
+| [BattleFlow/BattleUIComponent.md](BattleFlow/BattleUIComponent.md) | BattleUI turn-sequence overlay + UI layering with ControlCharacterUI |
 | [Actor/BattleActorComponent.md](Actor/BattleActorComponent.md) | Per-actor HP / MP / stats authority |
+| [Party/PartySystem.md](Party/PartySystem.md) | Party membership, field control, formation, whole-party battle entry |
 | [PlayerData/SaveSlotSchema.md](PlayerData/SaveSlotSchema.md) | Canonical SaveSlot keys, types, casing, and ownership |
 | [UI/SystemMenuUI.md](UI/SystemMenuUI.md) | Persistent gameplay system menu and save actions |
 | [GameplayFlow/GameplayFlowLogic.md](GameplayFlow/GameplayFlowLogic.md) | Playable world entry/exit coordination |

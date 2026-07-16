@@ -26,7 +26,7 @@ BattleClientLogic only presents what the server battle session tells it.
 Path:
 
 ```text
-RootDesk/MyDesk/Logic/BattleFlowLogic.mlua
+RootDesk/MyDesk/Logic/Battle/BattleFlowLogic.mlua
 ```
 
 Responsibilities:
@@ -88,17 +88,19 @@ Non-responsibilities:
 Path:
 
 ```text
-RootDesk/MyDesk/Logic/BattleClientLogic.mlua
+RootDesk/MyDesk/Logic/Battle/BattleClientLogic.mlua
 ```
 
 Responsibilities:
 
-- Handle client-only battle presentation.
-- Open and close battle UI through `UIManagerLogic`.
-- Disable and restore local player control.
-- Stop local movement when entering battle.
+- Handle client-only battle presentation shell.
+- Open and close the battle-only `BattleUI` turn-sequence overlay through
+  `UIManagerLogic`.
+- Keep persistent field UIs available (`ControlCharacterUI`, and Party / System
+  UI per product rules); attach/detach battle session refs as needed.
 - Apply and restore battle camera state.
-- Play turn, damage, movement, skill, victory, defeat, and exit presentation.
+- Play action presentation and acknowledge presentation completion to
+  `BattleSystem`.
 
 Non-responsibilities:
 
@@ -106,13 +108,15 @@ Non-responsibilities:
 - Do not decide valid targets or legal actions.
 - Do not mutate server battle state.
 - Do not read save data.
+- Do not send skill requests; that stays on `ControlCharacterUI` ->
+  `SkillActionLogic`.
 
 ## Runtime Flow
 
 Expected first-pass flow:
 
 ```text
-1. Field / NPC / map trigger calls BattleFlowLogic:CreateBattle(...)
+1. Field / NPC / map trigger calls BattleFlowLogic:StartFieldBattle(...) or StartBattle(...)
 2. BattleFlowLogic validates sponsor, target, and encounterKey.
 3. BattleFlowLogic reads domain data from existing Logic scripts.
 4. BattleFlowLogic builds the battle start payload.
@@ -120,13 +124,14 @@ Expected first-pass flow:
 6. BattleFlowLogic calls BattleSystem:StartBattle(payload).
 7. BattleSystem initializes the server battle session and writes @Sync battlePhase / currentActorId.
 8. BattleFlowLogic sends EnterBattleClient(battleId, battleEntity, userId) — Client RPC shell only.
-9. BattleClientLogic opens BattleUI via UIManagerLogic and attaches BattleUIComponent to battleEntity.
-10. BattleUIComponent reads @Sync through BattleSystem replication (forwarded via OnSyncProperty).
-11. BattleUIComponent sends player actions through BattleSystem:RequestAction (Client->Server RPC).
+9. BattleClientLogic opens BattleUI overlay; ControlCharacterUI / Party / System UI stay on screen.
+10. ControlCharacterUI and BattleUI attach session / read @Sync (forwarded via OnSyncProperty).
+11. Player confirms a skill on ControlCharacterUI -> SkillActionLogic:RequestSkill -> BattleSystem.
 12. BattleSystem owns turn order and action resolution.
 13. BattleSystem detects battle end and reports to BattleFlowLogic.
 14. BattleFlowLogic sends ExitBattleClient(battleId, result, userId).
-15. BattleFlowLogic applies rewards, save changes, mission progress, and scene flow.
+15. BattleClientLogic closes BattleUI overlay only; persistent field UIs remain.
+16. BattleFlowLogic applies rewards, save changes, mission progress, and scene flow.
 ```
 
 ### World-field normal attack entry
@@ -159,23 +164,29 @@ BattleSystem
   -> waits in PresentingAction for client acknowledgement or timeout
 
 BattleClientLogic
-  -> UIManagerLogic Open/Close BattleUI
-  -> BattleUIComponent Attach/Detach session
+  -> Open/Close BattleUI overlay (turn sequence only)
+  -> Attach/Detach battle session on ControlCharacterUI (+ BattleUI)
+  -> persistent ControlCharacterUI / Party / System UI stay available
 
-BattleUIComponent
-  -> reads @Sync via BattleSystem + RequestAction Server RPC
+ControlCharacterUI
+  -> skill select/confirm -> SkillActionLogic:RequestSkill
+
+BattleUI
+  -> turn-sequence display only; no SkillAction / RequestAction calls
 ```
 
-See also `docs/BattleFlow/BattleUIComponent.md` for the UI + Sync + input split.
+See also `docs/BattleFlow/BattleUIComponent.md` for UI layering, and
+`docs/SkillAction/SkillActionSystem.md` for the skill request gateway.
 
 ## Client RPC Direction
 
-Battle **shell** events (open/close UI, control lock, camera) are emitted by
+Battle **shell** events (open/close `BattleUI` overlay, camera) are emitted by
 `BattleFlowLogic` after the server session starts or finishes.
 
 Battle **display state** during combat (`battlePhase`, `currentActorId`) uses
-`@Sync` on `BattleSystem`. The HUD reads sync through `BattleUIComponent`; do not
-use `@Sync` to open `BattleUI`.
+`@Sync` on `BattleSystem`. Clients read sync through forwarded
+`OnSyncProperty` handlers on `ControlCharacterUI` and `BattleUI`; do not use
+`@Sync` to open `BattleUI`.
 
 One-shot **presentation** events are emitted by `BattleSystem` through
 `@ExecSpace("Client")` RPC. Action resolution enters `PresentingAction`, and the
@@ -247,6 +258,11 @@ SkillLogic
 MissionLogic
 PlayerDataLogic
 ```
+
+For party membership, field control, and whole-party battle entry rules, see
+`docs/Party/PartySystem.md`. `BattleFlowLogic` must build `playerParty` from
+`PartyLogic:GetBattlePartySnapshot(userId)`, not from the single active field
+avatar alone.
 
 `BattleSystem` receives prepared battle data and should not call DataStorage or
 load permanent save data directly.

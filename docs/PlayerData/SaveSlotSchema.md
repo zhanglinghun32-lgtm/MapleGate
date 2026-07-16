@@ -94,8 +94,9 @@ Path: `slotData.Party`
 
 | Exact key | Type | Notes |
 |---|---|---|
-| `Members` | array<table> | Party actor records. |
-| `Formation` | array<string> | Actor keys in formation order. |
+| `Members` | array<table> | Legacy party actor records. Prefer `Formation` + `Actors[]`. |
+| `Formation` | array<string> | Actor keys in formation order. Max length 4. |
+| `ActiveFieldSlot` | integer | Formation slot that currently controls overworld movement. Default `1`. |
 
 Path: `slotData.Party.Members[index]`
 
@@ -107,15 +108,23 @@ Path: `slotData.Party.Members[index]`
 | `Hp` | integer | From `actorConfig.maxHp` |
 | `Mp` | integer | From `actorConfig.maxMp` |
 
-### Known Duplicate Authority
+### Deprecation Direction
 
-`Party.Members[index]` currently duplicates `Level`, `Hp`, and `Mp` from
-`Actors[index]`. Do not add new writes to both locations. Before implementing
-party-member persistence, choose one source of truth. Recommended direction:
+`slotData.Party.Members` currently duplicates actor stats from `Actors`. New work
+must **not** add more duplicate writes.
 
-- `Actors` owns persistent actor identity, progression, and resources.
-- `Party.Members` stores actor references only, or is removed.
-- `Party.Formation` stores the ordered actor references used by the party.
+Recommended migration:
+
+```text
+Party.Formation = ordered actor keys
+Party.ActiveFieldSlot = current field controller slot
+Actors[] = persistent actor state
+```
+
+If `Party.Members` remains temporarily for compatibility, treat it as read-only
+legacy data until a migration removes it.
+
+See `docs/Party/PartySystem.md` for the full party responsibility split.
 
 ## Inventory
 
