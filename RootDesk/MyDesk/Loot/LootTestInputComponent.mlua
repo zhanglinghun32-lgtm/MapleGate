@@ -1,0 +1,31 @@
+@Component
+script LootTestInputComponent extends Component
+
+    property string testActionName = "SpawnSapphireDropTest"
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        -- Binds T to the development-only sapphire spawn action.
+        local controller = self.Entity.PlayerControllerComponent
+        if controller == nil then
+            log_warning("[LootTestInputComponent] PlayerControllerComponent missing.")
+            return
+        end
+
+        controller:SetActionKey(KeyboardKey.T, self.testActionName)
+        log("[LootTestInputComponent] Bound T to sapphire test drop.")
+    end
+
+    @ExecSpace("ServerOnly")
+    @EventSender("Self")
+    handler HandlePlayerActionEvent(PlayerActionEvent event)
+        -- Requests one server-owned sapphire drop when the bound action fires.
+        if event.ActionName ~= self.testActionName then
+            return
+        end
+
+        _LootDropLogic:SpawnSapphireDrop(self.Entity)
+    end
+
+end
+

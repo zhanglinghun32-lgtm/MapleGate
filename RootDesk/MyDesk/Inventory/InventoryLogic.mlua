@@ -75,6 +75,71 @@ script InventoryLogic extends Logic
         return itemStack
     end
 
+    @ExecSpace("ServerOnly")
+    method boolean AddItem(string userId, string itemKey, integer count)
+        -- Adds an item to existing stacks, creates new stacks, and marks the slot dirty.
+        if userId == nil or userId == "" or itemKey == nil or itemKey == "" or count <= 0 then
+            log_warning("[InventoryLogic] AddItem rejected invalid arguments.")
+            return false
+        end
+
+        local itemRow = self:FindItemRow(itemKey)
+        if itemRow == nil then
+            log_warning("[InventoryLogic] AddItem failed: itemConfig missing. itemKey=" .. itemKey)
+            return false
+        end
+
+        local maxStack = self:GetInteger(itemRow, "maxStack", 1)
+        if maxStack <= 0 then
+            maxStack = 1
+        end
+
+        local inventoryData = self:ExportUserData(userId)
+        local remaining = count
+        local highestIndex = 0
+        for slotIndex, itemStack in pairs(inventoryData.Items) do
+            if type(slotIndex) == "number" and slotIndex > highestIndex then
+                highestIndex = slotIndex
+            end
+            if itemStack ~= nil and itemStack.ItemKey == itemKey and itemStack.Count < maxStack then
+                local available = maxStack - itemStack.Count
+                local addedCount = math.min(available, remaining)
+                itemStack.Count = itemStack.Count + addedCount
+                remaining = remaining - addedCount
+                if remaining <= 0 then
+                    break
+                end
+            end
+        end
+
+        while remaining > 0 do
+            local stackCount = math.min(maxStack, remaining)
+            highestIndex = highestIndex + 1
+            inventoryData.Items[highestIndex] = self:CreateItemStack(itemKey, stackCount)
+            remaining = remaining - stackCount
+        end
+
+        _PlayerDataLogic:MarkDirty(userId)
+        log("[InventoryLogic] AddItem. userId=" .. userId
+            .. ", itemKey=" .. itemKey
+            .. ", count=" .. tostring(count)
+            .. ", totalCount=" .. tostring(self:GetItemCount(userId, itemKey)))
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetItemCount(string userId, string itemKey)
+        -- Returns the total quantity of one item across every inventory stack.
+        local inventoryData = self:ExportUserData(userId)
+        local totalCount = 0
+        for _, itemStack in pairs(inventoryData.Items) do
+            if itemStack ~= nil and itemStack.ItemKey == itemKey then
+                totalCount = totalCount + (tonumber(itemStack.Count) or 0)
+            end
+        end
+        return math.floor(totalCount)
+    end
+
     @ExecSpace("Server")
     method void RequestUseItem(integer slotIndex)
         -- Lets the owning client request item usage by inventory slot index.

@@ -5,39 +5,24 @@ script PlayerDataLogic extends Logic
     property string mainMenuSceneKey = "MainMenu"
     property string slotKeyPrefix = "Slot"
     property integer maxSlotIndex = 3
-    property integer currentSchemaVersion = 2
-    property number autoFlushSeconds = 30
+    property integer currentSchemaVersion = 3
     property any loadedSlotIndexes = nil
     property any slotDataCache = nil
     property any dirtyUsers = nil
-    property integer flushTimerId = 0
 
     @ExecSpace("ServerOnly")
     method void OnBeginPlay()
-        -- Initializes player-save runtime caches and the periodic flush timer.
+        -- Initializes player-save runtime caches. Saving is explicit only.
         self.loadedSlotIndexes = {}
         self.slotDataCache = {}
         self.dirtyUsers = {}
-
-        if self.flushTimerId > 0 then
-            _TimerService:ClearTimer(self.flushTimerId)
-        end
-
-        self.flushTimerId = _TimerService:SetTimerRepeat(function() self:FlushDirtyUsers() end, self.autoFlushSeconds)
-        log("[PlayerDataLogic] OnBeginPlay. autoFlushSeconds=" .. tostring(self.autoFlushSeconds))
+        log("[PlayerDataLogic] OnBeginPlay. saveMode=ManualOnly")
     end
 
     @ExecSpace("ServerOnly")
     method void OnEndPlay()
-        -- Flushes dirty save data and clears the periodic timer.
-        self:FlushDirtyUsers()
-
-        if self.flushTimerId > 0 then
-            _TimerService:ClearTimer(self.flushTimerId)
-            self.flushTimerId = 0
-        end
-
-        log("[PlayerDataLogic] OnEndPlay.")
+        -- Never writes dirty data on exit. A future confirmation UI will decide whether to save.
+        log("[PlayerDataLogic] OnEndPlay. exit save skipped.")
     end
 
     @ExecSpace("Server")
@@ -70,26 +55,20 @@ script PlayerDataLogic extends Logic
             return
         end
 
-        local saved = self:FlushUser(senderUserId)
+        local saved = self:ForceFlushUser(senderUserId)
         log("[PlayerDataLogic] RequestSaveCurrentSlot userId=" .. senderUserId .. ", saved=" .. tostring(saved))
     end
 
     @ExecSpace("Server")
     method void RequestSaveAndReturnToMenu()
-        -- Flushes the caller's loaded slot before routing back to the main menu.
+        -- Returns to the main menu without collecting or writing slot data.
         if senderUserId == nil or senderUserId == "" then
             log_warning("[PlayerDataLogic] RequestSaveAndReturnToMenu ignored: senderUserId is empty.")
             return
         end
 
-        local saved = self:FlushUser(senderUserId)
-        if saved == false then
-            log_warning("[PlayerDataLogic] RequestSaveAndReturnToMenu stopped: save failed. userId=" .. senderUserId)
-            return
-        end
-
-        _GameplayFlowLogic:ReturnToMainMenuForUser(senderUserId, "SaveAndReturnToMenu")
-        log("[PlayerDataLogic] RequestSaveAndReturnToMenu complete. userId=" .. senderUserId)
+        _GameplayFlowLogic:ReturnToMainMenuForUser(senderUserId, "ReturnToMenu")
+        log("[PlayerDataLogic] RequestSaveAndReturnToMenu complete without save. userId=" .. senderUserId)
     end
 
     @ExecSpace("ServerOnly")
@@ -134,7 +113,11 @@ script PlayerDataLogic extends Logic
 
         local slotData = self:CreateDefaultSlotData()
         self:ApplyLoadedSlotData(userId, slotIndex, slotData)
-        self:SaveSlotData(userId, slotIndex, slotData)
+        local saved = self:SaveSlotData(userId, slotIndex, slotData)
+        if saved == false then
+            log_warning("[PlayerDataLogic] StartNewGame stopped: initial save failed. userId=" .. userId)
+            return false
+        end
         _GameplayFlowLogic:EnterWorldForUser(userId, "StartNewGame")
         log("[PlayerDataLogic] StartNewGame complete. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
         return true
@@ -153,6 +136,22 @@ script PlayerDataLogic extends Logic
             createdVirtualActors = true
         end
 
+        if slotData.Party == nil then
+            slotData.Party = _PartyLogic:CreateDefaultData()
+        end
+        if slotData.Inventory == nil then
+            slotData.Inventory = _InventoryLogic:CreateDefaultData()
+        end
+        if slotData.Skill == nil then
+            slotData.Skill = _SkillLogic:CreateDefaultData()
+        end
+        if slotData.Mission == nil then
+            slotData.Mission = _MissionLogic:CreateDefaultData()
+        end
+        if slotData.MapState == nil then
+            slotData.MapState = _LootDropLogic:CreateDefaultMapState()
+        end
+
         self.loadedSlotIndexes[userId] = slotIndex
         self.slotDataCache[userId] = slotData
         self.dirtyUsers[userId] = nil
@@ -161,12 +160,25 @@ script PlayerDataLogic extends Logic
         _InventoryLogic:LoadUserData(userId, slotData.Inventory)
         _SkillLogic:LoadUserData(userId, slotData.Skill)
         _MissionLogic:LoadUserData(userId, slotData.Mission)
+        _LootDropLogic:LoadUserMapState(userId, slotData.MapState)
         self:ApplyPrimaryActorToPlayer(userId, slotData.Actors)
 
         if createdVirtualActors == true then
             self:MarkDirty(userId)
         end
-        log("[PlayerDataLogic] ApplyLoadedSlotData. userId=" .. userId .. ", slotIndex=" .. tostring(slotIndex))
+        local formationCount = 0
+        if slotData.Party.Formation ~= nil then
+            formationCount = #slotData.Party.Formation
+        end
+        local itemCount = 0
+        if slotData.Inventory.Items ~= nil then
+            itemCount = #slotData.Inventory.Items
+        end
+        log("[PlayerDataLogic] ApplyLoadedSlotData. userId=" .. userId
+            .. ", slotIndex=" .. tostring(slotIndex)
+            .. ", actorCount=" .. tostring(#slotData.Actors)
+            .. ", formationCount=" .. tostring(formationCount)
+            .. ", itemCount=" .. tostring(itemCount))
     end
 
     @ExecSpace("ServerOnly")
@@ -248,6 +260,7 @@ script PlayerDataLogic extends Logic
         slotData.Mission = _MissionLogic:ExportUserData(userId)
         slotData.Actors = self:CollectPlayerActors(userId, slotData.Actors)
         slotData.PlayerPosition = self:CollectPlayerPosition(userId, slotData.PlayerPosition)
+        slotData.MapState = _LootDropLogic:ExportUserMapState(userId)
 
         return slotData
     end
@@ -264,6 +277,7 @@ script PlayerDataLogic extends Logic
         slotData.Skill = _SkillLogic:CreateDefaultData()
         slotData.Mission = _MissionLogic:CreateDefaultData()
         slotData.Actors = self:CreateDefaultActorList()
+        slotData.MapState = _LootDropLogic:CreateDefaultMapState()
         return slotData
     end
 
@@ -424,6 +438,16 @@ script PlayerDataLogic extends Logic
             return false
         end
 
+        local lootTestInput = userEntity:GetComponent("script.LootTestInputComponent")
+        if isvalid(lootTestInput) == false then
+            userEntity:AddComponent("LootTestInputComponent")
+            lootTestInput = userEntity:GetComponent("script.LootTestInputComponent")
+        end
+        if isvalid(lootTestInput) == false then
+            log_warning("[PlayerDataLogic] ApplyPrimaryActorToPlayer failed: LootTestInputComponent missing. userId=" .. userId)
+            return false
+        end
+
         -- Client-side battle skill presentation runner. It is attached to the runtime player
         -- so BattleClientLogic can play avatar actions and effects without owning entity visuals.
         local skillPresentation = userEntity:GetComponent("script.BattleSkillPresentationComponent")
@@ -521,6 +545,39 @@ script PlayerDataLogic extends Logic
         end
 
         local slotData = self:CollectSlotData(userId)
+        return self:SaveSlotData(userId, slotIndex, slotData)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean ForceFlushUser(string userId)
+        -- Collects every subsystem and writes the loaded slot for an explicit save action.
+        local slotIndex = self.loadedSlotIndexes[userId]
+        if slotIndex == nil then
+            log_warning("[PlayerDataLogic] ForceFlushUser ignored: no loaded slot. userId=" .. tostring(userId))
+            return false
+        end
+
+        local slotData = self:CollectSlotData(userId)
+        self.slotDataCache[userId] = slotData
+        self.dirtyUsers[userId] = true
+
+        local partyCount = 0
+        if slotData.Party ~= nil and slotData.Party.Formation ~= nil then
+            partyCount = #slotData.Party.Formation
+        end
+        local actorCount = 0
+        if slotData.Actors ~= nil then
+            actorCount = #slotData.Actors
+        end
+        local itemCount = 0
+        if slotData.Inventory ~= nil and slotData.Inventory.Items ~= nil then
+            itemCount = #slotData.Inventory.Items
+        end
+
+        log("[PlayerDataLogic] ForceFlushUser collected. userId=" .. userId
+            .. ", partyCount=" .. tostring(partyCount)
+            .. ", actorCount=" .. tostring(actorCount)
+            .. ", itemCount=" .. tostring(itemCount))
         return self:SaveSlotData(userId, slotIndex, slotData)
     end
 

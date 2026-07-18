@@ -1,0 +1,23 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "directory://2f9509a21f394ca48069f7b2678acf82",
+  "ContentType": "x-mod/directory",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "entry_id": "directory://2f9509a21f394ca48069f7b2678acf82",
+      "name": "shortcutIcon",
+      "lock": false,
+      "folding": false,
+      "nameEditable": true
+    }
+  }
+}

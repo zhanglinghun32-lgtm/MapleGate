@@ -5,4 +5,5 @@ staminaSnack,Stamina Snack,恢復耐力的小點心。,Consumable,Food,,"""RootD
 ironSword,Iron Sword,新手也能使用的鐵劍。,Equipment,Weapon,,"""RootDesk/MyDesk/UI/item_icon/weapon_iron_sword.png""",1,80,true,false,,ironSword,200,true
 leatherArmor,Leather Armor,輕便的皮甲。,Equipment,Armor,,"""RootDesk/MyDesk/UI/item_icon/armor_leather.png""",1,65,true,false,,leatherArmor,201,true
 slimeGel,Slime Gel,黏滑的史萊姆凝膠，可作為任務或製作材料。,Material,Loot,,"""RootDesk/MyDesk/UI/item_icon/material_slime_gel.png""",999,2,true,false,,,300,true
+sapphire,藍寶石,閃耀著深藍光澤的製作素材。,Material,Loot,9b1796a9a66d4248bcee8af6464dfb0e,,999,10,true,false,,,301,true
 sealedLetter,Sealed Letter,交給指定人物的密封信件。,Quest,Delivery,,"""RootDesk/MyDesk/UI/item_icon/quest_letter.png""",1,0,false,false,,,400,true

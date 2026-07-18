@@ -1,0 +1,79 @@
+@Component
+script LootDropComponent extends Component
+
+    property string itemKey = "sapphire"
+    property integer count = 1
+    property number pickupRadius = 0.7
+    property number pickupDelaySeconds = 0.35
+    property number checkIntervalSeconds = 0.1
+    property number spawnedAt = 0
+    property number nextCheckAt = 0
+    property boolean pickedUp = false
+    property string ownerUserId = ""
+    property string dropId = ""
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        -- Initializes pickup timing after the drop enters the map.
+        self.spawnedAt = _UtilLogic.ElapsedSeconds
+        self.nextCheckAt = self.spawnedAt + self.pickupDelaySeconds
+        log("[LootDropComponent] OnBeginPlay. itemKey=" .. self.itemKey
+            .. ", count=" .. tostring(self.count)
+            .. ", entity=" .. tostring(self.Entity.Name))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void OnUpdate(number delta)
+        -- Checks nearby controlled player entities at a throttled interval.
+        if self.pickedUp == true or _UtilLogic.ElapsedSeconds < self.nextCheckAt then
+            return
+        end
+        self.nextCheckAt = _UtilLogic.ElapsedSeconds + self.checkIntervalSeconds
+
+        local dropPosition = self.Entity.TransformComponent.WorldPosition
+        local radiusSquared = self.pickupRadius * self.pickupRadius
+        for _, userEntity in ipairs(_UserService.UserEntities.Values) do
+            if isvalid(userEntity)
+                and userEntity.PlayerComponent ~= nil
+                and (self.ownerUserId == "" or userEntity.PlayerComponent.UserId == self.ownerUserId)
+                and userEntity.CurrentMap == self.Entity.CurrentMap
+                and _PartyLogic:IsControlledFieldEntity(userEntity.PlayerComponent.UserId, userEntity) then
+                local playerPosition = userEntity.TransformComponent.WorldPosition
+                local offsetX = playerPosition.x - dropPosition.x
+                local offsetY = playerPosition.y - dropPosition.y
+                if offsetX * offsetX + offsetY * offsetY <= radiusSquared then
+                    self:TryPickup(userEntity)
+                    return
+                end
+            end
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean TryPickup(Entity controlledEntity)
+        -- Adds this drop to the controlled user's inventory exactly once.
+        if self.pickedUp == true or isvalid(controlledEntity) == false or controlledEntity.PlayerComponent == nil then
+            return false
+        end
+
+        local userId = controlledEntity.PlayerComponent.UserId
+        if _PartyLogic:IsControlledFieldEntity(userId, controlledEntity) == false then
+            return false
+        end
+
+        local added = _InventoryLogic:AddItem(userId, self.itemKey, self.count)
+        if added == false then
+            log_warning("[LootDropComponent] TryPickup failed: inventory rejected item. itemKey=" .. self.itemKey)
+            return false
+        end
+
+        self.pickedUp = true
+        _LootDropLogic:RemoveDrop(userId, self.dropId)
+        log("[LootDropComponent] Picked up. userId=" .. userId
+            .. ", itemKey=" .. self.itemKey
+            .. ", count=" .. tostring(self.count))
+        self.Entity:Destroy()
+        return true
+    end
+
+end

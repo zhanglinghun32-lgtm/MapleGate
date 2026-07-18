@@ -31,8 +31,18 @@ script PartyLogic extends Logic
             partyData.Formation = {}
         end
 
+        local activeFieldSlot = tonumber(partyData.ActiveFieldSlot) or 1
+        activeFieldSlot = math.floor(activeFieldSlot)
+        if activeFieldSlot < 1 or activeFieldSlot > 4 or partyData.Formation[activeFieldSlot] == nil then
+            activeFieldSlot = 1
+        end
+        partyData.ActiveFieldSlot = activeFieldSlot
+
         self.userParties[userId] = partyData
-        log("[PartyLogic] LoadUserData. userId=" .. userId .. ", memberCount=" .. tostring(#partyData.Members))
+        log("[PartyLogic] LoadUserData. userId=" .. userId
+            .. ", memberCount=" .. tostring(#partyData.Members)
+            .. ", formationCount=" .. tostring(#partyData.Formation)
+            .. ", activeFieldSlot=" .. tostring(partyData.ActiveFieldSlot))
     end
 
     @ExecSpace("ServerOnly")
@@ -57,6 +67,7 @@ script PartyLogic extends Logic
         local partyData = {}
         partyData.Members = {}
         partyData.Formation = {}
+        partyData.ActiveFieldSlot = 1
 
         partyData.Members[1] = self:CreateActorState("playerWarrior", 1)
         partyData.Formation[1] = "playerWarrior"
@@ -85,6 +96,17 @@ script PartyLogic extends Logic
         end
 
         return partyData.Formation[1]
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean IsControlledFieldEntity(string userId, Entity actorEntity)
+        -- Identifies the single field entity currently receiving player control.
+        if userId == nil or userId == "" or isvalid(actorEntity) == false then
+            return false
+        end
+
+        local userEntity = _UserService:GetUserEntityByUserId(userId)
+        return isvalid(userEntity) and userEntity == actorEntity
     end
 
     @ExecSpace("ServerOnly")

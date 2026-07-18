@@ -1,0 +1,132 @@
+@Component
+@ExecSpace("ClientOnly")
+script NavigationUIComponent extends Component
+
+    property boolean isExpanded = false
+    property Entity menuPanel = "39639705-48e5-428a-9114-97a8578b5ed6"
+    property ButtonComponent navigationToggle = "f234d57a-4fee-4091-9b1f-1d1b9de3505d"
+    property ButtonComponent inventoryButton = "a6bcd588-b786-4d39-937d-bf3a33d03de3"
+    property ButtonComponent partyButton = "ef8d9003-05b7-4b2a-ac97-c5a954d2fb0f"
+    property ButtonComponent characterButton = "cb712c4b-8b84-4d7d-8b6f-557e952dd89f"
+
+    property any navigationToggleHandler = nil
+    property any inventoryButtonHandler = nil
+    property any partyButtonHandler = nil
+    property any characterButtonHandler = nil
+
+    method void OnBeginPlay()
+        -- Binds navigation actions and starts with the horizontal panel collapsed.
+        self:BindButtons()
+        self:SetExpanded(false)
+        log("[NavigationUIComponent] OnBeginPlay.")
+    end
+
+    method void OnEndPlay()
+        -- Releases all button handlers owned by this UI component.
+        self:UnbindButtons()
+        log("[NavigationUIComponent] OnEndPlay.")
+    end
+
+    method void BindButtons()
+        -- Connects the toggle and three navigation shortcut buttons.
+        self:UnbindButtons()
+
+        if self.navigationToggle ~= nil then
+            self.navigationToggleHandler = self.navigationToggle.Entity:ConnectEvent(ButtonClickEvent, self.OnNavigationToggleClicked)
+        else
+            log_warning("[NavigationUIComponent] navigationToggle is nil.")
+        end
+
+        if self.inventoryButton ~= nil then
+            self.inventoryButtonHandler = self.inventoryButton.Entity:ConnectEvent(ButtonClickEvent, self.OnInventoryClicked)
+        else
+            log_warning("[NavigationUIComponent] inventoryButton is nil.")
+        end
+
+        if self.partyButton ~= nil then
+            self.partyButtonHandler = self.partyButton.Entity:ConnectEvent(ButtonClickEvent, self.OnPartyClicked)
+        else
+            log_warning("[NavigationUIComponent] partyButton is nil.")
+        end
+
+        if self.characterButton ~= nil then
+            self.characterButtonHandler = self.characterButton.Entity:ConnectEvent(ButtonClickEvent, self.OnCharacterClicked)
+        else
+            log_warning("[NavigationUIComponent] characterButton is nil.")
+        end
+    end
+
+    method void UnbindButtons()
+        -- Disconnects any navigation handlers that were previously registered.
+        if self.navigationToggleHandler ~= nil and self.navigationToggle ~= nil then
+            self.navigationToggle.Entity:DisconnectEvent(ButtonClickEvent, self.navigationToggleHandler)
+            self.navigationToggleHandler = nil
+        end
+
+        if self.inventoryButtonHandler ~= nil and self.inventoryButton ~= nil then
+            self.inventoryButton.Entity:DisconnectEvent(ButtonClickEvent, self.inventoryButtonHandler)
+            self.inventoryButtonHandler = nil
+        end
+
+        if self.partyButtonHandler ~= nil and self.partyButton ~= nil then
+            self.partyButton.Entity:DisconnectEvent(ButtonClickEvent, self.partyButtonHandler)
+            self.partyButtonHandler = nil
+        end
+
+        if self.characterButtonHandler ~= nil and self.characterButton ~= nil then
+            self.characterButton.Entity:DisconnectEvent(ButtonClickEvent, self.characterButtonHandler)
+            self.characterButtonHandler = nil
+        end
+    end
+
+    method void SetExpanded(boolean expanded)
+        -- Shows or hides the three shortcuts while preserving the toggle button.
+        self.isExpanded = expanded
+        if isvalid(self.menuPanel) then
+            self.menuPanel.Enable = expanded
+        end
+        log("[NavigationUIComponent] SetExpanded expanded=" .. tostring(expanded))
+    end
+
+    method void OpenInventoryUI()
+        -- Routes the inventory shortcut through the shared UI manager.
+        self:SetExpanded(false)
+        _UIManagerLogic:OpenUI("Inventory")
+        log("[NavigationUIComponent] OpenInventoryUI requested.")
+    end
+
+    method void OpenPartyUI()
+        -- Routes the party shortcut through the shared UI manager.
+        self:SetExpanded(false)
+        _UIManagerLogic:OpenUI("Party")
+        log("[NavigationUIComponent] OpenPartyUI requested.")
+    end
+
+    method void OpenCharacterUI()
+        -- Routes the character shortcut through the shared UI manager.
+        self:SetExpanded(false)
+        _UIManagerLogic:OpenUI("Character")
+        log("[NavigationUIComponent] OpenCharacterUI requested.")
+    end
+
+    method void OnNavigationToggleClicked(ButtonClickEvent event)
+        -- Toggles the horizontal shortcut panel.
+        self:SetExpanded(self.isExpanded == false)
+    end
+
+    method void OnInventoryClicked(ButtonClickEvent event)
+        -- Delegates the inventory button to the public inventory UI entry point.
+        self:OpenInventoryUI()
+    end
+
+    method void OnPartyClicked(ButtonClickEvent event)
+        -- Delegates the party button to the public party UI entry point.
+        self:OpenPartyUI()
+    end
+
+    method void OnCharacterClicked(ButtonClickEvent event)
+        -- Delegates the character button to the public character UI entry point.
+        self:OpenCharacterUI()
+    end
+
+end

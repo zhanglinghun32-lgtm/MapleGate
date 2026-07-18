@@ -1,0 +1,186 @@
+@Logic
+script LootDropLogic extends Logic
+
+    property string sapphireModelId = "SapphireDrop"
+    property string sapphireItemKey = "sapphire"
+    property string sapphireSpriteRuid = "9b1796a9a66d4248bcee8af6464dfb0e"
+    property integer sapphireCount = 1
+    property number horizontalSpawnOffset = 1.3
+    property number verticalSpawnOffset = 1.2
+    property any userDrops = nil
+    property integer nextDropSequence = 0
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        self.userDrops = {}
+        log("[LootDropLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method Entity SpawnSapphireDrop(Entity controlledEntity)
+        if isvalid(controlledEntity) == false or controlledEntity.PlayerComponent == nil then
+            log_warning("[LootDropLogic] SpawnSapphireDrop failed: controlled entity is invalid.")
+            return nil
+        end
+
+        local userId = controlledEntity.PlayerComponent.UserId
+        if _PartyLogic:IsControlledFieldEntity(userId, controlledEntity) == false then
+            log_warning("[LootDropLogic] SpawnSapphireDrop rejected: entity is not controlled. userId=" .. tostring(userId))
+            return nil
+        end
+
+        local mapEntity = controlledEntity.CurrentMap
+        if isvalid(mapEntity) == false or mapEntity.Name ~= "map01" then
+            log_warning("[LootDropLogic] SpawnSapphireDrop rejected: current map is not map01.")
+            return nil
+        end
+
+        local lookDirectionX = 1
+        if controlledEntity.PlayerControllerComponent ~= nil then
+            lookDirectionX = controlledEntity.PlayerControllerComponent.LookDirectionX
+        end
+        if lookDirectionX == 0 then
+            lookDirectionX = 1
+        end
+
+        local playerPosition = controlledEntity.TransformComponent.WorldPosition
+        local spawnPosition = Vector3(playerPosition.x + lookDirectionX * self.horizontalSpawnOffset,
+            playerPosition.y + self.verticalSpawnOffset, playerPosition.z)
+        local dropEntity = self:SpawnDrop(userId, self.sapphireItemKey, self.sapphireCount, spawnPosition, mapEntity, "", true, lookDirectionX)
+        if isvalid(dropEntity) then
+            log("[LootDropLogic] Spawned sapphire. userId=" .. userId .. ", entity=" .. dropEntity.Name .. ", position=" .. tostring(spawnPosition))
+        end
+        return dropEntity
+    end
+
+    @ExecSpace("ServerOnly")
+    method Entity SpawnDrop(string userId, string itemKey, integer count, Vector3 spawnPosition, Entity mapEntity, string requestedDropId, boolean applyForce, number forceDirectionX)
+        if isvalid(mapEntity) == false then
+            return nil
+        end
+
+        local dropId = requestedDropId
+        if dropId == nil or dropId == "" then
+            self.nextDropSequence = self.nextDropSequence + 1
+            dropId = userId .. "_" .. tostring(math.floor(_UtilLogic.ElapsedSeconds * 1000)) .. "_" .. tostring(self.nextDropSequence)
+        end
+        local dropName = "SapphireDrop_" .. tostring(self.nextDropSequence) .. "_" .. tostring(math.floor(_UtilLogic.ElapsedSeconds * 1000))
+        local dropEntity = _SpawnService:SpawnByModelId(self.sapphireModelId, dropName, spawnPosition, mapEntity)
+        if isvalid(dropEntity) == false then
+            log_warning("[LootDropLogic] SpawnDrop failed: SpawnByModelId returned nil.")
+            return nil
+        end
+
+        if dropEntity.SpriteRendererComponent ~= nil then
+            dropEntity.SpriteRendererComponent.SpriteRUID = self.sapphireSpriteRuid
+        end
+        dropEntity:AddComponent("LootDropComponent")
+        local lootDrop = dropEntity:GetComponent("script.LootDropComponent")
+        if isvalid(lootDrop) == false then
+            dropEntity:Destroy()
+            return nil
+        end
+        lootDrop.itemKey = itemKey
+        lootDrop.count = count
+        lootDrop.ownerUserId = userId
+        lootDrop.dropId = dropId
+
+        if self.userDrops[userId] == nil then
+            self.userDrops[userId] = {}
+        end
+        local runtimeDrop = {}
+        runtimeDrop.DropId = dropId
+        runtimeDrop.ItemKey = itemKey
+        runtimeDrop.Count = count
+        runtimeDrop.MapName = mapEntity.Name
+        runtimeDrop.Entity = dropEntity
+        self.userDrops[userId][dropId] = runtimeDrop
+
+        if applyForce == true and dropEntity.RigidbodyComponent ~= nil then
+            dropEntity.RigidbodyComponent:SetForce(Vector2(forceDirectionX * 1.5, 3))
+            _PlayerDataLogic:MarkDirty(userId)
+        end
+        return dropEntity
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RemoveDrop(string userId, string dropId)
+        if self.userDrops[userId] ~= nil and dropId ~= nil and dropId ~= "" then
+            self.userDrops[userId][dropId] = nil
+            _PlayerDataLogic:MarkDirty(userId)
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ExportUserMapState(string userId)
+        local mapState = self:CreateDefaultMapState()
+        local dropIndex = 0
+        for dropId, runtimeDrop in pairs(self.userDrops[userId] or {}) do
+            if isvalid(runtimeDrop.Entity) and isvalid(runtimeDrop.Entity.TransformComponent) then
+                local position = runtimeDrop.Entity.TransformComponent.WorldPosition
+                dropIndex = dropIndex + 1
+                local savedDrop = {}
+                savedDrop.DropId = dropId
+                savedDrop.ItemKey = runtimeDrop.ItemKey
+                savedDrop.Count = runtimeDrop.Count
+                savedDrop.MapName = runtimeDrop.MapName
+                savedDrop.X = position.x
+                savedDrop.Y = position.y
+                savedDrop.Z = position.z
+                mapState.Drops[dropIndex] = savedDrop
+            end
+        end
+        log("[LootDropLogic] ExportUserMapState. userId=" .. userId .. ", dropCount=" .. tostring(dropIndex))
+        return mapState
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadUserMapState(string userId, table mapState)
+        self:ClearUserDrops(userId)
+        local savedDrops = {}
+        if mapState ~= nil and mapState.Drops ~= nil then
+            savedDrops = mapState.Drops
+        end
+        _TimerService:SetTimerOnce(function() self:RestoreUserDrops(userId, savedDrops) end, 0.8)
+        log("[LootDropLogic] LoadUserMapState scheduled. userId=" .. userId .. ", dropCount=" .. tostring(#savedDrops))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RestoreUserDrops(string userId, table savedDrops)
+        local userEntity = _UserService:GetUserEntityByUserId(userId)
+        if isvalid(userEntity) == false or isvalid(userEntity.CurrentMap) == false then
+            log_warning("[LootDropLogic] RestoreUserDrops failed: user map missing. userId=" .. userId)
+            return
+        end
+        local restoredCount = 0
+        for _, savedDrop in pairs(savedDrops) do
+            if savedDrop.MapName == userEntity.CurrentMap.Name then
+                local position = Vector3(tonumber(savedDrop.X) or 0, tonumber(savedDrop.Y) or 0, tonumber(savedDrop.Z) or 0)
+                local dropEntity = self:SpawnDrop(userId, savedDrop.ItemKey, math.floor(tonumber(savedDrop.Count) or 1), position,
+                    userEntity.CurrentMap, savedDrop.DropId, false, 1)
+                if isvalid(dropEntity) then
+                    restoredCount = restoredCount + 1
+                end
+            end
+        end
+        log("[LootDropLogic] RestoreUserDrops complete. userId=" .. userId .. ", restoredCount=" .. tostring(restoredCount))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ClearUserDrops(string userId)
+        for _, runtimeDrop in pairs(self.userDrops[userId] or {}) do
+            if isvalid(runtimeDrop.Entity) then
+                runtimeDrop.Entity:Destroy()
+            end
+        end
+        self.userDrops[userId] = {}
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateDefaultMapState()
+        local mapState = {}
+        mapState.Drops = {}
+        return mapState
+    end
+
+end

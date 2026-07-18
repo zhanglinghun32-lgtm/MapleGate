@@ -97,10 +97,16 @@ script MainMenuUIComponent extends Component
         log("[MainMenuUIComponent] ShowPanel. panel=" .. self.currentPanel)
     end
 
-    method void RequestEnterGame()
-        -- Temporarily loads Slot 1 before the save-slot selection UI is implemented.
-        log("[MainMenuUIComponent] RequestEnterGame. slotIndex=" .. tostring(self.temporarySlotIndex))
+    method void RequestContinueGame()
+        -- Loads Slot 1 before entering gameplay until save-slot selection is implemented.
+        log("[MainMenuUIComponent] RequestContinueGame. slotIndex=" .. tostring(self.temporarySlotIndex))
         _PlayerDataLogic:RequestContinueGame(self.temporarySlotIndex)
+    end
+
+    method void RequestNewGame()
+        -- Creates and persists Slot 1 before entering gameplay.
+        log("[MainMenuUIComponent] RequestNewGame. slotIndex=" .. tostring(self.temporarySlotIndex))
+        _PlayerDataLogic:RequestNewGame(self.temporarySlotIndex)
     end
 
     method void RequestExitGame()
@@ -111,13 +117,13 @@ script MainMenuUIComponent extends Component
     method void OnNewGameClicked(ButtonClickEvent event)
         -- Handles the New Game button.
         log("[MainMenuUIComponent] OnNewGameClicked.")
-        self:RequestEnterGame()
+        self:RequestNewGame()
     end
 
     method void OnContinueGameClicked(ButtonClickEvent event)
         -- Handles the Continue Game button.
         log("[MainMenuUIComponent] OnContinueGameClicked.")
-        self:RequestEnterGame()
+        self:RequestContinueGame()
     end
 
     method void OnSettingClicked(ButtonClickEvent event)
