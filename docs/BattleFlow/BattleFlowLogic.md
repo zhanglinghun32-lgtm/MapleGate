@@ -11,6 +11,11 @@ and leaving turn-based battle mode.
 
 `BattleClientLogic` is the client-only presentation layer.
 
+Character movement, character actions, skill execution, and skill presentation
+are independent gameplay capabilities. They must continue to work when no battle
+session exists. Entering battle only adds turn permission and phase constraints;
+it does not become the owner of those capabilities.
+
 The important rule is:
 
 ```text
@@ -70,8 +75,9 @@ Responsibilities:
 - Own one active server-authoritative battle session.
 - Own actor ids, actor references, queue, phase, current turn, and battle result.
 - Resolve turn order.
-- Resolve actions, damage, resource changes, movement intent, death, victory, defeat, escape, and cancel.
-- Apply battle state through battle actor interfaces.
+- Decide whether an actor may act now and consume an accepted action completion.
+- Run turn-start and turn-end effect hooks, dead-actor cleanup, and victory,
+  defeat, escape, or cancel checks.
 - Send battle client RPC directly for battle presentation events.
 - Report final battle result back to `BattleFlowLogic`.
 
@@ -82,6 +88,9 @@ Non-responsibilities:
 - Do not decide post-battle scene transitions.
 - Do not bind UI buttons.
 - Do not own field monster chase AI.
+- Do not own character movement, avatar actions, skill definitions, shared skill
+  validation, or field skill execution.
+- Do not require battle mode in order to move, act, or present a skill.
 
 ### BattleClientLogic
 
@@ -126,12 +135,15 @@ Expected first-pass flow:
 8. BattleFlowLogic sends EnterBattleClient(battleId, battleEntity, userId) — Client RPC shell only.
 9. BattleClientLogic opens BattleUI overlay; ControlCharacterUI / Party / System UI stay on screen.
 10. ControlCharacterUI and BattleUI attach session / read @Sync (forwarded via OnSyncProperty).
-11. Player confirms a skill on ControlCharacterUI -> SkillActionLogic:RequestSkill -> BattleSystem.
-12. BattleSystem owns turn order and action resolution.
-13. BattleSystem detects battle end and reports to BattleFlowLogic.
-14. BattleFlowLogic sends ExitBattleClient(battleId, result, userId).
-15. BattleClientLogic closes BattleUI overlay only; persistent field UIs remain.
-16. BattleFlowLogic applies rewards, save changes, mission progress, and scene flow.
+11. Player confirms a skill on ControlCharacterUI -> SkillActionLogic:RequestSkill.
+12. SkillActionLogic routes the validated action by context. In battle,
+    BattleSystem only accepts it when that actor owns the current turn.
+13. The shared skill/action pipeline executes the action and reports completion;
+    BattleSystem advances its phase and turn schedule.
+14. BattleSystem detects battle end and reports to BattleFlowLogic.
+15. BattleFlowLogic sends ExitBattleClient(battleId, result, userId).
+16. BattleClientLogic closes BattleUI overlay only; persistent field UIs remain.
+17. BattleFlowLogic applies rewards, save changes, mission progress, and scene flow.
 ```
 
 ### World-field normal attack entry

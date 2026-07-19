@@ -1,8 +1,25 @@
 # BattleSystem Component
 
 The battle session is owned by `BattleSystem` (`Battle/BattleSystem.mlua`).
-The component owns the battle session flow; actor state remains inside each actor's
-`BattleActorComponent` (`Battle/BattleActorComponent.mlua`).
+The component owns only the turn-based battle session flow; actor state remains
+inside each actor's `BattleActorComponent` (`Battle/BattleActorComponent.mlua`).
+Character movement, avatar actions, skill execution, and skill presentation are
+separate systems and remain usable outside battle.
+
+## Architectural Boundary
+
+`BattleSystem` is a scheduler and turn-permission authority. It answers:
+
+- Is a battle active?
+- Which phase is active?
+- Which actor may act now?
+- What runs at turn start and turn end?
+- Should the battle continue or finish?
+
+It does not implement the character's movement or action capability. It consumes
+validated action intent/completion from shared systems and advances the turn.
+Battle mode constrains *when* an actor may use those systems, not *whether those
+systems exist*.
 
 If the session is spawned at runtime, use a `BattleSystem.model` template only
 as the spawn vehicle — the script file does not need to live beside the model.
@@ -73,9 +90,10 @@ Examples:
 - Decide whose turn it is.
 - Receive battle action requests from `SkillActionLogic` via
   `RequestValidatedActionForUser`.
-- Validate that the sponsor can act and the target is valid.
-- Ask `BattleCalculator` to calculate action results.
-- Apply action results through `BattleActorComponent` interfaces.
+- Validate battle membership, phase, and that the sponsor owns the current turn.
+- Trigger turn-start effects before input opens.
+- Wait for the accepted shared action/presentation to complete.
+- Trigger turn-end effects, cleanup, and the next scheduling decision.
 - Send battle presentation RPC directly to `BattleClientLogic`.
 - Wait in `PresentingAction` until the client acknowledges the presentation or the server timeout expires.
 - Remove dead actors from the active turn queue.
@@ -92,6 +110,32 @@ Examples:
 - Do not directly mutate actor resources without `BattleActorComponent`.
 - Do not route every battle event through `BattleFlowLogic`.
 - Do not act as the public skill request gateway; UI must call `SkillActionLogic`.
+- Do not own character movement, avatar action playback, skill definitions,
+  common skill validation, field execution, or reusable presentation timelines.
+- Do not make movement or actions depend on an active battle session.
+
+## Turn Lifecycle
+
+```text
+Initializing
+  -> TurnStart
+     -> apply/tick start-of-turn effects
+     -> if battle ended, Cleanup
+  -> AwaitingInput
+     -> only currentActorId may submit a battle action
+  -> ResolvingAction
+     -> shared action system resolves authoritative gameplay changes
+  -> PresentingAction
+     -> wait for presentation completion or timeout
+  -> TurnEnd
+     -> apply/tick end-of-turn effects
+     -> remove dead actors and check victory/defeat
+  -> next TurnStart or Cleanup
+```
+
+Effects must declare which hook they use. A start-of-turn effect can defeat an
+actor before input opens; an end-of-turn effect can change whether that actor is
+queued again. Both hooks therefore run before the scheduler advances blindly.
 
 ## Action Flow
 
@@ -110,10 +154,8 @@ Battle session continuation:
 RequestValidatedActionForUser(...)
   -> validate battle is active
   -> validate sponsorId is current turn actor
-  -> resolve click/bounds targeting into authoritative target ids
-  -> validate sponsor and targets exist
-  -> ask BattleCalculator for result
-  -> apply result entries through BattleActorComponent
+  -> hand the accepted intent to the shared action execution pipeline
+  -> receive the authoritative result/completion
   -> transition to PresentingAction
   -> send action presentation RPC to BattleClientLogic
   -> wait for client acknowledgement (or server timeout fallback)
@@ -126,6 +168,13 @@ RequestValidatedActionForUser(...)
 
 `BattleSystem:RequestAction*` may remain as temporary legacy server APIs.
 New UI callers must not use them. See `docs/SkillAction/SkillActionSystem.md`.
+
+The current `BattleSystem.mlua` still contains target-range expansion,
+`ResolveAction`, and presentation dispatch code. Treat these as a transitional
+compatibility layer, not the desired ownership boundary. New movement, action,
+targeting, or presentation behavior must be added to the corresponding shared
+system first; BattleSystem should retain only battle-context validation and turn
+continuation hooks.
 
 ## Synced Display State
 
@@ -169,11 +218,10 @@ ResolvingAction
   -> TurnEnd
 ```
 
-`ResolveAction` returns one `actionResultPayload` for both client cache updates
-and presentation. Its contract is `{ Revision, Changes }`; `Changes` contains
-every authoritative mutation caused by the action (damage, healing, resources,
-buff add/remove, cooldown, movement, death, and other actor patches). Send this
-table once rather than emitting one RPC per changed field.
+The shared action execution path returns one `actionResultPayload` for client
+cache updates and presentation. Its contract is `{ Revision, Changes }`.
+BattleSystem may transport that payload while coordinating the turn, but it must
+not become the owner of every mutation type contained in it.
 
 `presentationTimeoutSeconds` is a server-side fallback. It prevents a missing,
 disconnected, or failed client presentation from permanently locking the battle.
