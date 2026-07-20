@@ -186,7 +186,7 @@ Current scene keys:
 
 ## Related Docs
 
-- `docs/BattleFlow/BattleFlowLogic.md` — battle entry and finalization design
-- `docs/BattleFlow/BattleSystem.md` — battle session component design
-- `docs/BattleFlow/BattleUIComponent.md` — BattleUI turn-sequence overlay and battle UI layering
+- `docs/BattleFlow/BattleFlowLogic.md` — battle entry and finalization
+- `docs/BattleFlow/BattleSystem.md` — turn permission, turn start/end, settlement, operation locks
+- `docs/BattleFlow/BattleUIComponent.md` — BattleUI turn-sequence overlay; skill/item/system UIs stay outside battle ownership
 - `docs/Actor/BattleActorComponent.md` — per-actor battle state design

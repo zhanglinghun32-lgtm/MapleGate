@@ -91,6 +91,7 @@ script BattleQueue extends Component
 
     @ExecSpace("ServerOnly")
     method void RemoveDeadActors()
+        -- LEGACY placeholder: must call BattleActorCom:IsDead() on each queued EntityId.
         -- Placeholder until BattleActorComponent exposes IsDead().
     end
 
@@ -110,6 +111,7 @@ script BattleQueue extends Component
 
     @ExecSpace("ServerOnly")
     method integer GetActorSpeed(string actorId)
+        -- LEGACY: reads speed from actorMap payload table. Target: BattleActorCom.speed on entity.
         if self.actorMap == nil or actorId == nil or actorId == "" then
             return 0
         end

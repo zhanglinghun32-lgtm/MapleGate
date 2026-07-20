@@ -1,6 +1,9 @@
 @Component
 script BattleActorCom extends Component
 
+    -- Authority for per-entity combat resources. UI and battle settlement must use these fields.
+    -- max* = capacity (一般狀態上限); current = 當前狀態. TODO: Add ApplyDamage / Heal / IsDead.
+
     property string actorConfigTableName = "actorConfig"
 
     @Sync property string configId = ""

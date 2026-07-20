@@ -31,3 +31,20 @@ the single `currentOpenUI` slot used by normal scene and gameplay screens.
 - UI key: `SystemMenuUI`
 - Gameplay scene key: `World`
 - Menu scene key: `MainMenu`
+
+## Battle Policy
+
+Battle does **not** own SystemMenu open/close. The overlay may remain during
+battle.
+
+Individual actions (save, return to menu, …) follow product rules and must be
+enforced in SystemMenu / `PlayerDataLogic`, not inside `BattleUI` or by making
+`BattleSystem` open the menu.
+
+### Agent TODO
+
+1. Decide which SystemMenu actions stay enabled in battle.
+2. If any action must be blocked, gate it with battle activity /
+   `IsOperationAllowed`, not by hiding the entire SystemMenu from BattleUI code.
+3. Keep SystemMenu as a persistent overlay relative to `BattleUI` layering
+   (`docs/BattleFlow/BattleUIComponent.md`).

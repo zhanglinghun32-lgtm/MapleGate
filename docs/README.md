@@ -17,9 +17,9 @@ Read **`ScriptRules.md`** first. It defines:
 | Path | Topic |
 |------|-------|
 | [ScriptRules.md](ScriptRules.md) | Architecture, folders, naming, responsibilities |
-| [BattleFlow/BattleFlowLogic.md](BattleFlow/BattleFlowLogic.md) | Battle entry and finalization (`BattleFlowLogic`) |
-| [BattleFlow/BattleSystem.md](BattleFlow/BattleSystem.md) | Server-authoritative battle session (`BattleSystem`) |
-| [BattleFlow/BattleUIComponent.md](BattleFlow/BattleUIComponent.md) | BattleUI turn-sequence overlay + UI layering with ControlCharacterUI |
+| [BattleFlow/BattleFlowLogic.md](BattleFlow/BattleFlowLogic.md) | `RequestStartBattle` request/payload schema; three triggers; enter/exit |
+| [BattleFlow/BattleSystem.md](BattleFlow/BattleSystem.md) | Turn permission, turn start/end, settlement, operation locks |
+| [BattleFlow/BattleUIComponent.md](BattleFlow/BattleUIComponent.md) | BattleUI turn-sequence overlay only; persistent UIs stay |
 | [Actor/BattleActorComponent.md](Actor/BattleActorComponent.md) | Per-actor HP / MP / stats authority |
 | [Party/PartySystem.md](Party/PartySystem.md) | Party membership, field control, formation, whole-party battle entry |
 | [PlayerData/SaveSlotSchema.md](PlayerData/SaveSlotSchema.md) | Canonical SaveSlot keys, types, casing, and ownership |

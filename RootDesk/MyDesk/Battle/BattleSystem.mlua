@@ -724,6 +724,8 @@ script BattleSystem extends Component
     
     @ExecSpace("ServerOnly")
     method void RegisterActorsFromPayload(table payload)
+        -- LEGACY: currently stores full payload rows (including copied hp) into actorMap.
+        -- Target: roster only (ActorId <-> EntityId + team/control); live HP on BattleActorCom.
         -- Registers actor ids from the prepared payload. BattleActorComponent wiring comes later.
         local playerParty = payload.playerParty
         local enemyParty = payload.enemyParty
@@ -745,6 +747,8 @@ script BattleSystem extends Component
     
     @ExecSpace("ServerOnly")
     method void RegisterActorEntry(table actorEntry)
+        -- LEGACY: actorMap holds the payload table as if it were live combat state.
+        -- Rewrite to keep EntityId roster and resolve BattleActorCom for hp/maxHp.
         if actorEntry == nil then
             return
         end
@@ -989,7 +993,8 @@ script BattleSystem extends Component
     
     @ExecSpace("ServerOnly")
     method integer CountAliveActorsByTeam(string actorType)
-        -- Stub: treats every registered actor as alive until BattleActorComponent exists.
+        -- LEGACY stub: treats every registered actorMap row as alive.
+        -- Target: resolve EntityId -> BattleActorCom:IsDead() (or hp <= 0 via component API).
         if self.actorMap == nil then
             return 0
         end

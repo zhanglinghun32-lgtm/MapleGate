@@ -100,6 +100,9 @@ script BattleFlowLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method table BuildFieldActorEntry(string actorId, string actorType, Entity entity, any battleActor, Vector3 position)
+        -- LEGACY: copies live BattleActorCom resources into the payload table.
+        -- Target roster entry: ActorId, EntityId, ActorType, TeamId, ControlMode (+ optional ConfigId/SlotIndex).
+        -- UI and settlement must read hp/maxHp from BattleActorCom on the entity, not from this copy.
         return {
             actorId = actorId,
             actorType = actorType,

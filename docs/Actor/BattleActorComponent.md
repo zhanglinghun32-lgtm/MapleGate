@@ -85,21 +85,36 @@ Skill keys:
 
 ## Resource Authority Rule
 
-`BattleActorComponent` is the only component that should store real battle
-resources such as HP, MP, and stamina.
+`BattleActorCom` (documented historically as `BattleActorComponent`) is the
+**only** place that stores real combat resources for a unit.
 
-Other components may:
+Every battle unit is a **live entity** with this component. There is no
+config-only / payload-only HP path.
 
-- Read resources from `BattleActorComponent`.
-- Request resource changes through `BattleActorComponent`.
-- Keep display-only cached values that are refreshed from change events.
+### Current vs max (required shape)
 
-Other components should not:
+| Property | Meaning |
+|----------|---------|
+| `maxHp` | 一般狀態 — current maximum capacity |
+| `hp` | 當前狀態 — current points, always `0 .. maxHp` |
+| `maxMp` / `mp` | Same pattern |
+| `maxStamina` / `stamina` | Same pattern |
 
-- Store separate authoritative HP, MP, or stamina values.
-- Subtract or restore resources directly.
-- Spend MP or stamina by assigning values directly.
-- Decide death without checking `BattleActorComponent`.
+UI must display these component fields (via `@Sync` or direct read on the client
+copy of the entity component). Do **not** display a separate number copied from
+`BattleStartPayload` or `BattleSystem.actorMap`.
+
+Other systems may:
+
+- Read resources from `BattleActorCom`.
+- Request resource changes through `BattleActorCom` (`ApplyDamage`, `Heal`, …).
+- Keep display-only caches **refreshed from the component** (e.g. `OnSyncProperty`).
+
+Other systems must not:
+
+- Store separate authoritative HP / MP / stamina on battle session tables.
+- Treat payload `Hp` / `MaxHp` as live state.
+- Decide death without `BattleActorCom:IsDead()` (or equivalent on the component).
 
 ## Resource vs Stat Shape
 
@@ -309,21 +324,29 @@ independent and deterministic. Effects should wrap or modify that result during
 
 Recommended direction:
 
-- `BattleController` calls battle actions at the correct turn timing.
-- Skill components calculate or request effects, then call `BattleActorComponent`.
-- Equipment components or Config readers provide stat bonuses, not resource storage.
-- Buff components provide temporary modifiers, not resource storage.
-- UI components listen for changes and display HP, MP, stamina, and stats.
+- Shared skill / inventory systems request mutations; they do not own HP.
+- `BattleActorCom` applies damage/heal and owns death flag from HP.
+- `BattleSystem` settlement asks `IsDead()` and updates turn queue / victory.
+- UI reads the same `BattleActorCom` the server mutates.
 
 Example conceptual flow:
 
 ```text
-BattleController
-  -> SkillComponent
-  -> BattleActorComponent.ApplyDamage()
-  -> BattleActorComponent updates HP
-  -> resource bars / animation / battle flow react to the change
+SkillAction / Inventory (or calculator)
+  -> BattleActorCom:ApplyDamage()
+  -> BattleActorCom updates hp (clamped to maxHp)
+  -> @Sync / OnSyncProperty refreshes UI bars on that entity
+  -> BattleSystem settlement: IsDead() -> queue / win-lose
 ```
+
+### LEGACY notes for implementers
+
+| File | Issue |
+|------|-------|
+| `Battle/BattleActorCom.mlua` | Has `hp`/`maxHp` `@Sync` but missing `ApplyDamage` / `IsDead` — add these |
+| `Battle/BattleSystem.mlua` | Registers payload tables into `actorMap` including copied resources — **LEGACY** |
+| `Battle/BattleQueue.mlua` | Death removal stub — **LEGACY** until it uses `BattleActorCom:IsDead()` |
+| `Logic/Battle/BattleFlowLogic.mlua` `BuildFieldActorEntry` | Copies hp into payload — **LEGACY**; prefer EntityId roster only |
 
 ## Future Interface Notes
 

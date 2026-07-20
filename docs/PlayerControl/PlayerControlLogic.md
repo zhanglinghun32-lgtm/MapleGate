@@ -48,15 +48,11 @@ CanControl()
 GetActiveLockCount()
 ```
 
-Current reason keys:
+Current / planned reason keys:
 
 ```text
-Battle
-```
-
-Future reason keys:
-
-```text
+Battle                 -- whole battle session (planned; align Enter/ExitBattle)
+BattlePresentation     -- used today by BattleSkillPresentationComponent
 Cutscene
 Dialogue
 SystemMenu
@@ -65,12 +61,28 @@ Interaction
 
 ## Battle Integration
 
-`BattleClientLogic` no longer directly stores or restores
-`PlayerControllerComponent.Enable`. Instead:
+Local movement locks are **not** the same as battle operation policy.
+
+| Concern | Owner |
+|---------|-------|
+| Disable `PlayerController` while presenting / in battle modes that need it | `PlayerControlLogic` reason keys |
+| May the player confirm a skill / edit party / switch member? | `BattleSystem` operation policy, enforced by Skill / Party / UI owners |
 
 ```text
-EnterBattle -> PlayerControlLogic:PushControlLock("Battle")
-ExitBattle  -> PlayerControlLogic:PopControlLock("Battle")
+EnterBattle / ExitBattle     -> Push/Pop "Battle" when product wants full move lock
+Skill presentation           -> Push/Pop "BattlePresentation"
+Party edit in battle         -> PartyLogic denies; do not invent a Party lock inside BattleUI
 ```
 
-This allows future systems to stack locks safely.
+### Agent TODO
+
+1. Align `BattleClientLogic` Enter/Exit with `PushControlLock("Battle")` /
+   `PopControlLock("Battle")` if full field move lock during battle is required.
+2. Keep presentation lock on `BattleSkillPresentationComponent` (`BattlePresentation`).
+3. Do not put party-formation blocks into `PlayerControlLogic`; those stay on
+   `PartyLogic` + battle `IsOperationAllowed`.
+
+## Related
+
+- `docs/BattleFlow/BattleSystem.md` — operation lock policy
+- `docs/BattleFlow/BattleFlowLogic.md`

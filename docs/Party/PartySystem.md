@@ -33,8 +33,9 @@ These rules are fixed for the current design.
 | Party size cap | A party has at most **4** members. |
 | Whole-party battle entry | Field encounters always start battle for the **entire current formation**. A single member cannot enter battle alone while others stay outside. |
 | Single field mover | On the overworld, only **one** party member receives player movement input at a time. |
-| Switch anytime | The player may switch the active field member at any time outside blocked states (battle, cutscene, dialogue, etc.). |
-| Formation editing | The player may change party composition and slot order from the party UI while not blocked. |
+| Switch anytime | The player may switch the active field member anytime **outside** blocked states (battle, cutscene, dialogue, etc.). |
+| Formation editing | The player may change party composition/order while **not** blocked. **Blocked during battle.** |
+| Battle UI policy | Battle does **not** own Party UI open/close. Opening Party UI in battle may be allowed; mutating formation / switching field member must be denied via battle operation locks. |
 | Server authority | Membership, formation order, active field slot, and battle snapshot are server-owned. |
 | Save on flush | Persistent party data is written only through `PlayerDataLogic` save/flush. |
 
@@ -48,8 +49,8 @@ These rules are fixed for the current design.
 | `PlayerDataLogic` | Loads and flushes `slotData.Party`; does not own party mutation rules |
 | `PlayerControlLogic` | Locks local `PlayerControllerComponent` during battle and other blocked states |
 | `BattleFlowLogic` | Reads party snapshot from `PartyLogic` and builds full `playerParty` payload |
-| `BattleSystem` | Runs battle using the prepared `playerParty`; does not read save data directly |
-| `SkillActionLogic` | Uses the **currently controlled field actor** as skill sponsor in overworld |
+| `BattleSystem` | Turn permission / settlement only; supplies operation locks (`EditPartyFormation`, `SwitchFieldMember` blocked). Does not open Party UI. |
+| `SkillActionLogic` | Skill gateway; uses battle permission when a session is active |
 | `ControlCharacterUIComponent` | Shows skills for the controlled actor; does not own party membership |
 | `BattleActorCom` | Owns one actor's HP / MP / stats; one instance per battle-capable actor |
 | `UIManagerLogic` | Opens/closes `Party` UI shell by key |
@@ -318,12 +319,14 @@ Current field battle entry builds `playerParty` from only the local player's
 Target behavior:
 
 ```text
-Field trigger
-  -> BattleFlowLogic validates sponsor and encounter
-  -> PartyLogic:GetBattlePartySnapshot(playerUserId)
-  -> payload.playerParty contains every current formation member
-  -> BattleSystem registers all party actors into the battle session
+any trigger adapter
+  -> BattleFlowLogic:RequestStartBattle(request)
+  -> expand PlayerParty / EnemyParty / AllyParty / SharedInventory / Environment
+  -> BattleSystem:StartBattle(payload)
 ```
+
+See field tables in `docs/BattleFlow/BattleFlowLogic.md` (§ BattleStartRequest /
+§ BattleStartPayload). Neutrals are never included unless they become hostile.
 
 Important rule:
 
@@ -435,16 +438,35 @@ Player taps member in ControlCharacterUI or PartyUI
 
 ## Battle Entry Flow
 
+All field/story starts go through one Flow API (see
+`docs/BattleFlow/BattleFlowLogic.md` § Battle Entry Triggers):
+
 ```text
-1. Active field avatar triggers encounter (attack hit, touch trigger, script call)
-2. BattleFlowLogic validates playerUserId and encounter
+Dialogue | PlayerAttack | MonsterDetect | other
+  -> BattleFlowLogic:RequestStartBattle(request)
+  -> PartyLogic:GetBattlePartySnapshot(userId)
+  -> payload.playerParty = full formation
+  -> BattleSystem:StartBattle(payload)
+```
+
+```text
+1. Any trigger adapter builds a BattleStartRequest (schema TBD)
+2. BattleFlowLogic validates playerUserId and encounter context
 3. BattleFlowLogic reads PartyLogic:GetBattlePartySnapshot(userId)
 4. BattleFlowLogic builds payload.playerParty with all formation members
 5. BattleFlowLogic starts BattleSystem
-6. BattleClientLogic locks field control through PlayerControlLogic
+6. BattleClientLogic locks field control through PlayerControlLogic as needed
 7. Every party member enters the battle session together
 8. BattleSystem resolves turns among all registered player-side actors
 9. On battle end, BattleFlowLogic writes results back to actor owners and exits
+```
+
+Important rule:
+
+```text
+The entity that triggered the encounter may be the active field avatar or a
+detecting monster, but battle entry always includes the whole party on the
+player side.
 ```
 
 ### Battle Exit Rule
@@ -494,8 +516,24 @@ Build in this order:
 4. Wire BattleFlowLogic to GetBattlePartySnapshot()
 5. Add PartyUIComponent for full formation editing
 6. Wire ControlCharacterUI.PartyMemberList for quick switching
-7. Verify save/load, continue game, field switch, and whole-party battle entry
+7. Battle operation locks: CanEditParty / CanSwitchFieldMember false while battle active
+8. Verify save/load, continue game, field switch, and whole-party battle entry
 ```
+
+### Agent TODO — Battle Interaction (Party Must Enforce, Battle Must Not Own UI)
+
+1. **`PartyLogic.mlua`**
+   - TODO: `CanEditParty` / `CanSwitchFieldMember` return false when
+     `BattleFlowLogic` / `BattleSystem` reports an active battle for that user.
+   - TODO: `RequestSetFormation` / `RequestSwitchActiveFieldSlot` reject with a
+     clear reason while battle-locked.
+
+2. **`PartyUI` / `ControlCharacterUI` PartyMemberList**
+   - TODO: Opening roster may stay allowed; disable edit/switch controls in battle.
+   - TODO: Do not implement this disable logic inside `BattleUIComponent`.
+
+3. **`docs/BattleFlow/BattleSystem.md`**
+   - Operation keys: `EditPartyFormation`, `SwitchFieldMember` default blocked.
 
 ## Verification Checklist
 

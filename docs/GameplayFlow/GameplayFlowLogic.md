@@ -26,7 +26,9 @@ transitions and is shared by multiple systems.
 - Route a continuing user into the playable `World` scene at the loaded slot position.
 - Route a user back to the `MainMenu` scene.
 - Provide stable public entry points for future systems such as cutscenes,
-  dialogue, field encounters, and battle entry.
+  dialogue, and field encounters. Battle starts still go through
+  `BattleFlowLogic:RequestStartBattle` (see Battle Entry Triggers), not a
+  parallel starter on this Logic.
 - Keep `SceneLogic` as the low-level scene router.
 
 ## Non-Responsibilities
@@ -75,10 +77,14 @@ SystemMenuUIComponent
 
 ## Future Extensions
 
-- `RequestBattle(...)` can coordinate battle entry before delegating to
-  `BattleFlowLogic`.
+- `RequestBattle(...)` may exist only as a thin router to
+  `BattleFlowLogic:RequestStartBattle` — do not duplicate encounter validation
+  or payload building here. See `docs/BattleFlow/BattleFlowLogic.md` § Battle
+  Entry Triggers.
 - `StartCutscene(cutsceneKey)` can coordinate player control locks and scene UI.
 - `EnterDialogue(dialogueKey)` can coordinate UI and interaction locks.
+  Dialogue-driven combat still ends in `BattleFlowLogic:RequestStartBattle`,
+  not a second battle starter on this Logic.
 
 Keep feature behavior in the feature owner. `GameplayFlowLogic` should remain
 thin and boring.

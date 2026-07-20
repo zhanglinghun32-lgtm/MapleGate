@@ -2,22 +2,20 @@
 
 ## Goal
 
-Provide one server-authoritative skill request entry point that works both inside
-and outside a turn-based battle. UI code must not depend on `BattleSystem`.
+One server-authoritative skill request entry for **field and battle**. UI must
+not depend on `BattleSystem` for casting. Battle only answers: may this actor
+submit a turn action *right now*?
 
 ## Ownership
 
-- `SkillActionLogic`: public request gateway, sender identity, common validation,
-  context routing, and accepted/rejected client callbacks.
-- `SkillLogic`: learned-skill, config, actor-state, resource, and cooldown rules.
-- `BattleSystem`: battle membership, phase, current actor, turn permission,
-  turn-start/turn-end scheduling, and completion waiting.
-- Shared action execution: authoritative targeting, resource consumption,
-  gameplay mutations, and reusable presentation payloads regardless of context.
-- Field execution: world target validation, resource consumption, gameplay
-  mutations, and field presentation. Phase 1 implements validation and
-  presentation; authoritative field effects remain TODO.
-- `ControlCharacterUIComponent`: selection and request presentation only.
+| System | Owns |
+|--------|------|
+| `SkillActionLogic` | Public gateway, sender identity, routing, accept/reject callbacks |
+| `SkillLogic` | Learned skills, config, resources, cooldown rules |
+| Shared execution | Targeting, mutations, presentation payloads (field or battle) |
+| `ControlCharacterUIComponent` | Skill selection / confirm / range preview UI |
+| `BattleSystem` | Turn permission + settlement after completion — **not** skill UI or formulas |
+| `BattleUI` | Turn-sequence overlay only — **never** skill requests |
 
 ## Request Contract
 
@@ -29,73 +27,75 @@ _SkillActionLogic:RequestSkill(requestId, actionKey, {
 })
 ```
 
-The server derives the user and sponsor entity from `senderUserId`. Client
-sponsor ids and client claims about battle state are never trusted.
+Server derives user/sponsor from `senderUserId`. Client battle claims are not trusted.
 
 ## Result Contract
 
 - Accepted: `OnSkillRequestAccepted(requestId, actionKey, executionMode)`
 - Rejected: `OnSkillRequestRejected(requestId, actionKey, reason)`
 
-Client requests are asynchronous. Dispatch success is not action acceptance.
-
 ## Validation Split
 
-Common validation:
+Common (always):
 
-- non-empty user/action
-- user entity and `BattleActorCom`
-- learned skill
-- `skillConfig` row
-- alive actor
-- sufficient MP/stamina
-- cooldown (TODO)
+- user / action / entity / `BattleActorCom`
+- learned skill + `skillConfig`
+- alive, MP/stamina, cooldown (TODO)
 
-Battle-only validation:
+Battle-only permission (ask `BattleSystem`, do not reimplement turn loop here):
 
-- active battle and matching owner
-- `AwaitingInput` phase
-- sponsor is the current actor
-- battle turn permission; battle-specific target restrictions may be supplied as
-  policy, but reusable target resolution does not belong to the turn scheduler
+- active battle for this user
+- `AwaitingInput`
+- sponsor is `currentActorId`
+- `IsOperationAllowed(userId, "SubmitSkill")` when that API exists
 
-Field-only validation:
+Field-only:
 
-- same-map and target validity (initial implementation)
-- field range/collision rules (TODO)
-- resource consumption and gameplay effects (TODO)
+- same-map / target validity (initial)
+- range / effects (TODO)
 
 ## Context Independence
 
-Movement, avatar actions, and skill presentation do not require an active battle.
-`SkillActionLogic` selects the execution context after common validation:
+Skills exist without battle. In battle:
 
-- Field: execute immediately under field rules.
-- Battle: ask `BattleSystem` whether the sponsor may act this turn, then execute
-  through the same shared action capability and report completion to the session.
+```text
+RequestSkill
+  -> common validation
+  -> BattleSystem permission
+  -> shared execute
+  -> notify BattleSystem completion
+  -> BattleSystem settles turn
+```
 
-Do not add a reusable skill behavior only inside `BattleSystem`. Battle-specific
-code should describe timing or policy; the action itself belongs to the shared
-skill/action system.
+Do not add reusable skill behavior only inside `BattleSystem`.
 
 ## UI Callers
 
-Current UI path:
-
 ```text
-ControlCharacterUIComponent
-  -> SkillActionLogic:RequestSkill
+ControlCharacterUIComponent -> SkillActionLogic:RequestSkill
 ```
 
-`BattleUI` does **not** send skill requests. It is the turn-sequence overlay only.
-See `docs/BattleFlow/BattleUIComponent.md`.
+`BattleUI` must not send skill requests.
 
-## Migration
+Inventory use/throw is owned by `InventoryLogic`, not SkillAction and not battle
+payload. In battle, Inventory asks `BattleSystem` for turn permission and spends
+action points — same gate pattern as skills.
 
-1. ~~Route UI through `SkillActionLogic`.~~ Done for `ControlCharacterUI`.
-2. Keep legacy `BattleSystem.RequestAction*` APIs temporarily for compatibility.
-3. Battle requests already enter through `RequestValidatedActionForUser`.
-4. Implement authoritative field effects and resource consumption.
-5. Remove legacy direct UI-to-`BattleSystem` request APIs once no callers remain.
-   Do not add new UI callers to `RequestAction*`.
+Legacy: `BattleSystem.RequestAction*` — no new UI callers.
 
+## Agent TODO
+
+1. **`SkillActionLogic.mlua`** — call battle `CanSubmitTurnAction` /
+   `IsOperationAllowed("SubmitSkill")` + action-point spend; keep execution
+   outside BattleSystem.
+2. **`ControlCharacterUIComponent.mlua`** — disable confirm when phase/actor/policy
+   denies; no direct `RequestAction*`.
+3. **`BattleSystem.mlua`** — shrink embedded skill resolution; permission + settle only.
+4. **`InventoryLogic`** — battle use/throw live path; permission key `UseItem` +
+   action points; no bag copy in `BattleStartPayload`.
+5. Grep UI for `RequestAction` / `RequestBattleAction` and clear live paths.
+
+## Related Docs
+
+- `docs/BattleFlow/BattleSystem.md`
+- `docs/BattleFlow/BattleUIComponent.md`
