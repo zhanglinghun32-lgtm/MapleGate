@@ -83,7 +83,26 @@ script FieldNormalAttack extends AttackComponent
 
         self.battleStarting = true
         log("[FieldNormalAttack] normalAttack hit. target=" .. tostring(defender.Name))
-        local started = _BattleFlowLogic:StartFieldBattle(self.Entity, defender, self.actionKey)
+        local playerComponent = self.Entity.PlayerComponent
+        if playerComponent == nil or playerComponent.UserId == nil or playerComponent.UserId == "" then
+            self.battleStarting = false
+            log_warning("[FieldNormalAttack] Battle request failed: PlayerComponent.UserId is empty.")
+            return
+        end
+
+        local started = _BattleFlowLogic:RequestStartBattle({
+            triggerType = "PlayerAttack",
+            playerUserId = playerComponent.UserId,
+            sponsorEntityId = self.Entity.Id,
+            playerRefs = { self.Entity },
+            enemyRefs = { defender },
+            allyRefs = {},
+            sceneKey = "World",
+            encounterKey = defender.Name,
+            battleRuleKey = "FieldEncounter",
+            canEscape = true,
+            openingActionKey = self.actionKey
+        })
         if started == false then
             self.battleStarting = false
         end

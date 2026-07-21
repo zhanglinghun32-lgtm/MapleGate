@@ -20,6 +20,7 @@ script BattleSystem extends Component
     property any startPayload = nil
     property any activeActorIds = nil
     property any actorMap = nil
+    property any skillConfigRowCache = nil
     property any battleQueue = nil
     property integer presentationSequence = 0
     property integer pendingPresentationId = 0
@@ -101,6 +102,7 @@ script BattleSystem extends Component
         
         self:TransitionTo(_BattleKeys.phaseInitializing)
         self:RegisterActorsFromPayload(payload)
+        self:RebuildPartySkillConfigCache()
         self:InitializeBattleQueue()
         
         if self:IsBattleQueueEmpty() == true then
@@ -335,29 +337,59 @@ script BattleSystem extends Component
 
     @ExecSpace("ServerOnly")
     method any FindSkillConfigRow(string actionKey)
-        -- Finds the skillConfig row used to derive targeting rules and range.
+        -- Battle state reads only the session cache built from the current party roster.
         if actionKey == nil or actionKey == "" then
             return nil
         end
-
-        local dataSet = _DataService:GetTable("skillConfig")
-        if dataSet == nil then
-            log_warning("[BattleSystem] FindSkillConfigRow failed: skillConfig table missing.")
+        if self.skillConfigRowCache == nil then
             return nil
         end
+        return self.skillConfigRowCache[actionKey]
+    end
 
-        local row = dataSet:FindRow("skillKey", actionKey)
-        if row ~= nil then
-            return row
+    @ExecSpace("ServerOnly")
+    method void RebuildPartySkillConfigCache()
+        -- Loads every unique skill owned by the current battle roster exactly once per roster change.
+        self.skillConfigRowCache = {}
+        local dataSet = _DataService:GetTable("skillConfig")
+        if dataSet == nil then
+            log_warning("[BattleSystem] RebuildPartySkillConfigCache failed: skillConfig table missing.")
+            return
         end
 
-        local camelActionKey = string.lower(string.sub(actionKey, 1, 1)) .. string.sub(actionKey, 2)
-        row = dataSet:FindRow("skillKey", camelActionKey)
-        if row ~= nil then
-            return row
+        local cachedCount = 0
+        for _, actorId in ipairs(self.activeActorIds or {}) do
+            local actorEntry = self.actorMap[actorId]
+            if actorEntry ~= nil then
+                for _, skillKeyValue in ipairs(actorEntry.skillKeys or {}) do
+                    local skillKey = tostring(skillKeyValue)
+                    if skillKey ~= "" and self.skillConfigRowCache[skillKey] == nil then
+                        local row = dataSet:FindRow("skillKey", skillKey)
+                        if row ~= nil then
+                            self.skillConfigRowCache[skillKey] = row
+                            cachedCount = cachedCount + 1
+                        else
+                            log_warning("[BattleSystem] RebuildPartySkillConfigCache row missing. key=" .. skillKey)
+                        end
+                    end
+                end
+            end
         end
+        log("[BattleSystem] RebuildPartySkillConfigCache count=" .. tostring(cachedCount))
+    end
 
-        return dataSet:FindRow("skillKey", string.lower(actionKey))
+    @ExecSpace("ServerOnly")
+    method void UpdateActorSkillKeys(string actorId, table skillKeys)
+        -- Keeps an active session cache current when a party member learns or replaces a skill.
+        if self.actorMap == nil or self.actorMap[actorId] == nil then
+            return
+        end
+        self.actorMap[actorId].skillKeys = skillKeys or {}
+        self:RebuildPartySkillConfigCache()
+        if actorId == self.currentActorId then
+            self:PublishCurrentActorSkills(actorId)
+        end
+        log("[BattleSystem] UpdateActorSkillKeys actor=" .. tostring(actorId))
     end
 
     @ExecSpace("ServerOnly")
@@ -1064,6 +1096,7 @@ script BattleSystem extends Component
         self.startPayload = nil
         self.activeActorIds = nil
         self.actorMap = nil
+        self.skillConfigRowCache = nil
         self.presentationSequence = 0
         self.pendingPresentationId = 0
         self.presentationTimeoutRemaining = 0

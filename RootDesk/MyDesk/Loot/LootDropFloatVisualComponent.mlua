@@ -1,0 +1,81 @@
+@Component
+script LootDropFloatVisualComponent extends Component
+
+    property number floatAmplitude = 0.08
+    property number floatFrequency = 0.7
+    property number elapsed = 0
+    property number ageSeconds = 0
+    property number stableSeconds = 0
+    property number landingStableSeconds = 0.15
+    property number minimumLandingCheckSeconds = 0.35
+    property number landingDeltaEpsilon = 0.002
+    property number previousWorldY = 0
+    property boolean hasLanded = false
+    property Vector3 baseLocalPosition = Vector3(0, 0, 0)
+    property Entity visualEntity = nil
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        self.visualEntity = self.Entity:GetChildByName("Visual", false)
+        if isvalid(self.visualEntity) == false or self.visualEntity.TransformComponent == nil then
+            log_warning("[LootDropFloatVisualComponent] Visual child missing.")
+            return
+        end
+        self.baseLocalPosition = self.visualEntity.TransformComponent.Position
+        self.elapsed = 0
+        self.ageSeconds = 0
+        self.stableSeconds = 0
+        self.previousWorldY = self.Entity.TransformComponent.WorldPosition.y
+        self.hasLanded = false
+        log("[LootDropFloatVisualComponent] OnBeginPlay. entity=" .. tostring(self.Entity.Name))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnUpdate(number delta)
+        if isvalid(self.visualEntity) == false or self.visualEntity.TransformComponent == nil then
+            return
+        end
+
+        if self.hasLanded == false then
+            self.visualEntity.TransformComponent.Position = self.baseLocalPosition
+            self.ageSeconds = self.ageSeconds + delta
+            local currentWorldY = self.Entity.TransformComponent.WorldPosition.y
+            local deltaY = math.abs(currentWorldY - self.previousWorldY)
+            self.previousWorldY = currentWorldY
+
+            if self.ageSeconds < self.minimumLandingCheckSeconds then
+                self.stableSeconds = 0
+                return
+            end
+            if deltaY <= self.landingDeltaEpsilon then
+                self.stableSeconds = self.stableSeconds + delta
+            else
+                self.stableSeconds = 0
+            end
+            if self.stableSeconds < self.landingStableSeconds then
+                return
+            end
+
+            self.hasLanded = true
+            self.elapsed = 0
+            log("[LootDropFloatVisualComponent] Client float started. entity=" .. tostring(self.Entity.Name))
+        end
+
+        self.elapsed = self.elapsed + delta
+        local radians = self.elapsed * math.pi * 2 * self.floatFrequency
+        local offsetY = math.sin(radians) * self.floatAmplitude
+        self.visualEntity.TransformComponent.Position = Vector3(
+            self.baseLocalPosition.x,
+            self.baseLocalPosition.y + offsetY,
+            self.baseLocalPosition.z
+        )
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnEndPlay()
+        if isvalid(self.visualEntity) and self.visualEntity.TransformComponent ~= nil then
+            self.visualEntity.TransformComponent.Position = self.baseLocalPosition
+        end
+    end
+
+end

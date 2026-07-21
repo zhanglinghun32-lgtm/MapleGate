@@ -9,7 +9,7 @@ script BattleFlowLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method boolean StartFieldBattle(Entity playerEntity, Entity targetEntity, string actionKey)
-        -- Called only from a confirmed world-field AttackComponent hit.
+        -- Temporary compatibility adapter for confirmed field hits.
         if isvalid(playerEntity) == false or isvalid(targetEntity) == false then
             log_warning("[BattleFlowLogic] StartFieldBattle failed: player or target is invalid.")
             return false
@@ -20,106 +20,220 @@ script BattleFlowLogic extends Logic
             return false
         end
 
-        local mapEntity = playerEntity.CurrentMap
-        if isvalid(mapEntity) == false or targetEntity.CurrentMap ~= mapEntity then
-            log_warning("[BattleFlowLogic] StartFieldBattle failed: entities are not on the same map.")
-            return false
-        end
-
         local playerComponent = playerEntity.PlayerComponent
         if playerComponent == nil or playerComponent.UserId == nil or playerComponent.UserId == "" then
             log_warning("[BattleFlowLogic] StartFieldBattle failed: player UserId is empty.")
             return false
         end
 
-        local playerUserId = playerComponent.UserId
-        if self.activeFieldBattlesByUser[playerUserId] ~= nil then
-            log_warning("[BattleFlowLogic] StartFieldBattle ignored: battle already active. userId=" .. playerUserId)
+        return self:RequestStartBattle({
+            triggerType = "PlayerAttack",
+            playerUserId = playerComponent.UserId,
+            sponsorEntityId = playerEntity.Id,
+            playerRefs = { playerEntity },
+            enemyRefs = { targetEntity },
+            allyRefs = {},
+            sceneKey = "World",
+            encounterKey = targetEntity.Name,
+            battleRuleKey = "FieldEncounter",
+            canEscape = true,
+            openingActionKey = actionKey
+        })
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean RequestStartBattle(table request)
+        if request == nil then
+            log_warning("[BattleFlowLogic] RequestStartBattle failed: request is nil.")
             return false
         end
 
-        local playerActor = playerEntity:GetComponent("script.BattleActorCom")
-        local targetActor = targetEntity:GetComponent("script.BattleActorCom")
-        if playerActor == nil or targetActor == nil then
-            log_warning("[BattleFlowLogic] StartFieldBattle failed: BattleActorCom missing.")
+        local playerUserId = _DataUtil:GetTableString(request, "playerUserId", "")
+        local sponsorEntityId = _DataUtil:GetTableString(request, "sponsorEntityId", "")
+        local sponsorEntity = _EntityService:GetEntity(sponsorEntityId)
+        if playerUserId == "" or isvalid(sponsorEntity) == false then
+            log_warning("[BattleFlowLogic] RequestStartBattle failed: player or sponsor is invalid.")
+            return false
+        end
+
+        local mapEntity = sponsorEntity.CurrentMap
+        if isvalid(mapEntity) == false then
+            log_warning("[BattleFlowLogic] RequestStartBattle failed: sponsor map is invalid. userId=" .. playerUserId)
+            return false
+        end
+
+        if self:GetActiveBattleEntity(playerUserId) ~= nil or self.activeFieldBattlesByUser[playerUserId] ~= nil then
+            log_warning("[BattleFlowLogic] RequestStartBattle ignored: battle already active. userId=" .. playerUserId)
+            return false
+        end
+
+        local playerParty = self:BuildPlayerParty(request, sponsorEntity, mapEntity)
+        local enemyParty = self:BuildEnemyParty(request, mapEntity)
+        local allyParty = self:BuildAllyParty(request, mapEntity)
+        if #playerParty == 0 or #enemyParty == 0 then
+            log_warning("[BattleFlowLogic] RequestStartBattle failed: player or enemy roster is empty.")
             return false
         end
 
         local sequence = tostring(math.floor(_UtilLogic.ElapsedSeconds * 1000))
-        local battleId = "Field_" .. playerUserId .. "_" .. sequence
-        self.activeFieldBattlesByUser[playerUserId] = battleId
+        local battleId = _DataUtil:GetTableString(request, "battleId", "")
+        if battleId == "" then
+            battleId = "Field_" .. playerUserId .. "_" .. sequence
+        end
+
+        local payload = {
+            battleId = battleId,
+            triggerType = _DataUtil:GetTableString(request, "triggerType", ""),
+            playerUserId = playerUserId,
+            sponsorEntityId = sponsorEntity.Id,
+            sceneKey = _DataUtil:GetTableString(request, "sceneKey", "World"),
+            mapName = mapEntity.Name,
+            encounterKey = _DataUtil:GetTableString(request, "encounterKey", ""),
+            rewardKey = _DataUtil:GetTableString(request, "rewardKey", ""),
+            battleRuleKey = _DataUtil:GetTableString(request, "battleRuleKey", "FieldEncounter"),
+            canEscape = request.canEscape ~= false,
+            maxTurnCount = tonumber(request.maxTurnCount) or 0,
+            openingActionKey = _DataUtil:GetTableString(request, "openingActionKey", ""),
+            sourceKey = _DataUtil:GetTableString(request, "sourceKey", ""),
+            dialogueKey = _DataUtil:GetTableString(request, "dialogueKey", ""),
+            playerParty = playerParty,
+            enemyParty = enemyParty,
+            allyParty = allyParty,
+            environment = self:BuildEnvironmentFromMap(mapEntity)
+        }
 
         local battleEntity = _SpawnService:SpawnByModelId(
             "battlesystem",
-            "FieldBattleSession_" .. sequence,
+            "BattleSession_" .. sequence,
             Vector3(0, 0, 0),
             mapEntity
         )
         if isvalid(battleEntity) == false then
-            self.activeFieldBattlesByUser[playerUserId] = nil
-            log_warning("[BattleFlowLogic] StartFieldBattle failed: BattleSystem spawn returned invalid entity.")
+            log_warning("[BattleFlowLogic] RequestStartBattle failed: BattleSystem spawn returned invalid entity.")
             return false
         end
 
-        local playerPosition = playerEntity.TransformComponent.WorldPosition
-        local targetPosition = targetEntity.TransformComponent.WorldPosition
-        local playerActorId = "Player_" .. playerUserId
-        local targetActorId = targetEntity.Id
-        local playerActorEntry = self:BuildFieldActorEntry(playerActorId, _BattleKeys.actorTypePlayer, playerEntity, playerActor, playerPosition)
-        playerActorEntry.skillKeys = _SkillLogic:GetLearnedSkillKeys(playerUserId)
-        local targetActorEntry = self:BuildFieldActorEntry(targetActorId, _BattleKeys.actorTypeMonster, targetEntity, targetActor, targetPosition)
-        targetActorEntry.skillKeys = { "normalAttack" }
-        local payload = {
-            battleId = battleId,
-            sceneKey = "World",
-            mapName = mapEntity.Name,
-            sponsorEntityId = playerEntity.Id,
-            playerUserId = playerUserId,
-            encounterKey = targetEntity.Name,
-            rewardKey = "",
-            battleRuleKey = "FieldEncounter",
-            canEscape = true,
-            maxTurnCount = 0,
-            openingActionKey = actionKey,
-            playerParty = {
-                playerActorEntry
-            },
-            enemyParty = {
-                targetActorEntry
-            }
-        }
-
-        log("[BattleFlowLogic] StartFieldBattle hit confirmed. battleId=" .. battleId
-            .. ", action=" .. actionKey .. ", target=" .. tostring(targetEntity.Name))
+        self.activeFieldBattlesByUser[playerUserId] = battleId
         local started = self:StartBattle(payload, battleEntity)
         if started == false then
             self.activeFieldBattlesByUser[playerUserId] = nil
+            _EntityService:Destroy(battleEntity)
+            return false
         end
-        return started
+
+        log("[BattleFlowLogic] RequestStartBattle started. battleId=" .. battleId
+            .. ", trigger=" .. tostring(payload.triggerType)
+            .. ", players=" .. tostring(#playerParty)
+            .. ", enemies=" .. tostring(#enemyParty)
+            .. ", allies=" .. tostring(#allyParty))
+        return true
     end
 
     @ExecSpace("ServerOnly")
-    method table BuildFieldActorEntry(string actorId, string actorType, Entity entity, any battleActor, Vector3 position)
-        -- LEGACY: copies live BattleActorCom resources into the payload table.
-        -- Target roster entry: ActorId, EntityId, ActorType, TeamId, ControlMode (+ optional ConfigId/SlotIndex).
-        -- UI and settlement must read hp/maxHp from BattleActorCom on the entity, not from this copy.
+    method table BuildPlayerParty(table request, Entity sponsorEntity, Entity mapEntity)
+        local refs = request.playerRefs
+        if refs == nil or #refs == 0 then
+            refs = { sponsorEntity }
+        end
+        return self:BuildRoster(refs, _BattleKeys.actorTypePlayer, "Player", "Player", mapEntity)
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildEnemyParty(table request, Entity mapEntity)
+        return self:BuildRoster(request.enemyRefs, _BattleKeys.actorTypeMonster, "Enemy", "AI", mapEntity)
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildAllyParty(table request, Entity mapEntity)
+        return self:BuildRoster(request.allyRefs, _BattleKeys.actorTypeCompanion, "Ally", "AI", mapEntity)
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildRoster(any entityRefs, string defaultActorType, string teamId, string controlMode, Entity mapEntity)
+        local roster = {}
+        local seenEntityIds = {}
+        if entityRefs == nil then
+            return roster
+        end
+
+        for _, entityRef in ipairs(entityRefs) do
+            local entity = self:ResolveEntityRef(entityRef)
+            if isvalid(entity) and entity.CurrentMap == mapEntity and seenEntityIds[entity.Id] ~= true then
+                local actor = entity:GetComponent("script.BattleActorCom")
+                if actor ~= nil then
+                    table.insert(roster, self:BuildActorEntry(entity, actor, defaultActorType, teamId, controlMode, #roster + 1))
+                    seenEntityIds[entity.Id] = true
+                else
+                    log_warning("[BattleFlowLogic] BuildRoster skipped entity without BattleActorCom. entityId=" .. tostring(entity.Id))
+                end
+            end
+        end
+        return roster
+    end
+
+    @ExecSpace("ServerOnly")
+    method Entity ResolveEntityRef(any entityRef)
+        if entityRef == nil or entityRef == "" then
+            return nil
+        end
+        if type(entityRef) == "string" then
+            return _EntityService:GetEntity(entityRef)
+        end
+        if isvalid(entityRef) then
+            return entityRef
+        end
+        return nil
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildActorEntry(Entity entity, any battleActor, string actorType, string teamId, string controlMode, integer slotIndex)
         return {
-            actorId = actorId,
-            actorType = actorType,
+            actorId = entity.Id,
             entityId = entity.Id,
+            actorType = actorType,
+            teamId = teamId,
+            controlMode = controlMode,
             configId = battleActor.configId,
-            level = battleActor.level,
-            hp = battleActor.hp,
-            maxHp = battleActor.maxHp,
-            mp = battleActor.mp,
-            maxMp = battleActor.maxMp,
-            stamina = battleActor.stamina,
-            maxStamina = battleActor.maxStamina,
-            totalAttack = battleActor.totalAttack,
-            totalDefense = battleActor.totalDefense,
-            speed = battleActor.speed,
-            x = position.x,
-            y = position.y
+            slotIndex = slotIndex,
+            canBetray = false,
+            skillKeys = self:GetActorSkillKeys(entity, battleActor)
+        }
+    end
+
+    @ExecSpace("ServerOnly")
+    method table GetActorSkillKeys(Entity entity, any battleActor)
+        -- Player-owned learned skills take priority; other party members use actorConfig defaults.
+        if isvalid(entity) and entity.PlayerComponent ~= nil then
+            local userId = tostring(entity.PlayerComponent.UserId)
+            if userId ~= "" and userId ~= "nil" then
+                return _SkillLogic:GetLearnedSkillKeys(userId)
+            end
+        end
+
+        local skillKeys = {}
+        local actorConfig = _DataService:GetTable("actorConfig")
+        if actorConfig == nil or battleActor == nil then
+            return skillKeys
+        end
+        local actorRow = actorConfig:FindRow("actorKey", tostring(battleActor.configId))
+        if actorRow == nil then
+            return skillKeys
+        end
+        local naturalSkillKeys = _DataUtil:GetRowString(actorRow, "naturalSkillKeys", "")
+        for skillKey in string.gmatch(naturalSkillKeys, "[^|]+") do
+            table.insert(skillKeys, skillKey)
+        end
+        return skillKeys
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildEnvironmentFromMap(Entity mapEntity)
+        -- Map-specific environment providers can extend this roster metadata later.
+        return {
+            weatherKey = "",
+            terrainKey = "",
+            terrainCells = {},
+            mapObjects = {}
         }
     end
 
@@ -216,6 +330,20 @@ script BattleFlowLogic extends Logic
         end
         self.activeBattleEntitiesByUser[userId] = nil
         return nil
+    end
+
+    @ExecSpace("ServerOnly")
+    method void RefreshActiveBattleSkillCache(string userId, table skillKeys)
+        -- Propagates a live learned-skill change into the current battle session cache.
+        local battleEntity = self:GetActiveBattleEntity(userId)
+        local userEntity = _UserService:GetUserEntityByUserId(userId)
+        if isvalid(battleEntity) == false or isvalid(userEntity) == false then
+            return
+        end
+        local battleSystem = battleEntity:GetComponent("script.BattleSystem")
+        if battleSystem ~= nil then
+            battleSystem:UpdateActorSkillKeys(userEntity.Id, skillKeys)
+        end
     end
 
     @ExecSpace("ServerOnly")

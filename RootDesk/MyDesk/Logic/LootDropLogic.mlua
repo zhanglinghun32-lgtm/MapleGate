@@ -71,8 +71,9 @@ script LootDropLogic extends Logic
             return nil
         end
 
-        if dropEntity.SpriteRendererComponent ~= nil then
-            dropEntity.SpriteRendererComponent.SpriteRUID = self.sapphireSpriteRuid
+        local visualEntity = dropEntity:GetChildByName("Visual", false)
+        if isvalid(visualEntity) and visualEntity.SpriteRendererComponent ~= nil then
+            visualEntity.SpriteRendererComponent.SpriteRUID = self.sapphireSpriteRuid
         end
         dropEntity:AddComponent("LootDropComponent")
         local lootDrop = dropEntity:GetComponent("script.LootDropComponent")

@@ -155,7 +155,9 @@ script SkillLogic extends Logic
         local skillData = self:ExportUserData(userId)
         skillData.Learned[#skillData.Learned + 1] = self:CreateSkillEntry(skillKey, level)
         _PlayerDataLogic:MarkDirty(userId)
-        self:SyncLearnedSkillsClient(self:GetLearnedSkillKeys(userId), userId)
+        local learnedSkillKeys = self:GetLearnedSkillKeys(userId)
+        self:SyncLearnedSkillsClient(learnedSkillKeys, userId)
+        _BattleFlowLogic:RefreshActiveBattleSkillCache(userId, learnedSkillKeys)
         log("[SkillLogic] LearnSkill. userId=" .. userId .. ", skillKey=" .. skillKey)
         return true
     end

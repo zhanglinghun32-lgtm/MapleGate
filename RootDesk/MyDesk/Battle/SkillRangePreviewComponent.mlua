@@ -1,0 +1,87 @@
+@Component
+@ExecSpace("ClientOnly")
+script SkillRangePreviewComponent extends Component
+
+    property integer circleSegments = 36
+    property Color previewColor = Color(1, 1, 1, 0.28)
+
+    method void OnBeginPlay()
+        self:Hide()
+        log("[SkillRangePreviewComponent] OnBeginPlay.")
+    end
+
+    method boolean Show(string shape, number radius, number width, number height, number directionX)
+        local renderer = self.Entity.PolygonRendererComponent
+        if renderer == nil then return false end
+        local points = self:BuildPoints(shape, radius, width, height, directionX)
+        if points == nil or #points < 3 then self:Hide() return false end
+        renderer.Points:Clear()
+        for _, point in ipairs(points) do renderer.Points:Add(point) end
+        renderer.Color = self.previewColor
+        renderer.IgnoreMapLayerCheck = true
+        renderer.SortingLayer = "Default"
+        renderer.OrderInLayer = -100
+        self.Entity.Enable = true
+        return renderer:IsDrawable()
+    end
+
+    method void Hide()
+        self.Entity.Enable = false
+    end
+
+    method table BuildPoints(string shape, number radius, number width, number height, number directionX)
+        local normalizedShape = string.lower(tostring(shape or ""))
+        if normalizedShape == "0" or normalizedShape == "circle" or normalizedShape == "cicle" or normalizedShape == "circular" then
+            return self:BuildCircle(radius)
+        end
+        if normalizedShape == "1" or normalizedShape == "box" or normalizedShape == "rect" or normalizedShape == "rectangle" then
+            if width <= 0 then width = radius * 2 end
+            if height <= 0 then height = radius * 2 end
+            return self:BuildRectangle(width, height)
+        end
+        if normalizedShape == "2" or normalizedShape == "cone" or normalizedShape == "sector" or normalizedShape == "fan" then
+            if height <= 0 then height = radius end
+            if width <= 0 then width = radius * 2 end
+            return self:BuildCone(height, width, directionX)
+        end
+        if normalizedShape == "3" or normalizedShape == "projectile" or normalizedShape == "trajectory" or normalizedShape == "special" then
+            if height <= 0 then height = radius end
+            if width <= 0 then width = 0.35 end
+            return self:BuildForwardRectangle(height, width, directionX)
+        end
+        return nil
+    end
+
+    method table BuildCircle(number radius)
+        if radius <= 0 then return nil end
+        local points = {}
+        local segments = math.max(12, self.circleSegments)
+        for segmentIndex = 0, segments - 1 do
+            local radians = math.pi * 2 * segmentIndex / segments
+            table.insert(points, Vector2(math.cos(radians) * radius, math.sin(radians) * radius))
+        end
+        return points
+    end
+
+    method table BuildRectangle(number width, number height)
+        if width <= 0 or height <= 0 then return nil end
+        local halfWidth = width / 2
+        local halfHeight = height / 2
+        return { Vector2(-halfWidth, -halfHeight), Vector2(-halfWidth, halfHeight), Vector2(halfWidth, halfHeight), Vector2(halfWidth, -halfHeight) }
+    end
+
+    method table BuildCone(number length, number width, number directionX)
+        if length <= 0 or width <= 0 then return nil end
+        local forwardX = (directionX >= 0 and 1 or -1) * length
+        local halfWidth = width / 2
+        return { Vector2(0, 0), Vector2(forwardX, halfWidth), Vector2(forwardX, -halfWidth) }
+    end
+
+    method table BuildForwardRectangle(number length, number width, number directionX)
+        if length <= 0 or width <= 0 then return nil end
+        local forwardX = (directionX >= 0 and 1 or -1) * length
+        local halfWidth = width / 2
+        return { Vector2(0, -halfWidth), Vector2(0, halfWidth), Vector2(forwardX, halfWidth), Vector2(forwardX, -halfWidth) }
+    end
+
+end

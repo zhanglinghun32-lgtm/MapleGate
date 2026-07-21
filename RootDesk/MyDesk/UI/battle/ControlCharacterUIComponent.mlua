@@ -12,25 +12,31 @@ script ControlCharacterUIComponent extends Component
     property string battleCurrentActorId = ""
     property string selectedSkillKey = ""
     property any selectedSponsorActorData = nil
+    property table selectedSkillActionContext = {}
+    property boolean selectedSkillCanCast = false
+    property string selectedSkillBlockedReason = "NoSkillSelected"
     property Entity controlledActorEntity = nil
     property string displayedActorId = ""
     property table currentActorSkillKeys = {}
+    property table skillConfigCache = {}
 
     property any battleSystem = nil
 
     property Entity skillGrid = "752d0ebe-20fa-4ca1-af7a-ef6096e20b26"
     property Entity skillDescriptionPopupEntity = "f2aa244a-ba2d-4da6-872c-c7515931aa49"
     property Entity skillSelectionOverlay = "477eb56e-1b26-49e8-ab97-0d333b35bbe7"
-    property Entity skillRangePreviewEntity = "dca903f9-3414-4f18-92a6-89c3b165a5c3"
+    property Entity skillRangePreviewEntity = nil
     property number selectionOverlayOffsetX = 10
-    property integer rangePreviewCircleSegments = 36
-    property number rangePreviewMinimumPixels = 8
+    property string skillRangePreviewModelId = "skillrangepreview"
     property Entity confirmSkillButtonEntity = "d495af5d-037c-4b1d-bd0a-a5d39bfb8595"
+    property Entity confirmSkillAvailableImageEntity = "45a23ae7-d6ea-4f70-8f67-a70b82e5db05"
+    property Entity cancelSkillSelectionButtonEntity = "dfb8b3a9-665e-46b2-b18f-f4bc9c546bdb"
     property Entity skillSelectUI = "36672110-1de8-4658-9db5-f8b45b6e2046"
     property Entity toggleButtonEntity = "4914d5bf-c2db-468b-8fb4-b8e34d825ba4"
     property boolean controlsVisible = true
     property any toggleButtonHandler = nil
     property any confirmSkillButtonHandler = nil
+    property any cancelSkillSelectionButtonHandler = nil
 
     property table skillSlotButtons = {}
     property table skillSlotClickHandlers = {}
@@ -50,6 +56,7 @@ script ControlCharacterUIComponent extends Component
         self:BindButtons()
         self:BindToggleButton()
         self:BindConfirmSkillButton()
+        self:BindCancelSkillSelectionButton()
         self:SetControlsVisible(true)
         self:HideSkillRangePreview()
     end
@@ -59,14 +66,10 @@ script ControlCharacterUIComponent extends Component
         self:UnbindButtons()
         self:UnbindToggleButton()
         self:UnbindConfirmSkillButton()
+        self:UnbindCancelSkillSelectionButton()
         self:DetachBattleSession()
-        self:HideSkillRangePreview()
+        self:ReleaseSkillRangePreview()
         log("[ControlCharacterUIComponent] OnEndPlay.")
-    end
-
-    method void OnUpdate(number delta)
-        -- Keeps the selected skill range preview attached to the controlled actor while the actor moves.
-        self:UpdateSkillRangePreviewPosition()
     end
 
     method void ShowControls()
@@ -124,6 +127,36 @@ script ControlCharacterUIComponent extends Component
         end
         self.confirmSkillButtonEntity:DisconnectEvent(ButtonClickEvent, self.confirmSkillButtonHandler)
         self.confirmSkillButtonHandler = nil
+    end
+
+    method void BindCancelSkillSelectionButton()
+        if isvalid(self.cancelSkillSelectionButtonEntity) == false
+            or self.cancelSkillSelectionButtonEntity.ButtonComponent == nil then
+            log_warning("[ControlCharacterUIComponent] Cancel skill selection button is missing.")
+            return
+        end
+        self.cancelSkillSelectionButtonHandler = self.cancelSkillSelectionButtonEntity:ConnectEvent(
+            ButtonClickEvent,
+            self.OnCancelSkillSelectionClicked
+        )
+        self.cancelSkillSelectionButtonEntity.Enable = false
+    end
+
+    method void UnbindCancelSkillSelectionButton()
+        if isvalid(self.cancelSkillSelectionButtonEntity) == false
+            or self.cancelSkillSelectionButtonHandler == nil then
+            return
+        end
+        self.cancelSkillSelectionButtonEntity:DisconnectEvent(
+            ButtonClickEvent,
+            self.cancelSkillSelectionButtonHandler
+        )
+        self.cancelSkillSelectionButtonHandler = nil
+    end
+
+    method void OnCancelSkillSelectionClicked(ButtonClickEvent event)
+        log("[ControlCharacterUIComponent] Cancel skill selection clicked. skill=" .. tostring(self.selectedSkillKey))
+        self:ClearSkillSelection()
     end
 
     method void AttachBattleSession(Entity battleEntity)
@@ -219,6 +252,9 @@ script ControlCharacterUIComponent extends Component
 
     method void SetControlledActorSkills(Entity actorEntity, string actorId, table skillKeys)
         -- Skill browsing follows the locally controlled character, independent of battle actorMap.
+        if isvalid(self.controlledActorEntity) and self.controlledActorEntity ~= actorEntity then
+            self:ReleaseSkillRangePreview()
+        end
         if isvalid(actorEntity) then
             self.controlledActorEntity = actorEntity
         else
@@ -234,6 +270,7 @@ script ControlCharacterUIComponent extends Component
                 end
             end
         end
+        self:RebuildSkillConfigCache(self.currentActorSkillKeys)
         self:RefreshSkillSlotsFromCurrentActor()
         log("[ControlCharacterUIComponent] SetControlledActorSkills actor=" .. self.displayedActorId .. ", count=" .. tostring(#self.currentActorSkillKeys))
     end
@@ -261,14 +298,9 @@ script ControlCharacterUIComponent extends Component
             return
         end
 
-        local skillDataSet = _DataService:GetTable("skillConfig")
-        if skillDataSet == nil then
-            log_warning("[ControlCharacterUIComponent] RefreshSkillSlotVisual failed: skillConfig missing.")
-            return
-        end
-        local skillRow = skillDataSet:FindRow("skillKey", skillKey)
+        local skillRow = self.skillConfigCache[skillKey]
         if skillRow == nil then
-            log_warning("[ControlCharacterUIComponent] RefreshSkillSlotVisual failed: skill row missing. key=" .. skillKey)
+            log_warning("[ControlCharacterUIComponent] RefreshSkillSlotVisual failed: cached skill row missing. key=" .. skillKey)
             return
         end
 
@@ -498,9 +530,18 @@ script ControlCharacterUIComponent extends Component
 
         self.selectedSkillKey = skillKey
         self.selectedSponsorActorData = sponsorActorData
+        self.selectedSkillActionContext = {
+            TargetIds = {},
+            TargetPoint = nil,
+            HasTargetPoint = false
+        }
+        if isvalid(self.cancelSkillSelectionButtonEntity) then
+            self.cancelSkillSelectionButtonEntity.Enable = true
+        end
         self:ShowSelectionForSlot(slotEntity)
-        self:ShowSkillRangePreview(skillKey)
+        -- Update the cast button before range polygon generation so selection feedback is immediate.
         self:RefreshConfirmSkillButton()
+        self:ShowSkillRangePreview(skillKey)
 
         log("[ControlCharacterUIComponent] SelectSkill key=" .. skillKey .. ", sponsor=" .. self.displayedActorId)
     end
@@ -533,90 +574,61 @@ script ControlCharacterUIComponent extends Component
     end
 
     method void ShowSkillRangePreview(string skillKey)
-        -- Draws the selected skill's default range before the confirm button is pressed.
-        if isvalid(self.skillRangePreviewEntity) == false then
-            log_warning("[ControlCharacterUIComponent] SkillRangePreview entity is missing.")
-            return
-        end
-
+        -- Draws a world-space polygon on an Entity parented directly under the controlled actor.
         local rangeConfig = self:GetSkillRangePreviewConfig(skillKey)
         if rangeConfig == nil then
             self:HideSkillRangePreview()
             return
         end
-
-        local centerPoint = self:GetRangePreviewWorldCenter()
-        if centerPoint == nil then
-            self:HideSkillRangePreview()
-            log_warning("[ControlCharacterUIComponent] Skill range preview skipped: center point missing.")
-            return
-        end
-
-        local centerUiPoint = self:WorldToUIPosition(centerPoint)
-        local scaleX = self:GetWorldToUIPixelScaleX(centerPoint)
-        local scaleY = self:GetWorldToUIPixelScaleY(centerPoint)
-        local shape = self:NormalizeRangeShape(rangeConfig.Shape)
-        local points = self:BuildRangePreviewPoints(shape, rangeConfig, scaleX, scaleY)
-        if points == nil or #points < 3 then
-            self:HideSkillRangePreview()
-            log("[ControlCharacterUIComponent] Skill range preview hidden: no drawable range. key=" .. tostring(skillKey) .. ", shape=" .. tostring(rangeConfig.Shape))
-            return
-        end
-
-        local previewTransform = self.skillRangePreviewEntity.UITransformComponent
-        local previewPolygon = self.skillRangePreviewEntity.PolygonGUIRendererComponent
-        if previewTransform == nil or previewPolygon == nil then
-            self:HideSkillRangePreview()
-            log_warning("[ControlCharacterUIComponent] SkillRangePreview components missing.")
-            return
-        end
-
-        previewTransform.anchoredPosition = centerUiPoint
-        self:ApplyRangePreviewPoints(previewPolygon, points)
-        previewPolygon.Color = Color(1, 1, 1, 0.28)
-        self.skillRangePreviewEntity.Enable = true
-        log("[ControlCharacterUIComponent] Skill range preview shown. key=" .. tostring(skillKey)
-            .. ", shape=" .. tostring(rangeConfig.Shape)
-            .. ", pointCount=" .. tostring(#points))
+        local preview = self:EnsureSkillRangePreview()
+        if preview == nil then return end
+        preview:Show(rangeConfig.Shape, rangeConfig.Radius, rangeConfig.Width, rangeConfig.Height, self:GetPreviewDirectionX())
+        log("[ControlCharacterUIComponent] World skill range preview shown. key=" .. tostring(skillKey))
     end
 
     method void HideSkillRangePreview()
         -- Hides the world-space attack range preview polygon.
         if isvalid(self.skillRangePreviewEntity) then
-            self.skillRangePreviewEntity.Enable = false
+            local preview = self.skillRangePreviewEntity:GetComponent("script.SkillRangePreviewComponent")
+            if preview ~= nil then preview:Hide() end
         end
     end
 
-    method void UpdateSkillRangePreviewPosition()
-        -- Repositions the active range preview without rebuilding its polygon vertices.
-        if self.selectedSkillKey == nil or self.selectedSkillKey == "" then
-            return
+    method any EnsureSkillRangePreview()
+        local actorEntity = self.controlledActorEntity
+        if isvalid(actorEntity) == false then
+            actorEntity = _UserService.LocalPlayer
+            self.controlledActorEntity = actorEntity
         end
-        if isvalid(self.skillRangePreviewEntity) == false or self.skillRangePreviewEntity.Enable == false then
-            return
+        if isvalid(actorEntity) == false or actorEntity.TransformComponent == nil then return nil end
+
+        if isvalid(self.skillRangePreviewEntity) then
+            if self.skillRangePreviewEntity.Parent == actorEntity then
+                return self.skillRangePreviewEntity:GetComponent("script.SkillRangePreviewComponent")
+            end
+            self:ReleaseSkillRangePreview()
         end
 
-        local centerPoint = self:GetRangePreviewWorldCenter()
-        if centerPoint == nil then
-            self:HideSkillRangePreview()
-            return
+        self.skillRangePreviewEntity = _SpawnService:SpawnByModelId(
+            self.skillRangePreviewModelId,
+            "SkillRangePreview",
+            actorEntity.TransformComponent.WorldPosition,
+            actorEntity
+        )
+        if isvalid(self.skillRangePreviewEntity) == false then
+            log_warning("[ControlCharacterUIComponent] EnsureSkillRangePreview spawn failed.")
+            return nil
         end
-
-        local previewTransform = self.skillRangePreviewEntity.UITransformComponent
-        if previewTransform == nil then
-            self:HideSkillRangePreview()
-            return
-        end
-
-        previewTransform.anchoredPosition = self:WorldToUIPosition(centerPoint)
+        self.skillRangePreviewEntity.TransformComponent.Position = Vector3(0, 0, 0)
+        log("[ControlCharacterUIComponent] SkillRangePreview spawned under actor=" .. tostring(actorEntity.Name))
+        return self.skillRangePreviewEntity:GetComponent("script.SkillRangePreviewComponent")
     end
 
-    method void ApplyRangePreviewPoints(PolygonGUIRendererComponent previewPolygon, table points)
-        -- Replaces the polygon SyncList with freshly calculated preview vertices.
-        previewPolygon.Points:Clear()
-        for _, point in ipairs(points) do
-            previewPolygon.Points:Add(point)
+    method void ReleaseSkillRangePreview()
+        if isvalid(self.skillRangePreviewEntity) then
+            _EntityService:Destroy(self.skillRangePreviewEntity)
         end
+        self.skillRangePreviewEntity = nil
     end
 
     method table GetSkillRangePreviewConfig(string skillKey)
@@ -625,15 +637,9 @@ script ControlCharacterUIComponent extends Component
             return nil
         end
 
-        local skillDataSet = _DataService:GetTable("skillConfig")
-        if skillDataSet == nil then
-            log_warning("[ControlCharacterUIComponent] GetSkillRangePreviewConfig failed: skillConfig missing.")
-            return nil
-        end
-
-        local skillRow = skillDataSet:FindRow("skillKey", skillKey)
+        local skillRow = self.skillConfigCache[skillKey]
         if skillRow == nil then
-            log_warning("[ControlCharacterUIComponent] GetSkillRangePreviewConfig failed: skill row missing. key=" .. tostring(skillKey))
+            log_warning("[ControlCharacterUIComponent] GetSkillRangePreviewConfig failed: cached skill row missing. key=" .. tostring(skillKey))
             return nil
         end
 
@@ -645,174 +651,29 @@ script ControlCharacterUIComponent extends Component
         return rangeConfig
     end
 
-    method Vector2 GetRangePreviewWorldCenter()
-        -- Uses the controlled actor as the preview origin, falling back to the local player.
-        local actorEntity = self.controlledActorEntity
-        if isvalid(actorEntity) == false then
-            actorEntity = _UserService.LocalPlayer
-            self.controlledActorEntity = actorEntity
-        end
-        if isvalid(actorEntity) == false or actorEntity.TransformComponent == nil then
-            return nil
+    method void RebuildSkillConfigCache(table skillKeys)
+        -- Reads each owned skill once when the controlled skill list changes.
+        self.skillConfigCache = {}
+        local skillDataSet = _DataService:GetTable("skillConfig")
+        if skillDataSet == nil then
+            log_warning("[ControlCharacterUIComponent] RebuildSkillConfigCache failed: skillConfig missing.")
+            return
         end
 
-        local worldPosition = actorEntity.TransformComponent.WorldPosition
-        return Vector2(worldPosition.x, worldPosition.y)
-    end
-
-    method Vector2 WorldToUIPosition(Vector2 worldPoint)
-        -- Converts a world point into this screen UI's coordinate space.
-        local screenPoint = _UILogic:WorldToScreenPosition(worldPoint)
-        return _UILogic:ScreenToUIPosition(screenPoint)
-    end
-
-    method number GetWorldToUIPixelScaleX(Vector2 worldPoint)
-        -- Measures current camera/UI scale for one world unit on the X axis.
-        local centerPoint = self:WorldToUIPosition(worldPoint)
-        local edgePoint = self:WorldToUIPosition(Vector2(worldPoint.x + 1, worldPoint.y))
-        local scale = math.abs(edgePoint.x - centerPoint.x)
-        if scale < self.rangePreviewMinimumPixels then
-            return 100
-        end
-        return scale
-    end
-
-    method number GetWorldToUIPixelScaleY(Vector2 worldPoint)
-        -- Measures current camera/UI scale for one world unit on the Y axis.
-        local centerPoint = self:WorldToUIPosition(worldPoint)
-        local edgePoint = self:WorldToUIPosition(Vector2(worldPoint.x, worldPoint.y + 1))
-        local scale = math.abs(edgePoint.y - centerPoint.y)
-        if scale < self.rangePreviewMinimumPixels then
-            return 100
-        end
-        return scale
-    end
-
-    method string NormalizeRangeShape(string shape)
-        -- Normalizes targetShape spelling and legacy numeric values from skillConfig.
-        local normalizedShape = string.lower(tostring(shape or ""))
-        if normalizedShape == "0" or normalizedShape == "circle" or normalizedShape == "cicle" or normalizedShape == "circular" then
-            return "circle"
-        end
-        if normalizedShape == "1" or normalizedShape == "box" or normalizedShape == "rect" or normalizedShape == "rectangle" then
-            return "rectangle"
-        end
-        if normalizedShape == "2" or normalizedShape == "cone" or normalizedShape == "sector" or normalizedShape == "fan" then
-            return "cone"
-        end
-        if normalizedShape == "3" or normalizedShape == "projectile" or normalizedShape == "trajectory" or normalizedShape == "special" then
-            return "projectile"
-        end
-        return normalizedShape
-    end
-
-    method table BuildRangePreviewPoints(string shape, table rangeConfig, number scaleX, number scaleY)
-        -- Builds local polygon points in UI pixels for the requested target shape.
-        if shape == "circle" then
-            return self:BuildCirclePreviewPoints(math.max(0, rangeConfig.Radius), scaleX, scaleY)
-        end
-
-        if shape == "rectangle" then
-            local width = rangeConfig.Width
-            local height = rangeConfig.Height
-            if width <= 0 then
-                width = rangeConfig.Radius * 2
+        local cachedCount = 0
+        for _, skillKeyValue in ipairs(skillKeys or {}) do
+            local skillKey = tostring(skillKeyValue)
+            if skillKey ~= "" and self.skillConfigCache[skillKey] == nil then
+                local skillRow = skillDataSet:FindRow("skillKey", skillKey)
+                if skillRow ~= nil then
+                    self.skillConfigCache[skillKey] = skillRow
+                    cachedCount = cachedCount + 1
+                else
+                    log_warning("[ControlCharacterUIComponent] RebuildSkillConfigCache row missing. key=" .. skillKey)
+                end
             end
-            if height <= 0 then
-                height = rangeConfig.Radius * 2
-            end
-            return self:BuildRectanglePreviewPoints(width, height, scaleX, scaleY)
         end
-
-        if shape == "cone" then
-            local length = rangeConfig.Height
-            local width = rangeConfig.Width
-            if length <= 0 then
-                length = rangeConfig.Radius
-            end
-            if width <= 0 then
-                width = math.max(0, rangeConfig.Radius) * 2
-            end
-            return self:BuildConePreviewPoints(length, width, scaleX, scaleY)
-        end
-
-        if shape == "projectile" then
-            local length = rangeConfig.Height
-            local width = rangeConfig.Width
-            if length <= 0 then
-                length = math.max(0, rangeConfig.Radius)
-            end
-            if width <= 0 then
-                width = 0.35
-            end
-            return self:BuildForwardRectanglePreviewPoints(length, width, scaleX, scaleY)
-        end
-
-        return nil
-    end
-
-    method table BuildCirclePreviewPoints(number radius, number scaleX, number scaleY)
-        -- Approximates a circle with a filled polygon.
-        if radius <= 0 then
-            return nil
-        end
-
-        local points = {}
-        local segments = math.max(12, self.rangePreviewCircleSegments)
-        for segmentIndex = 0, segments - 1 do
-            local radians = (math.pi * 2 * segmentIndex) / segments
-            table.insert(points, Vector2(math.cos(radians) * radius * scaleX, math.sin(radians) * radius * scaleY))
-        end
-        return points
-    end
-
-    method table BuildRectanglePreviewPoints(number width, number height, number scaleX, number scaleY)
-        -- Builds a centered rectangle preview.
-        if width <= 0 or height <= 0 then
-            return nil
-        end
-
-        local halfWidth = width * scaleX / 2
-        local halfHeight = height * scaleY / 2
-        return {
-            Vector2(-halfWidth, -halfHeight),
-            Vector2(-halfWidth, halfHeight),
-            Vector2(halfWidth, halfHeight),
-            Vector2(halfWidth, -halfHeight)
-        }
-    end
-
-    method table BuildConePreviewPoints(number length, number width, number scaleX, number scaleY)
-        -- Builds a simple forward-facing cone preview.
-        if length <= 0 or width <= 0 then
-            return nil
-        end
-
-        local directionX = self:GetPreviewDirectionX()
-        local forwardX = directionX * length * scaleX
-        local halfWidth = width * scaleY / 2
-        return {
-            Vector2(0, 0),
-            Vector2(forwardX, halfWidth),
-            Vector2(forwardX, -halfWidth)
-        }
-    end
-
-    method table BuildForwardRectanglePreviewPoints(number length, number width, number scaleX, number scaleY)
-        -- Builds a simple projectile lane preview in the actor's facing direction.
-        if length <= 0 or width <= 0 then
-            return nil
-        end
-
-        local directionX = self:GetPreviewDirectionX()
-        local forwardX = directionX * length * scaleX
-        local halfWidth = width * scaleY / 2
-        return {
-            Vector2(0, -halfWidth),
-            Vector2(0, halfWidth),
-            Vector2(forwardX, halfWidth),
-            Vector2(forwardX, -halfWidth)
-        }
+        log("[ControlCharacterUIComponent] RebuildSkillConfigCache count=" .. tostring(cachedCount))
     end
 
     method number GetPreviewDirectionX()
@@ -831,9 +692,7 @@ script ControlCharacterUIComponent extends Component
     end
 
     method boolean CanConfirmSelectedSkill()
-        -- TODO(SkillConfirmCondition): check cost, cooldown, target rules, and actor state per skill.
-        return self.selectedSkillKey ~= nil and self.selectedSkillKey ~= ""
-            and self.pendingSkillRequestId == 0
+        return self.selectedSkillCanCast == true and self.pendingSkillRequestId == 0
     end
 
     method void RefreshConfirmSkillButton()
@@ -843,9 +702,80 @@ script ControlCharacterUIComponent extends Component
 
         local hasSelection = self.selectedSkillKey ~= nil and self.selectedSkillKey ~= ""
         self.confirmSkillButtonEntity.Enable = hasSelection
-        if hasSelection and self.confirmSkillButtonEntity.ButtonComponent ~= nil then
-            self.confirmSkillButtonEntity.ButtonComponent.Enable = self:CanConfirmSelectedSkill()
+        if hasSelection == false then
+            self.selectedSkillCanCast = false
+            self.selectedSkillBlockedReason = "NoSkillSelected"
+            return
         end
+
+        local previousCanCast = self.selectedSkillCanCast
+        local previousReason = self.selectedSkillBlockedReason
+        local validation = self:EvaluateSelectedSkill()
+        self.selectedSkillCanCast = validation.Success == true
+        self.selectedSkillBlockedReason = tostring(validation.Reason)
+
+        if isvalid(self.confirmSkillAvailableImageEntity) then
+            -- Both RUIDs are fixed in the UI file; runtime only toggles the preloaded available overlay.
+            self.confirmSkillAvailableImageEntity.Enable = self:CanConfirmSelectedSkill()
+        end
+        if self.confirmSkillButtonEntity.ButtonComponent ~= nil then
+            -- Keep the button visually active so the unavailable RUID is not tinted by DisabledColor.
+            -- OnConfirmSkillClicked still blocks dispatch when CanConfirmSelectedSkill is false.
+            self.confirmSkillButtonEntity.ButtonComponent.Enable = true
+        end
+        if previousCanCast ~= self.selectedSkillCanCast or previousReason ~= self.selectedSkillBlockedReason then
+            log("[ControlCharacterUIComponent] Confirm skill state. skill=" .. self.selectedSkillKey
+                .. ", canCast=" .. tostring(self.selectedSkillCanCast)
+                .. ", reason=" .. self.selectedSkillBlockedReason)
+        end
+    end
+
+    method table EvaluateSelectedSkill()
+        local result = { Success = false, Reason = "Unknown" }
+        if self.selectedSkillKey == nil or self.selectedSkillKey == "" then
+            result.Reason = "NoSkillSelected"
+            return result
+        end
+        -- TODO(SkillConfirmCondition): restore client-side resource, target, cooldown,
+        -- actor-state, and battle-turn preview checks after target selection is finalized.
+        -- Server-side SkillLogic / SkillActionLogic validation remains authoritative.
+        result.Success = true
+        result.Reason = ""
+        return result
+    end
+
+    method boolean HasSelectedSkillTarget()
+        if self.selectedSkillActionContext == nil then
+            return false
+        end
+        local targetIds = self.selectedSkillActionContext.TargetIds
+        if targetIds ~= nil and #targetIds > 0 then
+            for _, targetId in ipairs(targetIds) do
+                local targetEntity = _EntityService:GetEntity(tostring(targetId))
+                if isvalid(targetEntity) then
+                    return true
+                end
+            end
+        end
+        return self.selectedSkillActionContext.HasTargetPoint == true
+            and self.selectedSkillActionContext.TargetPoint ~= nil
+    end
+
+    method void SetSelectedSkillTargets(table targetIds)
+        if self.selectedSkillActionContext == nil then
+            self.selectedSkillActionContext = {}
+        end
+        self.selectedSkillActionContext.TargetIds = targetIds or {}
+        self:RefreshConfirmSkillButton()
+    end
+
+    method void SetSelectedSkillTargetPoint(Vector2 targetPoint)
+        if self.selectedSkillActionContext == nil then
+            self.selectedSkillActionContext = {}
+        end
+        self.selectedSkillActionContext.TargetPoint = targetPoint
+        self.selectedSkillActionContext.HasTargetPoint = targetPoint ~= nil
+        self:RefreshConfirmSkillButton()
     end
 
     method void OnConfirmSkillClicked(ButtonClickEvent event)
@@ -857,7 +787,7 @@ script ControlCharacterUIComponent extends Component
         local actionKey = self.selectedSkillKey
         log("[ControlCharacterUIComponent] Confirm skill action=" .. actionKey)
         self:HideSkillRangePreview()
-        self:RequestSkillAction(actionKey, {})
+        self:RequestSkillAction(actionKey, self.selectedSkillActionContext)
     end
 
     method table BuildControlledActorData()
@@ -903,6 +833,12 @@ script ControlCharacterUIComponent extends Component
         self:CancelAllSkillSlotHolds()
         self.selectedSkillKey = ""
         self.selectedSponsorActorData = nil
+        self.selectedSkillActionContext = {}
+        self.selectedSkillCanCast = false
+        self.selectedSkillBlockedReason = "NoSkillSelected"
+        if isvalid(self.cancelSkillSelectionButtonEntity) then
+            self.cancelSkillSelectionButtonEntity.Enable = false
+        end
         self:HideSkillSelectionOverlay()
         self:HideSkillRangePreview()
         self:RefreshConfirmSkillButton()
