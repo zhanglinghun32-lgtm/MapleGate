@@ -12,7 +12,8 @@ submit a turn action *right now*?
 |--------|------|
 | `SkillActionLogic` | Public gateway, sender identity, routing, accept/reject callbacks |
 | `SkillLogic` | Learned skills, config, resources, cooldown rules |
-| Shared execution | Targeting, mutations, presentation payloads (field or battle) |
+| `SkillExecutionLogic` | Shared field/battle execution wrapper: resolve sponsor/skill/targets, converge calculator inputs, calculate all targets, apply results, build result payload |
+| `BattleCalculatorLogic` | Numeric-only formula pipeline; no entities, Config lookups, target classification, or mutations |
 | `ControlCharacterUIComponent` | Skill selection / confirm / range preview UI |
 | `BattleSystem` | Turn permission + settlement after completion — **not** skill UI or formulas |
 | `BattleUI` | Turn-sequence overlay only — **never** skill requests |
@@ -33,6 +34,8 @@ Server derives user/sponsor from `senderUserId`. Client battle claims are not tr
 
 - Accepted: `OnSkillRequestAccepted(requestId, actionKey, executionMode)`
 - Rejected: `OnSkillRequestRejected(requestId, actionKey, reason)`
+- Execution: `SkillExecutionResult` with ordered `TargetResults[]`; each target
+  contains the structured result from `BattleCalculatorLogic` plus apply status.
 
 ## Validation Split
 
@@ -62,12 +65,20 @@ Skills exist without battle. In battle:
 RequestSkill
   -> common validation
   -> BattleSystem permission
-  -> shared execute
+  -> SkillExecutionLogic:ExecuteSkill
+       -> freeze sponsor / skill / target snapshots
+       -> converge one numeric Calculator context per target
+       -> calculate every target before mutation
+       -> apply through BattleActorCom
+       -> return TargetResults[]
   -> notify BattleSystem completion
   -> BattleSystem settles turn
 ```
 
 Do not add reusable skill behavior only inside `BattleSystem`.
+
+`SkillActionLogic` is the request gateway, not the execution implementation.
+`SkillExecutionLogic` owns the shared execution flow for both field and battle.
 
 ## UI Callers
 
@@ -86,16 +97,20 @@ Legacy: `BattleSystem.RequestAction*` — no new UI callers.
 ## Agent TODO
 
 1. **`SkillActionLogic.mlua`** — call battle `CanSubmitTurnAction` /
-   `IsOperationAllowed("SubmitSkill")` + action-point spend; keep execution
-   outside BattleSystem.
+   `IsOperationAllowed("SubmitSkill")` + action-point spend, then call
+   `SkillExecutionLogic:ExecuteSkill`.
 2. **`ControlCharacterUIComponent.mlua`** — disable confirm when phase/actor/policy
    denies; no direct `RequestAction*`.
-3. **`BattleSystem.mlua`** — shrink embedded skill resolution; permission + settle only.
-4. **`InventoryLogic`** — battle use/throw live path; permission key `UseItem` +
+3. **`SkillExecutionLogic.mlua`** — implement server-authoritative snapshot →
+   converge → calculate-all → apply-all wrapper contract.
+4. **`BattleSystem.mlua`** — shrink embedded skill resolution; permission + settle only.
+5. **`InventoryLogic`** — battle use/throw live path; permission key `UseItem` +
    action points; no bag copy in `BattleStartPayload`.
-5. Grep UI for `RequestAction` / `RequestBattleAction` and clear live paths.
+6. Grep UI for `RequestAction` / `RequestBattleAction` and clear live paths.
 
 ## Related Docs
 
 - `docs/BattleFlow/BattleSystem.md`
 - `docs/BattleFlow/BattleUIComponent.md`
+- `docs/SkillAction/SkillExecutionLogic.md`
+- `docs/Calculator/BattleCalculator.md`

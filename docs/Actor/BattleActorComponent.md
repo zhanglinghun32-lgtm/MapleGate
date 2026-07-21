@@ -259,8 +259,10 @@ Recommended responsibilities:
 - `BattleActorComponent` asks `EffectSystem` for modifiers during
   `RecalculateStats()`.
 - `BattleActorComponent` still owns the final `total*` stat cache.
-- `BattleCalculator` receives prepared values and does not care how they were
-  calculated.
+- `SkillExecutionLogic` reads the final `total*` caches and converges all skill,
+  target-count, and modifier sources into scalar calculator inputs.
+- `BattleCalculatorLogic` receives those scalar values and does not read this
+  component, EffectSystem, entities, or Config.
 
 Do not let effects directly mutate `totalAttack`, equipment keys, or Config
 data. Effects should provide modifiers; `BattleActorComponent` should combine
@@ -269,15 +271,16 @@ those modifiers into final values.
 Recommended attack flow:
 
 ```text
-BattleActorComponent:Attack(target)
-  -> RecalculateStats()
-  -> attackValue = totalAttack
-  -> BattleCalculator:ResolveAttack(sponsor, target, attackValue)
+SkillActionLogic validates the request
+  -> SkillExecutionLogic freezes sponsor/target BattleActorCom snapshots
+  -> SkillExecutionLogic converges numeric values
+  -> BattleCalculatorLogic:CalculateDamage(numericContext)
+  -> SkillExecutionLogic applies result through target BattleActorCom
 ```
 
-`BattleCalculator` should only receive already-prepared inputs such as sponsor,
-target, and value. It should not know whether the value came from base stats,
-equipment, buffs, debuffs, skills, or battle rules.
+`BattleCalculatorLogic` receives no sponsor/target entity references. Its
+context contains only final numeric values such as `totalAttack`, `skillPower`,
+`damageMultiplier`, `finalDamageMultiplier`, and `masteryMultiplier`.
 
 Recommended first EffectSystem interface:
 
@@ -332,7 +335,7 @@ Recommended direction:
 Example conceptual flow:
 
 ```text
-SkillAction / Inventory (or calculator)
+SkillExecutionLogic / Inventory
   -> BattleActorCom:ApplyDamage()
   -> BattleActorCom updates hp (clamped to maxHp)
   -> @Sync / OnSyncProperty refreshes UI bars on that entity
