@@ -6,6 +6,7 @@
 script BattleSkill extends Component
 
     property string skillConfigDataSetName = "skillConfig"
+    property string skillRangeDataSetName = "skillRange"
     property string skillKey = ""
     property string displayName = ""
     property string description = ""
@@ -63,14 +64,37 @@ script BattleSkill extends Component
         self.effectKey = _DataUtil:GetRowString(row, "effectKey", "")
         self.effectDuration = _DataUtil:GetRowInteger(row, "effectDuration", 0)
         self.cooldown = _DataUtil:GetRowInteger(row, "cooldown", 0)
-        self.targetShape = _DataUtil:GetRowString(row, "targetShape", "Single")
-        self.targetRadius = _DataUtil:GetRowNumber(row, "targetRadius", 0)
-        self.targetWidth = _DataUtil:GetRowNumber(row, "targetWidth", 0)
-        self.targetHeight = _DataUtil:GetRowNumber(row, "targetHeight", 0)
-        self.targetMaxCount = _DataUtil:GetRowInteger(row, "targetMaxCount", 0)
+        self:LoadRangeFromConfig(self.skillKey)
 
         log("[BattleSkill] Loaded skillKey=" .. self.skillKey .. ", entryType=" .. self.entryType .. ", targetRule=" .. self.targetRule .. ", targetShape=" .. self.targetShape)
         return true
+    end
+
+    method void LoadRangeFromConfig(string inputSkillKey)
+        -- Loads shape/size from skillRange (keyName == skillKey). Safe defaults if missing.
+        self.targetShape = "Single"
+        self.targetRadius = 0
+        self.targetWidth = 0
+        self.targetHeight = 0
+        self.targetMaxCount = 0
+
+        local rangeDataSet = _DataService:GetTable(self.skillRangeDataSetName)
+        if rangeDataSet == nil then
+            log_warning("[BattleSkill] LoadRangeFromConfig failed: DataSet not found. name=" .. tostring(self.skillRangeDataSetName))
+            return
+        end
+
+        local rangeRow = rangeDataSet:FindRow("keyName", inputSkillKey)
+        if rangeRow == nil then
+            log_warning("[BattleSkill] LoadRangeFromConfig failed: keyName not found. key=" .. tostring(inputSkillKey))
+            return
+        end
+
+        self.targetShape = _DataUtil:GetRowString(rangeRow, "targetShape", "Single")
+        self.targetRadius = _DataUtil:GetRowNumber(rangeRow, "targetRadius", 0)
+        self.targetWidth = _DataUtil:GetRowNumber(rangeRow, "targetWidth", 0)
+        self.targetHeight = _DataUtil:GetRowNumber(rangeRow, "targetHeight", 0)
+        self.targetMaxCount = _DataUtil:GetRowInteger(rangeRow, "targetMaxCount", 0)
     end
 
     method table BuildActionConfig()

@@ -81,25 +81,28 @@ script BattleSkillDescriptionPopup extends Component
             return sponsorName
         end
 
-        local actorKey = _DataUtil:GetTableString(sponsorActorData, "actorKey", "")
-        if actorKey == "" then
-            actorKey = _DataUtil:GetTableString(sponsorActorData, "ActorKey", "")
+        local configId = _DataUtil:GetTableString(sponsorActorData, "configId", "")
+        if configId == "" then
+            configId = _DataUtil:GetTableString(sponsorActorData, "actorKey", "")
         end
-        if actorKey == "" then
+        if configId == "" then
+            configId = _DataUtil:GetTableString(sponsorActorData, "ActorKey", "")
+        end
+        if configId == "" then
             return ""
         end
 
         local actorDataSet = _DataService:GetTable(self.actorConfigDataSetName)
         if actorDataSet == nil then
-            return actorKey
+            return configId
         end
 
-        local actorRow = actorDataSet:FindRow("actorKey", actorKey)
+        local actorRow = actorDataSet:FindRow("configId", configId)
         if actorRow == nil then
-            return actorKey
+            return configId
         end
 
-        return _DataUtil:GetRowString(actorRow, "displayName", actorKey)
+        return _DataUtil:GetRowString(actorRow, "displayName", configId)
     end
 
     method void BindCloseButton()

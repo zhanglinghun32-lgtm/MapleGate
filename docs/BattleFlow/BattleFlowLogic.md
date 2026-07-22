@@ -199,7 +199,7 @@ Do **not** pass inventory / item stacks. Items stay owned by `InventoryLogic`.
 | `TeamHint` | string | No | Rare override; default from which list the ref sits in |
 | `Position` | table | No | Rare override; default from entity `TransformComponent` |
 
-`ConfigId` is **not** a substitute for a missing entity. Config is read by
+`configId` is **not** a substitute for a missing entity. Config is read by
 `BattleActorCom` on that entity (`ApplyConfig` / save import), not by spawning
 a phantom unit from the request alone.
 
@@ -370,14 +370,14 @@ Rules:
 | `ActorType` | string | Yes | `_BattleKeys` actor type |
 | `TeamId` | string | Yes | `"Player"` \| `"Ally"` \| `"Enemy"` at start |
 | `ControlMode` | string | Yes | `"Player"` \| `"AI"` — AllyParty always `"AI"` |
-| `ConfigId` | string | No | Convenience copy of `BattleActorCom.configId` for logs/UI keys |
+| `configId` | string | No | Convenience copy of `BattleActorCom.configId` for logs/UI keys |
 | `SlotIndex` | integer | No | Party formation slot; `0` if N/A |
 | `CanBetray` | boolean | No | Ally only; betrayal rules TBD |
 
 **Removed from authoritative payload design** (do not treat as live HP):
 
-- `Hp` / `MaxHp` / `Mp` / `MaxMp` / `Stamina` / `MaxStamina`
-- `BaseAttack` / `TotalAttack` / `BaseDefense` / `TotalDefense` / `Speed`
+- `hp` / `maxHp` / `mp` / `maxMp` / `stamina` / `maxStamina`
+- `baseAttack` / `totalAttack` / `baseDefense` / `totalDefense` / `speed`
 - Copied `SkillKeys` / `Buffs` as the only skill/buff store
 
 Skills and buffs for gameplay also prefer live actor / effect systems on the
@@ -454,7 +454,7 @@ props that are not already on / configured for that map.
             ActorType = "Player",
             TeamId = "Player",
             ControlMode = "Player",
-            ConfigId = "playerWarrior",
+            configId = "playerWarrior",
             SlotIndex = 1,
             CanBetray = false
         }
@@ -466,7 +466,7 @@ props that are not already on / configured for that map.
             ActorType = "Monster",
             TeamId = "Enemy",
             ControlMode = "AI",
-            ConfigId = "slime",
+            configId = "slime",
             SlotIndex = 0,
             CanBetray = false
         }

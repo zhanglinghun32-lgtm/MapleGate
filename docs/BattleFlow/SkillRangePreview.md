@@ -12,7 +12,7 @@ ControlledActor Entity
    └─ SkillRangePreviewComponent
 ```
 
-Polygon Points 使用以角色為原點的 local coordinates，`skillConfig` 的 range 數值直接使用 world units，不再轉換成 UI pixels。
+Polygon Points 使用以角色為原點的 local coordinates。範圍幾何讀自 `Data/Config/skill/skillRange.csv`（`keyName` 對應 `skillKey`），數值直接使用 world units，不再轉換成 UI pixels。
 
 ## 所有權與生命週期
 

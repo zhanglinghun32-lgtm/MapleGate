@@ -3,6 +3,8 @@
 script BattleSkillPresentationComponent extends Component
 
     -- Plays one client-side skill presentation at a time. BattleSystem remains authoritative.
+    -- Config files: Data/Config/skill/skillPresentation{,Step}Config.csv (+ .userdataset).
+    -- GetTable uses ContentProto.Json.name below, not the folder path.
     property string movementLockKey = "BattlePresentation"
     property integer currentPresentationId = 0
     property boolean isPlaying = false

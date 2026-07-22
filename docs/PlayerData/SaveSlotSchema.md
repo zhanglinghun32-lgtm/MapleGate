@@ -15,7 +15,9 @@ Update it whenever a saved field is added, renamed, moved, or removed.
 | Authority | Server only: `PlayerDataLogic` |
 
 Field names are case-sensitive. `Actors`, `actors`, and `Actor` are different
-keys. Public save-data keys use PascalCase exactly as written below.
+keys. Root / subsystem table keys use PascalCase (`Profile`, `Actors`,
+`Inventory`, …). **Actor combat fields inside `Actors[]` use lowerCamelCase**
+to match `actorConfig` and `BattleActorCom` (see `docs/Actor/ActorVariableExplain.md`).
 
 Legacy slots written with `_UtilLogic:TableToString` are still accepted on load,
 then rewritten as JSON on the next save. JSON is required because
@@ -28,7 +30,7 @@ table is a JSON array or object. The sentinel is removed immediately after decod
 
 | Exact key | Type | Required | Owner | Notes |
 |---|---|---:|---|---|
-| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `2`. Version 2 adds `PlayerPosition` and JSON serialization. |
+| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `3`. v2 added `PlayerPosition` + JSON; v3 Actors keys are slim lowerCamelCase (`configId`, five attrs, current `hp`/`mp`/`stamina`). |
 | `Profile` | table | Yes | `PlayerDataLogic` | Slot metadata. |
 | `PlayerPosition` | table | Yes | `PlayerDataLogic` | Last world position captured when the slot is saved. |
 | `Actors` | array<table> | Yes | `PlayerDataLogic` / `BattleActorCom` | `Actors[1]` is currently applied to DefaultPlayer. |
@@ -66,27 +68,34 @@ the current 2D map-transition API consumes only `X` and `Y`.
 
 Path: `slotData.Actors[index]`
 
+**Slim persist only** (lowerCamelCase). `actorConfig` may hold more design
+columns; Save does not copy them. See `docs/Actor/ActorVariableExplain.md`.
+
 | Exact key | Type | Default for `Actors[1]` | Source / meaning |
 |---|---|---|---|
-| `ConfigId` | string | `"playerWarrior"` | Matches `actorConfig.actorKey`. |
-| `Level` | integer | `1` | Persistent actor level. |
-| `Hp` | integer | `120` | Current HP. |
-| `MaxHp` | integer | `120` | Current maximum HP after persistent growth. |
-| `Mp` | integer | `20` | Current MP. |
-| `MaxMp` | integer | `20` | Current maximum MP after persistent growth. |
-| `Stamina` | integer | `100` | Current stamina. |
-| `MaxStamina` | integer | `100` | Current maximum stamina. |
-| `BaseAttack` | integer | `12` | Persistent attack before temporary modifiers. |
-| `BaseDefense` | integer | `5` | Persistent defense before temporary modifiers. |
-| `Speed` | number | `3` | Persistent speed value. |
+| `configId` | string | `"playerWarrior"` | Archetype link to `actorConfig.configId`. |
+| `jobType` | string | `"Warrior"` | Job. |
+| `level` | integer | `1` | Level. |
+| `constitution` | integer | `10` | 體質 — allocatable. |
+| `dexterity` | integer | `6` | 靈巧 — allocatable. |
+| `intelligence` | integer | `4` | 智力 — allocatable. |
+| `will` | integer | `6` | 意志 — allocatable. |
+| `perception` | integer | `5` | 感知 — allocatable. |
+| `hp` | integer | (full after formula) | **Current** HP only. |
+| `mp` | integer | (full after formula) | **Current** MP only. |
+| `stamina` | integer | (full after formula) | **Current** stamina only. |
 
-Not saved because they are derived runtime caches:
+**Do not persist** (recomputed in `PlayerDataLogic:BuildRuntimeActorState`):
 
-- `totalAttack`
+- Derived: `maxHp` / `maxMp` / `maxStamina` / `defense` / `speed` / `jumpForce` /
+  `castRange` / `mpCostRate` / `recoveryRate` / `resistance` / `effectPotency` /
+  `effectHitRate` / `criticalRate`
+- Attack: `attack` / `totalAttack` (equip / skill / buff at runtime)
 - `totalDefense`
 
-`BattleActorCom:ImportSaveData()` loads `ConfigId` defaults first, restores the
-saved values above, then recalculates derived totals.
+Load: slim `Actors[]` → `BuildRuntimeActorState` →
+`BattleActorCom:ImportSaveData(runtime)`.  
+Export: `ExportSaveData()` writes slim keys only (legacy fat keys drop on next save).
 
 ## Party
 
@@ -203,17 +212,17 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
     },
     Actors = {
         {
-            ConfigId = "playerWarrior",
-            Level = 1,
-            Hp = 120,
-            MaxHp = 120,
-            Mp = 20,
-            MaxMp = 20,
-            Stamina = 100,
-            MaxStamina = 100,
-            BaseAttack = 12,
-            BaseDefense = 5,
-            Speed = 3
+            configId = "playerWarrior",
+            jobType = "Warrior",
+            level = 1,
+            constitution = 10,
+            dexterity = 6,
+            intelligence = 4,
+            will = 6,
+            perception = 5,
+            hp = 125,
+            mp = 32,
+            stamina = 78
         }
     },
     Party = {
@@ -257,7 +266,8 @@ Before adding or changing a saved value:
 
 1. Search this document for the exact key and intended path.
 2. Confirm another section does not already own the same information.
-3. Use PascalCase for every public save key.
+3. Use PascalCase for root / subsystem keys; use lowerCamelCase for `Actors[]`
+   combat fields (same as `BattleActorCom` / `actorConfig`).
 4. Update both the producer (`CreateDefaultData` / `ExportSaveData`) and consumer
    (`LoadUserData` / `ImportSaveData`).
 5. Increment `Version` when compatibility or migration logic is required.

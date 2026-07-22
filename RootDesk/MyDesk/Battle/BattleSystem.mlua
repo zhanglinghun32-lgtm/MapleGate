@@ -20,7 +20,6 @@ script BattleSystem extends Component
     property any startPayload = nil
     property any activeActorIds = nil
     property any actorMap = nil
-    property any skillConfigRowCache = nil
     property any battleQueue = nil
     property integer presentationSequence = 0
     property integer pendingPresentationId = 0
@@ -102,7 +101,6 @@ script BattleSystem extends Component
         
         self:TransitionTo(_BattleKeys.phaseInitializing)
         self:RegisterActorsFromPayload(payload)
-        self:RebuildPartySkillConfigCache()
         self:InitializeBattleQueue()
         
         if self:IsBattleQueueEmpty() == true then
@@ -310,7 +308,7 @@ script BattleSystem extends Component
 
     @ExecSpace("ServerOnly")
     method table GetActionRangeConfig(string actionKey)
-        -- Reads skill range settings from skillConfig, with safe defaults for older rows.
+        -- targetRule from skillConfig; shape/size from skillRange (joined by skillKey == keyName).
         local rangeConfig = {}
         rangeConfig.TargetRule = _BattleKeys.targetEnemy
         rangeConfig.Shape = "Single"
@@ -319,73 +317,48 @@ script BattleSystem extends Component
         rangeConfig.Height = 0
         rangeConfig.MaxCount = 0
 
-        local row = self:FindSkillConfigRow(actionKey)
-        if row == nil then
+        local skillRow = self:FindSkillConfigRow(actionKey)
+        if skillRow == nil then
             log_warning("[BattleSystem] GetActionRangeConfig fallback: skillConfig row not found. actionKey=" .. tostring(actionKey))
             return rangeConfig
         end
 
-        rangeConfig.TargetRule = _DataUtil:GetRowString(row, "targetRule", rangeConfig.TargetRule)
-        rangeConfig.Shape = _DataUtil:GetRowString(row, "targetShape", rangeConfig.Shape)
-        rangeConfig.Radius = _DataUtil:GetRowNumber(row, "targetRadius", rangeConfig.Radius)
-        rangeConfig.Width = _DataUtil:GetRowNumber(row, "targetWidth", rangeConfig.Width)
-        rangeConfig.Height = _DataUtil:GetRowNumber(row, "targetHeight", rangeConfig.Height)
-        rangeConfig.MaxCount = _DataUtil:GetRowInteger(row, "targetMaxCount", rangeConfig.MaxCount)
+        rangeConfig.TargetRule = _DataUtil:GetRowString(skillRow, "targetRule", rangeConfig.TargetRule)
+
+        local rangeRow = self:FindSkillRangeRow(actionKey)
+        if rangeRow == nil then
+            log_warning("[BattleSystem] GetActionRangeConfig fallback: skillRange row not found. actionKey=" .. tostring(actionKey))
+            return rangeConfig
+        end
+
+        rangeConfig.Shape = _DataUtil:GetRowString(rangeRow, "targetShape", rangeConfig.Shape)
+        rangeConfig.Radius = _DataUtil:GetRowNumber(rangeRow, "targetRadius", rangeConfig.Radius)
+        rangeConfig.Width = _DataUtil:GetRowNumber(rangeRow, "targetWidth", rangeConfig.Width)
+        rangeConfig.Height = _DataUtil:GetRowNumber(rangeRow, "targetHeight", rangeConfig.Height)
+        rangeConfig.MaxCount = _DataUtil:GetRowInteger(rangeRow, "targetMaxCount", rangeConfig.MaxCount)
 
         return rangeConfig
     end
 
     @ExecSpace("ServerOnly")
     method any FindSkillConfigRow(string actionKey)
-        -- Battle state reads only the session cache built from the current party roster.
-        if actionKey == nil or actionKey == "" then
-            return nil
-        end
-        if self.skillConfigRowCache == nil then
-            return nil
-        end
-        return self.skillConfigRowCache[actionKey]
+        -- Delegates to SkillLogic's world-start skillConfig cache.
+        return _SkillLogic:GetSkillConfigRow(actionKey)
     end
 
     @ExecSpace("ServerOnly")
-    method void RebuildPartySkillConfigCache()
-        -- Loads every unique skill owned by the current battle roster exactly once per roster change.
-        self.skillConfigRowCache = {}
-        local dataSet = _DataService:GetTable("skillConfig")
-        if dataSet == nil then
-            log_warning("[BattleSystem] RebuildPartySkillConfigCache failed: skillConfig table missing.")
-            return
-        end
-
-        local cachedCount = 0
-        for _, actorId in ipairs(self.activeActorIds or {}) do
-            local actorEntry = self.actorMap[actorId]
-            if actorEntry ~= nil then
-                for _, skillKeyValue in ipairs(actorEntry.skillKeys or {}) do
-                    local skillKey = tostring(skillKeyValue)
-                    if skillKey ~= "" and self.skillConfigRowCache[skillKey] == nil then
-                        local row = dataSet:FindRow("skillKey", skillKey)
-                        if row ~= nil then
-                            self.skillConfigRowCache[skillKey] = row
-                            cachedCount = cachedCount + 1
-                        else
-                            log_warning("[BattleSystem] RebuildPartySkillConfigCache row missing. key=" .. skillKey)
-                        end
-                    end
-                end
-            end
-        end
-        log("[BattleSystem] RebuildPartySkillConfigCache count=" .. tostring(cachedCount))
+    method any FindSkillRangeRow(string actionKey)
+        -- Delegates to SkillLogic's lazy skillRange cache.
+        return _SkillLogic:GetSkillRangeRow(actionKey)
     end
 
     @ExecSpace("ServerOnly")
     method void UpdateActorSkillKeys(string actorId, table skillKeys)
-        -- Keeps an active session cache current when a party member learns or replaces a skill.
+        -- Keeps an active session skill list current when a party member learns or replaces a skill.
         if self.actorMap == nil or self.actorMap[actorId] == nil then
             return
         end
         self.actorMap[actorId].skillKeys = skillKeys or {}
-        self:RebuildPartySkillConfigCache()
         if actorId == self.currentActorId then
             self:PublishCurrentActorSkills(actorId)
         end
@@ -1096,7 +1069,6 @@ script BattleSystem extends Component
         self.startPayload = nil
         self.activeActorIds = nil
         self.actorMap = nil
-        self.skillConfigRowCache = nil
         self.presentationSequence = 0
         self.pendingPresentationId = 0
         self.presentationTimeoutRemaining = 0

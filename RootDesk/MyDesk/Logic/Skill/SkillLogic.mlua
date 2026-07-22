@@ -1,19 +1,106 @@
-    -- 這是Config(csv)載到script的第一個步驟
-	-- 在runtime中，server Client之間溝通會用table
-	-- 格式如下：
-	-- {
-		
-	-- }
 @Logic
 script SkillLogic extends Logic
 
+    -- Server-only runtime cache: SaveSlot.Skill per userId (not skillConfig CSV).
+    -- Shape (property typed as any because nested tables are not a fixed mlua type):
+    -- userSkills = {
+    --   [userId] = {
+    --     Learned = {
+    --       [1] = { SkillKey = "normalAttack", Level = 1 },
+    --       [2] = { SkillKey = "spearPower", Level = 1 },
+    --     },
+    --     Hotkeys = {
+    --       Slot1 = "normalAttack",  -- slotKey -> skillKey
+    --       Slot2 = "spearPower",
+    --     },
+    --   },
+    -- }
+    -- Loaded by LoadUserData / created by CreateDefaultData; flushed via ExportUserData.
     property any userSkills = nil
+
+    -- Preloaded at world start from skillConfig DataSet (static balance rows).
+    -- Shape: skillConfigByKey[skillKey] = UserDataRow
+    property any skillConfigByKey = nil
+
+    -- Lazy on-demand cache from skillRange DataSet (geometry). Not preloaded.
+    -- Shape: skillRangeByKey[skillKey] = UserDataRow
+    property any skillRangeByKey = nil
+
+    property string skillConfigDataSetName = "skillConfig"
+    property string skillRangeDataSetName = "skillRange"
 
     @ExecSpace("ServerOnly")
     method void OnBeginPlay()
-        -- Initializes the per-user skill cache.
+        -- Initializes the per-user skill cache and preloads all skillConfig rows.
         self.userSkills = {}
+        self.skillRangeByKey = {}
+        self:LoadSkillConfigCache()
         log("[SkillLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadSkillConfigCache()
+        -- Loads every skillConfig row into skillConfigByKey once at world start.
+        self.skillConfigByKey = {}
+        local dataSet = _DataService:GetTable(self.skillConfigDataSetName)
+        if dataSet == nil then
+            log_warning("[SkillLogic] LoadSkillConfigCache failed: table missing. name=" .. self.skillConfigDataSetName)
+            return
+        end
+
+        local cachedCount = 0
+        local rowCount = dataSet:GetRowCount()
+        for rowIndex = 1, rowCount do
+            local row = dataSet:GetRow(rowIndex)
+            if row ~= nil then
+                local skillKey = _DataUtil:GetRowString(row, "skillKey", "")
+                if skillKey ~= "" then
+                    self.skillConfigByKey[skillKey] = row
+                    cachedCount = cachedCount + 1
+                end
+            end
+        end
+        log("[SkillLogic] LoadSkillConfigCache count=" .. tostring(cachedCount))
+    end
+
+    @ExecSpace("ServerOnly")
+    method any GetSkillConfigRow(string skillKey)
+        -- Returns a preloaded skillConfig row, or nil when the key is unknown.
+        if skillKey == nil or skillKey == "" then
+            return nil
+        end
+        if self.skillConfigByKey == nil then
+            self:LoadSkillConfigCache()
+        end
+        return self.skillConfigByKey[skillKey]
+    end
+
+    @ExecSpace("ServerOnly")
+    method any GetSkillRangeRow(string skillKey)
+        -- Returns a skillRange row, loading and caching that key on first request.
+        if skillKey == nil or skillKey == "" then
+            return nil
+        end
+        if self.skillRangeByKey == nil then
+            self.skillRangeByKey = {}
+        end
+
+        local cachedRow = self.skillRangeByKey[skillKey]
+        if cachedRow ~= nil then
+            return cachedRow
+        end
+
+        local dataSet = _DataService:GetTable(self.skillRangeDataSetName)
+        if dataSet == nil then
+            log_warning("[SkillLogic] GetSkillRangeRow failed: table missing. name=" .. self.skillRangeDataSetName)
+            return nil
+        end
+
+        local rangeRow = dataSet:FindRow("keyName", skillKey)
+        if rangeRow ~= nil then
+            self.skillRangeByKey[skillKey] = rangeRow
+        end
+        return rangeRow
     end
 
     @ExecSpace("ServerOnly")
@@ -195,12 +282,7 @@ script SkillLogic extends Logic
             return result
         end
 
-        local skillDataSet = _DataService:GetTable("skillConfig")
-        if skillDataSet == nil then
-            result.Reason = "SkillConfigMissing"
-            return result
-        end
-        local skillRow = skillDataSet:FindRow("skillKey", actionKey)
+        local skillRow = self:GetSkillConfigRow(actionKey)
         if skillRow == nil then
             result.Reason = "SkillConfigRowMissing"
             return result

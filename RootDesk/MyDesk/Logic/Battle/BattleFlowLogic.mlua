@@ -215,7 +215,7 @@ script BattleFlowLogic extends Logic
         if actorConfig == nil or battleActor == nil then
             return skillKeys
         end
-        local actorRow = actorConfig:FindRow("actorKey", tostring(battleActor.configId))
+        local actorRow = actorConfig:FindRow("configId", tostring(battleActor.configId))
         if actorRow == nil then
             return skillKeys
         end

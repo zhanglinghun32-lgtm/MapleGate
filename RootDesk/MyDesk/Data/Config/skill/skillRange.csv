@@ -1,0 +1,11 @@
+keyName,targetShape,targetRadius,targetWidth,targetHeight,targetMaxCount
+normalAttack,Circle,1.2,0,0,1
+poisonSlash,Circle,1.4,0,0,1
+quickStab,Circle,1.1,0,0,1
+heavySlash,Circle,1.5,0,0,1
+doubleCut,Circle,1.3,0,0,1
+venomEdge,Circle,1.4,0,0,1
+guardStrike,Circle,1.2,0,0,1
+healPulse,Circle,2,0,0,1
+focusBreath,Circle,0,0,0,1
+spearPower,0,1.2,0,0,1

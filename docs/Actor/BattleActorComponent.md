@@ -381,6 +381,9 @@ These names are placeholders until the implementation starts.
 
 ## Related Actor Documents
 
+- `docs/Actor/BattleActorInitPaths.md` — **Player (`statsSource=Save`) vs Monster/NPC (`statsSource=Config`)** startup paths
+- `docs/Actor/ActorVariableExplain.md` — field meanings for balance notes and formula review
+
 Future actor documents can live beside this file:
 
 - `QuestActor.md`

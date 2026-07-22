@@ -117,7 +117,7 @@ script PartyLogic extends Logic
             return fallback
         end
 
-        local row = dataSet:FindRow("actorKey", actorKey)
+        local row = dataSet:FindRow("configId", actorKey)
         if row == nil then
             return fallback
         end

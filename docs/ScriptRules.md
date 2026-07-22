@@ -9,7 +9,7 @@ Build each game system in this order:
 
 ```text
 1. Design doc   docs/{System}/ or docs/Design/{System}/
-2. Config       RootDesk/MyDesk/Data/Config/{name}Config.csv (+ .userdataset)
+2. Config       RootDesk/MyDesk/Data/Config/ (or Config/skill/ for skill presentation tables)
 3. Logic        RootDesk/MyDesk/Logic/{System}Logic.mlua
 4. Component    RootDesk/MyDesk/{Domain}/.../*.mlua — bind on the target entity in Maker
 ```
@@ -45,26 +45,33 @@ c:\github\
     ├── NPC/                          # NPC / dialogue @Component scripts
     ├── Models/{Category}/            # .model templates — reuse / runtime spawn only
     └── Data/
-        ├── Config/                   # Static design tables — flat, no subfolders
+        ├── Config/                   # Static design tables (default flat)
+        │   ├── skillConfig.csv       # Skill balance stays at Config root
+        │   ├── skill/                # skillRange + presentation DataSets
+        │   └── skillAnimation/       # Skill animation JSON assets
         └── PlayerData/               # Save slot schemas
 ```
 
 ## Folder Rules
 
-### Config — flat only
+### Config — flat by default; skill presentation under `skill/`
 
-All static game tables live directly in `Data/Config/` as `.csv` + `.userdataset`
-pairs. Do not create category subfolders under `Config/`.
+Most static game tables live directly in `Data/Config/` as `.csv` + `.userdataset`
+pairs. Skill presentation tables live under `Data/Config/skill/`. Do not invent
+other category subfolders unless documented here.
 
-| Table | `GetTable` name | Purpose |
-|-------|-----------------|---------|
-| `actorConfig` | `"actorConfig"` | Actor base stats |
-| `skillConfig` | `"skillConfig"` | Skills (`iconRuid`, balance) |
-| `consumableConfig` | `"consumableConfig"` | Consumables |
-| `equipmentConfig` | `"equipmentConfig"` | Equipment |
-| `inventoryConfig` | `"inventoryConfig"` | Inventory items |
-| `missionConfig` | `"missionConfig"` | Quests / missions |
-| `UIRegistry` | `"UIRegistry"` | UI key → entity lookup |
+| Table | Path | `GetTable` name | Purpose |
+|-------|------|-----------------|---------|
+| `actorConfig` | `Config/` | `"actorConfig"` | Actor base stats |
+| `skillConfig` | `Config/` | `"skillConfig"` | Skills (`iconRuid`, balance); no range geometry |
+| `skillRange` | `Config/skill/` | `"skillRange"` | Skill range shape/size (`keyName` == `skillKey`) |
+| `skillPresentationConfig` | `Config/skill/` | `"skillPresentationConfig"` | Skill presentation header |
+| `skillPresentationStepConfig` | `Config/skill/` | `"skillPresentationStepConfig"` | Skill presentation timeline steps |
+| `consumableConfig` | `Config/` | `"consumableConfig"` | Consumables |
+| `equipmentConfig` | `Config/` | `"equipmentConfig"` | Equipment |
+| `inventoryConfig` | `Config/` | `"inventoryConfig"` | Inventory items |
+| `missionConfig` | `Config/` | `"missionConfig"` | Quests / missions |
+| `UIRegistry` | `Config/` | `"UIRegistry"` | UI key → entity lookup |
 
 Runtime lookup uses the `name` field inside each `.userdataset`, not the file path.
 
@@ -141,6 +148,9 @@ they do not maintain a separate RUID registry.
 - Script declarations match the file name exactly: `script SceneLogic extends Logic`.
 - Public scene/UI/data keys use PascalCase strings: `"MainMenu"`, `"World"`, `"CharacterStatus"`, `"Party"`.
 - Config row keys use camelCase or PascalCase consistently per table (`skillKey`, `encounterKey`).
+- Actor combat fields (`configId`, `maxHp`, `baseAttack`, …) use **lowerCamelCase** in
+  `actorConfig`, `SaveSlot.Actors[]`, `BattleActorCom`, and snapshots — see
+  `docs/Actor/ActorVariableExplain.md`.
 - Properties, local variables, and parameters use lowerCamelCase: `mainMenuSceneKey`, `userId`, `entryPosition`.
 - Methods use PascalCase: `ChangeScene`, `OpenUI`, `GetEntryPosition`.
 - Engine lifecycle methods keep the engine spelling: `OnBeginPlay`, `OnEndPlay`, `OnUpdate`.
@@ -190,3 +200,5 @@ Current scene keys:
 - `docs/BattleFlow/BattleSystem.md` — turn permission, turn start/end, settlement, operation locks
 - `docs/BattleFlow/BattleUIComponent.md` — BattleUI turn-sequence overlay; skill/item/system UIs stay outside battle ownership
 - `docs/Actor/BattleActorComponent.md` — per-actor battle state design
+- `docs/Actor/BattleActorInitPaths.md` — Player Save vs Monster/NPC Config init
+- `docs/Actor/ActorVariableExplain.md` — Actor field meanings / formula review glossary

@@ -1,39 +1,74 @@
 @Component
 script BattleActorCom extends Component
 
-    -- Authority for per-entity combat resources. UI and battle settlement must use these fields.
-    -- max* = capacity (一般狀態上限); current = 當前狀態. TODO: Add ApplyDamage / Heal / IsDead.
+    -- Authority for per-entity combat resources / attributes.
+    -- Init: docs/Actor/BattleActorInitPaths.md
+    -- Fields: docs/Actor/ActorVariableExplain.md
 
     property string actorConfigTableName = "actorConfig"
 
+    -- "Config" = Monster/NPC (OnBeginPlay -> ApplyConfig, derived from actorConfig).
+    -- "Save"   = Player (PlayerDataLogic computes derived -> ImportSaveData).
+    property string statsSource = "Config"
+
     @Sync property string configId = ""
+    @Sync property string jobType = ""
     @Sync property integer level = 1
+
+    -- Five primary attributes（五大屬性）.
+    @Sync property integer constitution = 0
+    @Sync property integer dexterity = 0
+    @Sync property integer intelligence = 0
+    @Sync property integer will = 0
+    @Sync property integer perception = 0
+
+    -- Current resources (player Save stores these only among combat numbers).
     @Sync property integer hp = 0
-    @Sync property integer maxHp = 0
     @Sync property integer mp = 0
-    @Sync property integer maxMp = 0
     @Sync property integer stamina = 0
+
+    -- Derived from five attributes (monster: Config literals; player: PlayerDataLogic).
+    @Sync property integer maxHp = 0
+    @Sync property integer maxMp = 0
     @Sync property integer maxStamina = 0
-    @Sync property integer baseAttack = 0
-    @Sync property integer totalAttack = 0
-    @Sync property integer baseDefense = 0
+    @Sync property integer defense = 0
     @Sync property integer totalDefense = 0
     @Sync property number speed = 0
+    @Sync property number jumpForce = 0
+    @Sync property number castRange = 0
+    @Sync property number mpCostRate = 1
+    @Sync property number recoveryRate = 0
+    @Sync property number resistance = 0
+    @Sync property number effectPotency = 0
+    @Sync property number effectHitRate = 0
+    @Sync property number criticalRate = 0
+
+    -- Attack (= magic attack): NOT from five attributes / NOT from actorConfig.
+    -- Filled later by skill / equipment / buff pipelines.
+    @Sync property integer attack = 0
+    @Sync property integer totalAttack = 0
 
     @ExecSpace("ServerOnly")
     method void OnBeginPlay()
-        -- Applies the configured actor row when this component starts with a Config ID.
+        -- Branches by statsSource. See docs/Actor/BattleActorInitPaths.md.
+        if self.statsSource == "Save" then
+            log("[BattleActorCom] OnBeginPlay statsSource=Save (wait PlayerDataLogic ImportSaveData). entity="
+                .. tostring(self.Entity.Name))
+            return
+        end
+
         if self.configId ~= nil and self.configId ~= "" then
             self:ApplyConfig(self.configId)
             return
         end
 
-        log("[BattleActorCom] OnBeginPlay without configId. entity=" .. tostring(self.Entity.Name))
+        log_warning("[BattleActorCom] OnBeginPlay statsSource=Config but configId empty. entity="
+            .. tostring(self.Entity.Name))
     end
 
     @ExecSpace("ServerOnly")
     method boolean ApplyConfig(string actorConfigId)
-        -- Initializes this actor's base stats and resources from actorConfig.
+        -- Loads five attrs + derived columns from actorConfig. Does not load attack.
         if actorConfigId == nil or actorConfigId == "" then
             log_warning("[BattleActorCom] ApplyConfig failed: actorConfigId is empty.")
             return false
@@ -45,36 +80,119 @@ script BattleActorCom extends Component
             return false
         end
 
-        local actorRow = actorConfig:FindRow("actorKey", actorConfigId)
+        local actorRow = actorConfig:FindRow("configId", actorConfigId)
         if actorRow == nil then
-            log_warning("[BattleActorCom] ApplyConfig failed: actorKey not found. actorConfigId=" .. actorConfigId)
+            log_warning("[BattleActorCom] ApplyConfig failed: configId not found. actorConfigId=" .. actorConfigId)
             return false
         end
 
         self.configId = actorConfigId
+        self.jobType = _DataUtil:GetRowString(actorRow, "jobType", "")
         self.level = _DataUtil:GetRowInteger(actorRow, "level", 1)
-        self.maxHp = math.max(0, _DataUtil:GetRowInteger(actorRow, "maxHp", 0))
-        self.maxMp = math.max(0, _DataUtil:GetRowInteger(actorRow, "maxMp", 0))
+        self.constitution = _DataUtil:GetRowInteger(actorRow, "constitution", 0)
+        self.dexterity = _DataUtil:GetRowInteger(actorRow, "dexterity", 0)
+        self.intelligence = _DataUtil:GetRowInteger(actorRow, "intelligence", 0)
+        self.will = _DataUtil:GetRowInteger(actorRow, "will", 0)
+        self.perception = _DataUtil:GetRowInteger(actorRow, "perception", 0)
+
+        local derived = {}
+        derived.maxHp = _DataUtil:GetRowInteger(actorRow, "maxHp", 0)
+        derived.maxMp = _DataUtil:GetRowInteger(actorRow, "maxMp", 0)
+        derived.maxStamina = _DataUtil:GetRowInteger(actorRow, "maxStamina", 0)
+        derived.defense = _DataUtil:GetRowInteger(actorRow, "defense", 0)
+        derived.speed = _DataUtil:GetRowNumber(actorRow, "speed", 0)
+        derived.jumpForce = _DataUtil:GetRowNumber(actorRow, "jumpForce", 0)
+        derived.castRange = _DataUtil:GetRowNumber(actorRow, "castRange", 0)
+        derived.mpCostRate = _DataUtil:GetRowNumber(actorRow, "mpCostRate", 1)
+        derived.recoveryRate = _DataUtil:GetRowNumber(actorRow, "recoveryRate", 0)
+        derived.resistance = _DataUtil:GetRowNumber(actorRow, "resistance", 0)
+        derived.effectPotency = _DataUtil:GetRowNumber(actorRow, "effectPotency", 0)
+        derived.effectHitRate = _DataUtil:GetRowNumber(actorRow, "effectHitRate", 0)
+        derived.criticalRate = _DataUtil:GetRowNumber(actorRow, "criticalRate", 0)
+        self:ApplyDerivedFromTable(derived)
+
         self.hp = self.maxHp
         self.mp = self.maxMp
         self.stamina = self.maxStamina
-        self.baseAttack = _DataUtil:GetRowInteger(actorRow, "attack", 0)
-        self.baseDefense = _DataUtil:GetRowInteger(actorRow, "defense", 0)
-        self.speed = _DataUtil:GetRowNumber(actorRow, "moveSpeed", 0)
         self:RecalculateStats()
         self:ClampResources()
 
         log("[BattleActorCom] ApplyConfig complete. configId=" .. self.configId
             .. ", hp=" .. tostring(self.hp)
-            .. ", mp=" .. tostring(self.mp))
+            .. ", mp=" .. tostring(self.mp)
+            .. ", defense=" .. tostring(self.defense))
         return true
     end
 
     @ExecSpace("ServerOnly")
+    method void ApplyDerivedFromTable(table derived)
+        -- Applies derived combat fields. Used by Config load and PlayerDataLogic runtime.
+        if derived == nil then
+            return
+        end
+
+        local maxHp = tonumber(derived.maxHp)
+        if maxHp ~= nil then
+            self.maxHp = math.max(0, math.floor(maxHp))
+        end
+        local maxMp = tonumber(derived.maxMp)
+        if maxMp ~= nil then
+            self.maxMp = math.max(0, math.floor(maxMp))
+        end
+        local maxStamina = tonumber(derived.maxStamina)
+        if maxStamina ~= nil then
+            self.maxStamina = math.max(0, math.floor(maxStamina))
+        end
+        local defense = tonumber(derived.defense)
+        if defense ~= nil then
+            self.defense = math.max(0, math.floor(defense))
+        end
+        local speed = tonumber(derived.speed)
+        if speed ~= nil then
+            self.speed = speed
+        end
+        local jumpForce = tonumber(derived.jumpForce)
+        if jumpForce ~= nil then
+            self.jumpForce = jumpForce
+        end
+        local castRange = tonumber(derived.castRange)
+        if castRange ~= nil then
+            self.castRange = castRange
+        end
+        local mpCostRate = tonumber(derived.mpCostRate)
+        if mpCostRate ~= nil then
+            if mpCostRate <= 0 then
+                mpCostRate = 1
+            end
+            self.mpCostRate = mpCostRate
+        end
+        local recoveryRate = tonumber(derived.recoveryRate)
+        if recoveryRate ~= nil then
+            self.recoveryRate = recoveryRate
+        end
+        local resistance = tonumber(derived.resistance)
+        if resistance ~= nil then
+            self.resistance = resistance
+        end
+        local effectPotency = tonumber(derived.effectPotency)
+        if effectPotency ~= nil then
+            self.effectPotency = effectPotency
+        end
+        local effectHitRate = tonumber(derived.effectHitRate)
+        if effectHitRate ~= nil then
+            self.effectHitRate = effectHitRate
+        end
+        local criticalRate = tonumber(derived.criticalRate)
+        if criticalRate ~= nil then
+            self.criticalRate = criticalRate
+        end
+    end
+
+    @ExecSpace("ServerOnly")
     method void RecalculateStats()
-        -- Rebuilds derived combat stats from their current base values.
-        self.totalAttack = math.max(0, self.baseAttack)
-        self.totalDefense = math.max(0, self.baseDefense)
+        -- Attack totals come from equip/skill/buff (attack field), not five attributes.
+        self.totalAttack = math.max(0, self.attack)
+        self.totalDefense = math.max(0, self.defense)
     end
 
     @ExecSpace("ServerOnly")
@@ -87,58 +205,103 @@ script BattleActorCom extends Component
 
     @ExecSpace("ServerOnly")
     method table ExportSaveData()
-        -- Exports persistent actor state without temporary derived totals.
+        -- Slim Actors[] only. No derived fields, no attack.
         local saveData = {}
-        saveData.ConfigId = self.configId
-        saveData.Level = self.level
-        saveData.Hp = self.hp
-        saveData.MaxHp = self.maxHp
-        saveData.Mp = self.mp
-        saveData.MaxMp = self.maxMp
-        saveData.Stamina = self.stamina
-        saveData.MaxStamina = self.maxStamina
-        saveData.BaseAttack = self.baseAttack
-        saveData.BaseDefense = self.baseDefense
-        saveData.Speed = self.speed
+        saveData.configId = self.configId
+        saveData.jobType = self.jobType
+        saveData.level = self.level
+        saveData.constitution = self.constitution
+        saveData.dexterity = self.dexterity
+        saveData.intelligence = self.intelligence
+        saveData.will = self.will
+        saveData.perception = self.perception
+        saveData.hp = self.hp
+        saveData.mp = self.mp
+        saveData.stamina = self.stamina
         return saveData
     end
 
     @ExecSpace("ServerOnly")
+    method table ExportSnapshot()
+        -- Runtime combat snapshot (not Save): slim + derived + attack totals.
+        local snapshot = self:ExportSaveData()
+        snapshot.maxHp = self.maxHp
+        snapshot.maxMp = self.maxMp
+        snapshot.maxStamina = self.maxStamina
+        snapshot.defense = self.defense
+        snapshot.totalDefense = self.totalDefense
+        snapshot.speed = self.speed
+        snapshot.jumpForce = self.jumpForce
+        snapshot.castRange = self.castRange
+        snapshot.mpCostRate = self.mpCostRate
+        snapshot.recoveryRate = self.recoveryRate
+        snapshot.resistance = self.resistance
+        snapshot.effectPotency = self.effectPotency
+        snapshot.effectHitRate = self.effectHitRate
+        snapshot.criticalRate = self.criticalRate
+        snapshot.attack = self.attack
+        snapshot.totalAttack = self.totalAttack
+        return snapshot
+    end
+
+    @ExecSpace("ServerOnly")
     method void ImportSaveData(table saveData)
-        -- Applies Config defaults first, then restores mutable SaveSlot actor values.
+        -- Player path. PlayerDataLogic passes slim fields + computed derived (no attack from attrs).
         if saveData == nil then
             log_warning("[BattleActorCom] ImportSaveData ignored: saveData is nil.")
             return
         end
 
-        local savedConfigId = _DataUtil:GetTableString(saveData, "ConfigId", self.configId)
+        self.statsSource = "Save"
+
+        local savedConfigId = self:GetSaveString(saveData, "configId", "ConfigId", self.configId)
         if savedConfigId ~= nil and savedConfigId ~= "" then
-            self:ApplyConfig(savedConfigId)
+            self.configId = savedConfigId
         end
 
-        self.level = self:GetSaveInteger(saveData, "Level", self.level)
-        self.maxHp = math.max(0, self:GetSaveInteger(saveData, "MaxHp", self.maxHp))
-        self.maxMp = math.max(0, self:GetSaveInteger(saveData, "MaxMp", self.maxMp))
-        self.maxStamina = math.max(0, self:GetSaveInteger(saveData, "MaxStamina", self.maxStamina))
-        self.hp = self:GetSaveInteger(saveData, "Hp", self.maxHp)
-        self.mp = self:GetSaveInteger(saveData, "Mp", self.maxMp)
-        self.stamina = self:GetSaveInteger(saveData, "Stamina", self.maxStamina)
-        self.baseAttack = self:GetSaveInteger(saveData, "BaseAttack", self.baseAttack)
-        self.baseDefense = self:GetSaveInteger(saveData, "BaseDefense", self.baseDefense)
-        self.speed = self:GetSaveNumber(saveData, "Speed", self.speed)
+        self.jobType = self:GetSaveString(saveData, "jobType", "JobType", self.jobType)
+        self.level = self:GetSaveInteger(saveData, "level", "Level", self.level)
+        self.constitution = self:GetSaveInteger(saveData, "constitution", "Constitution", self.constitution)
+        self.dexterity = self:GetSaveInteger(saveData, "dexterity", "Dexterity", self.dexterity)
+        self.intelligence = self:GetSaveInteger(saveData, "intelligence", "Intelligence", self.intelligence)
+        self.will = self:GetSaveInteger(saveData, "will", "Will", self.will)
+        self.perception = self:GetSaveInteger(saveData, "perception", "Perception", self.perception)
+
+        self:ApplyDerivedFromTable(saveData)
+
+        self.hp = self:GetSaveInteger(saveData, "hp", "Hp", self.maxHp)
+        self.mp = self:GetSaveInteger(saveData, "mp", "Mp", self.maxMp)
+        self.stamina = self:GetSaveInteger(saveData, "stamina", "Stamina", self.maxStamina)
         self:RecalculateStats()
         self:ClampResources()
 
         log("[BattleActorCom] ImportSaveData complete. configId=" .. tostring(self.configId)
-            .. ", hp=" .. tostring(self.hp)
-            .. ", mp=" .. tostring(self.mp)
-            .. ", stamina=" .. tostring(self.stamina))
+            .. ", hp=" .. tostring(self.hp) .. "/" .. tostring(self.maxHp)
+            .. ", defense=" .. tostring(self.defense)
+            .. ", speed=" .. tostring(self.speed))
     end
 
     @ExecSpace("ServerOnly")
-    method integer GetSaveInteger(table saveData, string key, integer fallback)
-        -- Reads one integer field from actor save data with a fallback.
+    method string GetSaveString(table saveData, string key, string legacyKey, string fallback)
+        -- Reads a string field; prefers camelCase, falls back to legacy PascalCase.
+        local value = _DataUtil:GetTableString(saveData, key, "")
+        if value ~= nil and value ~= "" then
+            return value
+        end
+        value = _DataUtil:GetTableString(saveData, legacyKey, "")
+        if value ~= nil and value ~= "" then
+            return value
+        end
+        return fallback
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetSaveInteger(table saveData, string key, string legacyKey, integer fallback)
+        -- Reads an integer field; prefers camelCase, falls back to legacy PascalCase.
         local value = saveData[key]
+        if value == nil or value == "" then
+            value = saveData[legacyKey]
+        end
         if value == nil or value == "" then
             return fallback
         end
@@ -152,9 +315,12 @@ script BattleActorCom extends Component
     end
 
     @ExecSpace("ServerOnly")
-    method number GetSaveNumber(table saveData, string key, number fallback)
-        -- Reads one number field from actor save data with a fallback.
+    method number GetSaveNumber(table saveData, string key, string legacyKey, number fallback)
+        -- Reads a number field; prefers camelCase, falls back to legacy PascalCase.
         local value = saveData[key]
+        if value == nil or value == "" then
+            value = saveData[legacyKey]
+        end
         if value == nil or value == "" then
             return fallback
         end

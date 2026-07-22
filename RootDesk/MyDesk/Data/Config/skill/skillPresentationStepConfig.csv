@@ -1,4 +1,4 @@
-﻿skillKey,stepIndex,atSeconds,eventType,attachTo,ruid,offsetX,offsetY,offsetZ,scaleX,scaleY,scaleZ,flipWithSponsor
+skillKey,stepIndex,atSeconds,eventType,attachTo,ruid,offsetX,offsetY,offsetZ,scaleX,scaleY,scaleZ,flipWithSponsor
 spearPower,1,0,Effect,Sponsor,c7051cc242c54208a7c22df2b4bcc28e,0,0,0,1,1,1,true
 spearPower,2,0.1,Effect,Sponsor,176da561b7f946bcbb45bbfbabbaf605,0,0,0,1,1,1,true
 spearPower,3,0.2,Effect,Sponsor,852883a5b27442e88ac5a23f5a218a58,0,0,0,1,1,1,true

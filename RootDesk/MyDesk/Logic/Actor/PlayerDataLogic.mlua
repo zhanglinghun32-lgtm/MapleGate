@@ -1,6 +1,11 @@
 @Logic
 script PlayerDataLogic extends Logic
 
+    -- SaveSlot JSON shape (what is persisted to UserDataStorage):
+    --   docs/PlayerData/SaveSlotSchema.md  ← canonical field registry
+    -- Actor slim fields also summarized in docs/Actor/ActorVariableExplain.md
+    -- CollectSlotData() assembles the table; SaveSlotData() JSONEncodes it.
+
     property string worldSceneKey = "World"
     property string mainMenuSceneKey = "MainMenu"
     property string slotKeyPrefix = "Slot"
@@ -243,7 +248,7 @@ script PlayerDataLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method table CollectSlotData(string userId)
-        -- Collects all subsystem caches into one versioned slot payload.
+        -- Builds the SaveSlot table written to storage. Field list: docs/PlayerData/SaveSlotSchema.md
         local slotData = self.slotDataCache[userId]
         if slotData == nil then
             slotData = self:CreateDefaultSlotData()
@@ -267,7 +272,7 @@ script PlayerDataLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method table CreateDefaultSlotData()
-        -- Creates the full default save payload for one new slot.
+        -- Default SaveSlot shape for a new game. Keys must match SaveSlotSchema.md.
         local slotData = {}
         slotData.Version = self.currentSchemaVersion
         slotData.Profile = self:CreateDefaultProfileData()
@@ -283,22 +288,112 @@ script PlayerDataLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method table CreateDefaultActorList()
-        -- Creates temporary actor save data until character creation is implemented.
+        -- Slim Actors[] seed only. Capacities / attack are not persisted.
         local actors = {}
         local actorData = {}
-        actorData.ConfigId = "playerWarrior"
-        actorData.Level = 1
-        actorData.Hp = 120
-        actorData.MaxHp = 120
-        actorData.Mp = 20
-        actorData.MaxMp = 20
-        actorData.Stamina = 100
-        actorData.MaxStamina = 100
-        actorData.BaseAttack = 12
-        actorData.BaseDefense = 5
-        actorData.Speed = 3
+        actorData.configId = "playerWarrior"
+        actorData.jobType = "Warrior"
+        actorData.level = 1
+        actorData.constitution = 10
+        actorData.dexterity = 6
+        actorData.intelligence = 4
+        actorData.will = 6
+        actorData.perception = 5
+        -- Currents filled after formula so new games start at full.
+        local runtime = self:BuildRuntimeActorState(actorData)
+        actorData.hp = runtime.maxHp
+        actorData.mp = runtime.maxMp
+        actorData.stamina = runtime.maxStamina
         actors[1] = actorData
         return actors
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildRuntimeActorState(table saveActor)
+        -- Expands slim Actors[] with computed derived fields for BattleActorCom:ImportSaveData.
+        -- Does not persist derived values; does not compute attack (equip/skill/buff later).
+        local runtime = {}
+        if saveActor == nil then
+            return runtime
+        end
+
+        runtime.configId = tostring(saveActor.configId or saveActor.ConfigId or "")
+        runtime.jobType = tostring(saveActor.jobType or saveActor.JobType or "")
+        runtime.level = math.max(1, math.floor(tonumber(saveActor.level or saveActor.Level) or 1))
+        runtime.constitution = math.max(0, math.floor(tonumber(saveActor.constitution or saveActor.Constitution) or 0))
+        runtime.dexterity = math.max(0, math.floor(tonumber(saveActor.dexterity or saveActor.Dexterity) or 0))
+        runtime.intelligence = math.max(0, math.floor(tonumber(saveActor.intelligence or saveActor.Intelligence) or 0))
+        runtime.will = math.max(0, math.floor(tonumber(saveActor.will or saveActor.Will) or 0))
+        runtime.perception = math.max(0, math.floor(tonumber(saveActor.perception or saveActor.Perception) or 0))
+
+        local derived = self:ComputeActorDerivedFromAttributes(runtime)
+        runtime.maxHp = derived.maxHp
+        runtime.maxMp = derived.maxMp
+        runtime.maxStamina = derived.maxStamina
+        runtime.defense = derived.defense
+        runtime.speed = derived.speed
+        runtime.jumpForce = derived.jumpForce
+        runtime.castRange = derived.castRange
+        runtime.mpCostRate = derived.mpCostRate
+        runtime.recoveryRate = derived.recoveryRate
+        runtime.resistance = derived.resistance
+        runtime.effectPotency = derived.effectPotency
+        runtime.effectHitRate = derived.effectHitRate
+        runtime.criticalRate = derived.criticalRate
+
+        runtime.hp = self:ClampCurrentResource(saveActor.hp or saveActor.Hp, runtime.maxHp)
+        runtime.mp = self:ClampCurrentResource(saveActor.mp or saveActor.Mp, runtime.maxMp)
+        runtime.stamina = self:ClampCurrentResource(saveActor.stamina or saveActor.Stamina, runtime.maxStamina)
+        return runtime
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ComputeActorDerivedFromAttributes(table actorAttrs)
+        -- Player-only: five attributes -> derived fields. Never outputs attack.
+        -- Curves are placeholders — see docs/Actor/ActorVariableExplain.md.
+        local level = math.max(1, math.floor(tonumber(actorAttrs.level) or 1))
+        local constitution = math.max(0, math.floor(tonumber(actorAttrs.constitution) or 0))
+        local dexterity = math.max(0, math.floor(tonumber(actorAttrs.dexterity) or 0))
+        local intelligence = math.max(0, math.floor(tonumber(actorAttrs.intelligence) or 0))
+        local will = math.max(0, math.floor(tonumber(actorAttrs.will) or 0))
+        local perception = math.max(0, math.floor(tonumber(actorAttrs.perception) or 0))
+
+        local derived = {}
+        -- constitution -> maxHp, defense
+        derived.maxHp = math.max(1, 50 + constitution * 7 + level * 5)
+        derived.defense = math.max(0, 1 + math.floor((constitution + will) / 3))
+        -- dexterity -> speed, jumpForce, maxStamina
+        derived.speed = math.max(0, 2 + dexterity * 0.15)
+        derived.jumpForce = math.max(0, 0.8 + dexterity * 0.08)
+        derived.maxStamina = math.max(0, 40 + dexterity * 4 + will * 2 + level * 2)
+        -- intelligence -> maxMp, castRange, mpCostRate
+        derived.maxMp = math.max(0, 10 + intelligence * 5 + level * 2)
+        derived.castRange = math.max(0, 1 + intelligence * 0.05)
+        derived.mpCostRate = math.max(0.5, 1.1 - intelligence * 0.02)
+        -- will -> recoveryRate, resistance, effectPotency
+        derived.recoveryRate = math.max(0, will * 0.05)
+        derived.resistance = math.max(0, will * 0.03)
+        derived.effectPotency = math.max(0, 1 + will * 0.02)
+        -- perception -> effectHitRate, criticalRate
+        derived.effectHitRate = math.max(0, math.min(1, 0.05 + perception * 0.01))
+        derived.criticalRate = math.max(0, math.min(1, 0.02 + perception * 0.008))
+        return derived
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer ClampCurrentResource(any currentValue, integer maxValue)
+        -- Clamps a persisted current resource into 0 .. maxValue; nil means full.
+        if maxValue == nil then
+            maxValue = 0
+        end
+        if currentValue == nil or currentValue == "" then
+            return maxValue
+        end
+        local numberValue = tonumber(currentValue)
+        if numberValue == nil then
+            return maxValue
+        end
+        return math.max(0, math.min(math.floor(numberValue), maxValue))
     end
 
     @ExecSpace("ServerOnly")
@@ -426,6 +521,10 @@ script PlayerDataLogic extends Logic
             return false
         end
 
+        -- Player combat stats come from SaveSlot, not OnBeginPlay ApplyConfig.
+        -- See docs/Actor/BattleActorInitPaths.md and ActorVariableExplain.md.
+        battleActor.statsSource = "Save"
+
         -- Every playable Actor owns normalAttack. The component maps A to the native
         -- Attack action and performs server-authoritative world-field hit detection.
         local fieldNormalAttack = userEntity:GetComponent("script.FieldNormalAttack")
@@ -460,12 +559,15 @@ script PlayerDataLogic extends Logic
             return false
         end
 
-        battleActor:ImportSaveData(actors[1])
+        local runtimeActor = self:BuildRuntimeActorState(actors[1])
+        battleActor:ImportSaveData(runtimeActor)
         log("[PlayerDataLogic] ApplyPrimaryActorToPlayer complete. userId=" .. userId
+            .. ", statsSource=" .. tostring(battleActor.statsSource)
             .. ", configId=" .. tostring(battleActor.configId)
             .. ", hp=" .. tostring(battleActor.hp)
+            .. "/" .. tostring(battleActor.maxHp)
             .. ", mp=" .. tostring(battleActor.mp)
-            .. ", stamina=" .. tostring(battleActor.stamina))
+            .. "/" .. tostring(battleActor.maxMp))
         return true
     end
 

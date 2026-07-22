@@ -271,7 +271,7 @@ For project-specific architecture, naming, and responsibility boundaries, read:
 
 These rules are mandatory for new or modified project scripts:
 
-- New systems: **Design doc → Config (flat `Data/Config/`) → Logic (`Logic/`) → Component (domain folder: `UI/`, `Battle/`, `MapScene/`, …)**.
+- New systems: **Design doc → Config (`Data/Config/`, skill presentation under `Config/skill/`) → Logic (`Logic/`) → Component (domain folder: `UI/`, `Battle/`, `MapScene/`, …)**.
 - Do not create a RUID Catalog; use Config columns (e.g. `iconRuid`) or Maker `.ui` preview for layout sprites.
 - Keep `ui/` flat — no UI subfolders.
 - Script file names and script declarations use PascalCase and must match exactly.

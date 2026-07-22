@@ -1,6 +1,6 @@
-actorKey,displayName,actorType,jobType,level,maxHp,maxMp,attack,defense,moveSpeed,naturalSkillKeys,defaultEquipmentKeys,description,enabled
-playerWarrior,Warrior,Player,Warrior,1,120,20,12,5,3,normalAttack|heavySlash,ironSword|leatherArmor,近戰型初始職業。,true
-playerRogue,Rogue,Player,Rogue,1,90,30,10,3,3.4,normalAttack|quickStab|poisonSlash,ironSword,速度和毒傷取向的初始職業。,true
-npcElder,Village Elder,NPC,None,1,1,0,0,0,0,,,村莊長者，負責新手任務。,true
-npcGuard,Gate Guard,NPC,None,1,1,0,0,0,0,,,村口守衛，負責狩獵任務。,true
-slime,Slime,Monster,None,1,35,0,4,1,1.5,,,基礎史萊姆怪物。,true
+configId,displayName,actorType,jobType,level,constitution,dexterity,intelligence,will,perception,maxHp,maxMp,maxStamina,defense,speed,jumpForce,castRange,mpCostRate,recoveryRate,resistance,effectPotency,effectHitRate,criticalRate,naturalSkillKeys,defaultEquipmentKeys,description,enabled
+playerWarrior,Warrior,Player,Warrior,1,10,6,4,6,5,120,20,80,5,3,1.2,1,1,1,0,1,0.05,0.05,normalAttack|heavySlash,ironSword|leatherArmor,近戰型初始職業。五大屬性種子；衍伸欄供參考，玩家執行時由 PlayerDataLogic 重算。,true
+playerRogue,Rogue,Player,Rogue,1,6,10,5,5,8,90,30,100,3,3.4,1.6,1.1,0.95,1,0,1,0.08,0.1,normalAttack|quickStab|poisonSlash,ironSword,速度和毒傷取向的初始職業。,true
+npcElder,Village Elder,NPC,None,1,1,1,1,1,1,1,0,0,0,0,0,0,1,0,0,0,0,0,,,村莊長者，負責新手任務。,true
+npcGuard,Gate Guard,NPC,None,1,5,3,1,3,2,1,0,20,2,1.5,0.8,0,1,0,0.1,0,0,0,,,村口守衛，負責狩獵任務。,true
+slime,Slime,Monster,None,1,4,2,1,2,2,35,0,20,1,1.5,0.5,0,1,0,0,0,0.02,0.02,,,基礎史萊姆怪物。衍伸屬性寫死於 Config。,true

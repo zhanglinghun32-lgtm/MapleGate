@@ -19,6 +19,7 @@ script ControlCharacterUIComponent extends Component
     property string displayedActorId = ""
     property table currentActorSkillKeys = {}
     property table skillConfigCache = {}
+    property table skillRangeCache = {}
 
     property any battleSystem = nil
 
@@ -632,35 +633,42 @@ script ControlCharacterUIComponent extends Component
     end
 
     method table GetSkillRangePreviewConfig(string skillKey)
-        -- Reads targetShape and size fields from skillConfig for preview drawing.
+        -- Reads targetShape and size fields from skillRange for preview drawing.
         if skillKey == nil or skillKey == "" then
             return nil
         end
 
-        local skillRow = self.skillConfigCache[skillKey]
-        if skillRow == nil then
-            log_warning("[ControlCharacterUIComponent] GetSkillRangePreviewConfig failed: cached skill row missing. key=" .. tostring(skillKey))
+        local rangeRow = self.skillRangeCache[skillKey]
+        if rangeRow == nil then
+            log_warning("[ControlCharacterUIComponent] GetSkillRangePreviewConfig failed: cached skillRange row missing. key=" .. tostring(skillKey))
             return nil
         end
 
         local rangeConfig = {}
-        rangeConfig.Shape = _DataUtil:GetRowString(skillRow, "targetShape", "Single")
-        rangeConfig.Radius = _DataUtil:GetRowNumber(skillRow, "targetRadius", 0)
-        rangeConfig.Width = _DataUtil:GetRowNumber(skillRow, "targetWidth", 0)
-        rangeConfig.Height = _DataUtil:GetRowNumber(skillRow, "targetHeight", 0)
+        rangeConfig.Shape = _DataUtil:GetRowString(rangeRow, "targetShape", "Single")
+        rangeConfig.Radius = _DataUtil:GetRowNumber(rangeRow, "targetRadius", 0)
+        rangeConfig.Width = _DataUtil:GetRowNumber(rangeRow, "targetWidth", 0)
+        rangeConfig.Height = _DataUtil:GetRowNumber(rangeRow, "targetHeight", 0)
         return rangeConfig
     end
 
     method void RebuildSkillConfigCache(table skillKeys)
         -- Reads each owned skill once when the controlled skill list changes.
         self.skillConfigCache = {}
+        self.skillRangeCache = {}
         local skillDataSet = _DataService:GetTable("skillConfig")
         if skillDataSet == nil then
             log_warning("[ControlCharacterUIComponent] RebuildSkillConfigCache failed: skillConfig missing.")
             return
         end
 
+        local rangeDataSet = _DataService:GetTable("skillRange")
+        if rangeDataSet == nil then
+            log_warning("[ControlCharacterUIComponent] RebuildSkillConfigCache warning: skillRange missing.")
+        end
+
         local cachedCount = 0
+        local rangeCachedCount = 0
         for _, skillKeyValue in ipairs(skillKeys or {}) do
             local skillKey = tostring(skillKeyValue)
             if skillKey ~= "" and self.skillConfigCache[skillKey] == nil then
@@ -671,9 +679,19 @@ script ControlCharacterUIComponent extends Component
                 else
                     log_warning("[ControlCharacterUIComponent] RebuildSkillConfigCache row missing. key=" .. skillKey)
                 end
+
+                if rangeDataSet ~= nil and self.skillRangeCache[skillKey] == nil then
+                    local rangeRow = rangeDataSet:FindRow("keyName", skillKey)
+                    if rangeRow ~= nil then
+                        self.skillRangeCache[skillKey] = rangeRow
+                        rangeCachedCount = rangeCachedCount + 1
+                    else
+                        log_warning("[ControlCharacterUIComponent] RebuildSkillConfigCache skillRange row missing. key=" .. skillKey)
+                    end
+                end
             end
         end
-        log("[ControlCharacterUIComponent] RebuildSkillConfigCache count=" .. tostring(cachedCount))
+        log("[ControlCharacterUIComponent] RebuildSkillConfigCache count=" .. tostring(cachedCount) .. ", rangeCount=" .. tostring(rangeCachedCount))
     end
 
     method number GetPreviewDirectionX()
@@ -805,7 +823,7 @@ script ControlCharacterUIComponent extends Component
         actorData.displayName = actorEntity.Name
         local battleActor = actorEntity:GetComponent("script.BattleActorCom")
         if battleActor ~= nil then
-            actorData.actorKey = tostring(battleActor.configId)
+            actorData.configId = tostring(battleActor.configId)
             actorData.level = battleActor.level
             actorData.hp = battleActor.hp
             actorData.mp = battleActor.mp

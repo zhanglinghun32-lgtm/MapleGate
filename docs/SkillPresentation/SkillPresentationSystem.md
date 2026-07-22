@@ -2,7 +2,7 @@
 
 ## Goal
 
-Play ordinary skill presentations from flat DataSet timelines without adding one
+Play ordinary skill presentations from DataSet timelines without adding one
 method or one action-key branch per skill.
 
 ## Shared Key
@@ -13,9 +13,12 @@ method or one action-key branch per skill.
 
 ## Config
 
-- `skillPresentationConfig.csv`: one row per skill presentation. Avatar action,
-  play rate, and total duration.
-- `skillPresentationStepConfig.csv`: one row per timed presentation event.
+Tables live under `RootDesk/MyDesk/Data/Config/skill/` (`.csv` + `.userdataset`
+pairs). `skillConfig` stays at `Data/Config/` and joins only by `skillKey`.
+
+- `skill/skillPresentationConfig.csv`: one row per skill presentation. Avatar
+  action, play rate, and total duration.
+- `skill/skillPresentationStepConfig.csv`: one row per timed presentation event.
   Effects choose Sponsor or Target attachment and carry local offset/scale data.
 
 ## Runtime
