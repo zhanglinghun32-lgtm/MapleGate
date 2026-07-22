@@ -31,6 +31,28 @@ script PartyLogic extends Logic
             partyData.Formation = {}
         end
 
+        -- Legacy saves may contain Party.Members but an empty Formation.
+        if self:GetFormationCount(partyData.Formation) == 0 then
+            for slotIndex = 1, 4 do
+                local memberData = partyData.Members[slotIndex]
+                if memberData ~= nil then
+                    local actorKey = tostring(memberData.ActorKey or memberData.actorKey or memberData.configId or "")
+                    if actorKey ~= "" then
+                        partyData.Formation[slotIndex] = actorKey
+                    end
+                end
+            end
+        end
+
+        -- Repair partially-created slots whose Party collections are both empty.
+        if self:GetFormationCount(partyData.Formation) == 0 then
+            partyData.Formation[1] = "playerWarrior"
+            if partyData.Members[1] == nil then
+                partyData.Members[1] = self:CreateActorState("playerWarrior", 1)
+            end
+            log_warning("[PartyLogic] LoadUserData repaired empty formation. userId=" .. userId)
+        end
+
         local activeFieldSlot = tonumber(partyData.ActiveFieldSlot) or 1
         activeFieldSlot = math.floor(activeFieldSlot)
         if activeFieldSlot < 1 or activeFieldSlot > 4 or partyData.Formation[activeFieldSlot] == nil then
@@ -41,8 +63,71 @@ script PartyLogic extends Logic
         self.userParties[userId] = partyData
         log("[PartyLogic] LoadUserData. userId=" .. userId
             .. ", memberCount=" .. tostring(#partyData.Members)
-            .. ", formationCount=" .. tostring(#partyData.Formation)
+            .. ", formationCount=" .. tostring(self:GetFormationCount(partyData.Formation))
             .. ", activeFieldSlot=" .. tostring(partyData.ActiveFieldSlot))
+    end
+
+    @ExecSpace("Server")
+    method void RequestPartyUIRoster()
+        local userId = senderUserId
+        if userId == nil or userId == "" then
+            log_warning("[PartyLogic] RequestPartyUIRoster ignored: senderUserId is empty.")
+            return
+        end
+
+        local partyData = self:ExportUserData(userId)
+        local roster = {}
+        local playerEntity = _UserService:GetUserEntityByUserId(userId)
+        local playerActorKey = ""
+        if isvalid(playerEntity) and isvalid(playerEntity.BattleActorCom) then
+            playerActorKey = playerEntity.BattleActorCom.configId
+        end
+
+        for slotIndex = 1, 4 do
+            local actorKey = tostring(partyData.Formation[slotIndex] or "")
+            if actorKey ~= "" then
+                local rosterEntry = {}
+                rosterEntry.actorId = actorKey
+                rosterEntry.entityId = ""
+                rosterEntry.isLocalPlayer = false
+                if isvalid(playerEntity) and (actorKey == playerActorKey or slotIndex == partyData.ActiveFieldSlot) then
+                    rosterEntry.entityId = playerEntity.Id
+                    rosterEntry.isLocalPlayer = true
+                end
+                roster[slotIndex] = rosterEntry
+            end
+        end
+
+        self:ReceivePartyUIRoster(roster, userId)
+        log("[PartyLogic] RequestPartyUIRoster response. userId=" .. userId
+            .. ", formationCount=" .. tostring(self:GetFormationCount(partyData.Formation)))
+    end
+
+    @ExecSpace("Client")
+    method void ReceivePartyUIRoster(table roster)
+        local partyUIEntity = _EntityService:GetEntityByPath("/ui/Party")
+        if isvalid(partyUIEntity) == false or isvalid(partyUIEntity.PartyUICom) == false then
+            log_warning("[PartyLogic] ReceivePartyUIRoster failed: PartyUICom not found.")
+            return
+        end
+
+        partyUIEntity.PartyUICom:ApplyRoster(roster)
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetFormationCount(table formation)
+        if formation == nil then
+            return 0
+        end
+
+        local count = 0
+        for slotIndex = 1, 4 do
+            local actorKey = formation[slotIndex]
+            if actorKey ~= nil and tostring(actorKey) ~= "" then
+                count = count + 1
+            end
+        end
+        return count
     end
 
     @ExecSpace("ServerOnly")

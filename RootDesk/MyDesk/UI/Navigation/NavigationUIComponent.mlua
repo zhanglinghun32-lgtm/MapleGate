@@ -99,6 +99,10 @@ script NavigationUIComponent extends Component
         -- Routes the party shortcut through the shared UI manager.
         self:SetExpanded(false)
         _UIManagerLogic:OpenUI("Party")
+        local partyUIEntity = _UIManagerLogic:GetUIEntity("Party")
+        if isvalid(partyUIEntity) and isvalid(partyUIEntity.PartyUICom) then
+            partyUIEntity.PartyUICom:RequestRosterRefresh()
+        end
         log("[NavigationUIComponent] OpenPartyUI requested.")
     end
 

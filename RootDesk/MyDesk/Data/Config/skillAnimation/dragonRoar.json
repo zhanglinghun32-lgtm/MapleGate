@@ -1,0 +1,30 @@
+{
+  "resource_pack": "skill/80001548",
+  "elements": [
+    {
+      "ruid": "a7c247028b7045b19e2511b4d6135e7b",
+      "action": "effect",
+      "type": "animationclip"
+    },
+    {
+      "ruid": "7aca2237f8f94b23a65f04dfebffce41",
+      "action": "hit/0",
+      "type": "animationclip"
+    },
+    {
+      "ruid": "1afb585176cd4808bc678dfb5df4ffd6",
+      "action": "icon",
+      "type": "sprite"
+    },
+    {
+      "ruid": "fa3bb510fcef431880131169838d909c",
+      "action": "iconDisabled",
+      "type": "sprite"
+    },
+    {
+      "ruid": "c1247d9365f6402b9d79a9528628ee13",
+      "action": "iconMouseOver",
+      "type": "sprite"
+    }
+  ]
+}

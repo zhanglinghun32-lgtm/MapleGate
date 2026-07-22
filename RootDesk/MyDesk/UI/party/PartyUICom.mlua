@@ -1,0 +1,156 @@
+@Component
+script PartyUICom extends Component
+
+    @HideFromInspector
+    property Entity memberSlot1 = nil
+
+    @HideFromInspector
+    property Entity memberSlot2 = nil
+
+    @HideFromInspector
+    property Entity memberSlot3 = nil
+
+    @HideFromInspector
+    property Entity memberSlot4 = nil
+
+    @HideFromInspector
+    property Entity closeButton = nil
+
+    @HideFromInspector
+    property any closeButtonHandler = nil
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        if isvalid(self.closeButton) then
+            self.closeButtonHandler = self.closeButton:ConnectEvent(ButtonClickEvent, self.OnCloseClicked)
+        end
+        self:RequestRosterRefresh()
+        log("[PartyUICom] Ready with four member slots.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnEndPlay()
+        if isvalid(self.closeButton) and self.closeButtonHandler ~= nil then
+            self.closeButton:DisconnectEvent(ButtonClickEvent, self.closeButtonHandler)
+            self.closeButtonHandler = nil
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnCloseClicked(ButtonClickEvent event)
+        _UIManagerLogic:CloseUI("Party")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RequestRosterRefresh()
+        _PartyLogic:RequestPartyUIRoster()
+        log("[PartyUICom] Requested roster refresh.")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ApplyRoster(table roster)
+        for slotIndex = 1, 4 do
+            local rosterEntry = nil
+            if roster ~= nil then
+                rosterEntry = roster[slotIndex]
+            end
+
+            if rosterEntry ~= nil and rosterEntry.isLocalPlayer == true and isvalid(_UserService.LocalPlayer) then
+                self:SetMemberEntity(slotIndex, _UserService.LocalPlayer)
+            else
+                self:SetMember(slotIndex, rosterEntry)
+            end
+        end
+        log("[PartyUICom] Applied roster. slot1Visible=" .. tostring(isvalid(self.memberSlot1) and self.memberSlot1.Enable))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetMembers(table memberInputs)
+        for slotIndex = 1, 4 do
+            local memberInput = nil
+            if memberInputs ~= nil then
+                memberInput = memberInputs[slotIndex]
+            end
+            self:SetMember(slotIndex, memberInput)
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetMember(integer slotIndex, any memberInput)
+        if memberInput == nil then
+            local emptySlot = self:GetMemberSlotEntity(slotIndex)
+            if emptySlot ~= nil then
+                emptySlot.Enable = false
+            end
+            return
+        end
+
+        local memberComponent = self:GetMemberComponent(slotIndex)
+        if memberComponent == nil then
+            log_warning("[PartyUICom] Invalid member slot index=" .. tostring(slotIndex))
+            return
+        end
+        memberComponent:SetMemberInput(memberInput)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetMemberEntity(integer slotIndex, Entity memberEntity)
+        local memberComponent = self:GetMemberComponent(slotIndex)
+        if memberComponent ~= nil then
+            memberComponent:SetMemberEntity(memberEntity)
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetMemberEntityId(integer slotIndex, string entityId)
+        local memberComponent = self:GetMemberComponent(slotIndex)
+        if memberComponent ~= nil then
+            memberComponent:SetMemberEntityId(entityId)
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetMemberActorId(integer slotIndex, string actorId)
+        local memberComponent = self:GetMemberComponent(slotIndex)
+        if memberComponent ~= nil then
+            memberComponent:SetMemberActorId(actorId)
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ClearMembers()
+        for slotIndex = 1, 4 do
+            local memberComponent = self:GetMemberComponent(slotIndex)
+            if memberComponent ~= nil then
+                memberComponent:ClearMember()
+            end
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method Entity GetMemberSlotEntity(integer slotIndex)
+        if slotIndex == 1 then
+            return self.memberSlot1
+        elseif slotIndex == 2 then
+            return self.memberSlot2
+        elseif slotIndex == 3 then
+            return self.memberSlot3
+        elseif slotIndex == 4 then
+            return self.memberSlot4
+        end
+        return nil
+    end
+
+    @ExecSpace("ClientOnly")
+    method Component GetMemberComponent(integer slotIndex)
+        local slotEntity = self:GetMemberSlotEntity(slotIndex)
+
+        if slotEntity == nil then
+            return nil
+        end
+        -- Disabled empty slots must remain reusable when a member is later added.
+        slotEntity.Enable = true
+        return slotEntity.SingleMemberUICom
+    end
+
+end

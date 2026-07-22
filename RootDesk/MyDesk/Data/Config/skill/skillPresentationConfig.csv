@@ -1,2 +1,3 @@
-skillKey,actionName,actionRate,duration
+﻿skillKey,actionName,actionRate,duration
 spearPower,stabT1,1.2,0.7
+dragonRoar,stabT1,1.2,0.7

@@ -1,0 +1,234 @@
+@Component
+script SingleMemberUICom extends Component
+
+    @HideFromInspector
+    property Entity iconEntity = nil
+
+    @HideFromInspector
+    property Entity nameTextEntity = nil
+
+    @HideFromInspector
+    property Entity statusTextEntity = nil
+
+    property string entityId = ""
+    property string actorId = ""
+
+    @HideFromInspector
+    property Entity memberEntity = nil
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        if self.entityId ~= "" then
+            self:SetMemberEntityId(self.entityId)
+        elseif self.actorId ~= "" then
+            self:SetMemberActorId(self.actorId)
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetMemberInput(any memberInput)
+        if memberInput == nil then
+            self:ClearMember()
+            return
+        end
+
+        if type(memberInput) == "string" then
+            self:SetMemberActorId(memberInput)
+            return
+        end
+
+        if type(memberInput) ~= "table" then
+            log_warning("[SingleMemberUICom] Unsupported member input type=" .. tostring(type(memberInput)))
+            self:ClearMember()
+            return
+        end
+
+        local inputEntity = memberInput.entity
+        if inputEntity == nil then
+            inputEntity = memberInput.Entity
+        end
+        if isvalid(inputEntity) then
+            self:SetMemberEntity(inputEntity)
+            return
+        end
+
+        local inputEntityId = memberInput.entityId
+        if inputEntityId == nil or inputEntityId == "" then
+            inputEntityId = memberInput.EntityId
+        end
+        if inputEntityId ~= nil and inputEntityId ~= "" then
+            self:SetMemberEntityId(tostring(inputEntityId))
+            return
+        end
+
+        local inputActorId = memberInput.actorId
+        if inputActorId == nil or inputActorId == "" then
+            inputActorId = memberInput.ActorId
+        end
+        if inputActorId ~= nil and inputActorId ~= "" then
+            self:SetMemberActorId(tostring(inputActorId))
+            return
+        end
+
+        log_warning("[SingleMemberUICom] Input does not contain entity, entityId, or actorId.")
+        self:ClearMember()
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetMemberEntity(Entity targetEntity)
+        if isvalid(targetEntity) == false then
+            self:ClearMember()
+            return
+        end
+
+        self.memberEntity = targetEntity
+        self.entityId = targetEntity.Id
+        self.Entity.Enable = true
+        self:RefreshMember()
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetMemberEntityId(string targetEntityId)
+        self.entityId = targetEntityId
+        local targetEntity = _EntityService:GetEntity(targetEntityId)
+        if isvalid(targetEntity) == false then
+            log_warning("[SingleMemberUICom] Entity not found. entityId=" .. tostring(targetEntityId))
+            self:ClearMember()
+            return
+        end
+        self:SetMemberEntity(targetEntity)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetMemberActorId(string targetActorId)
+        self.actorId = targetActorId
+        local targetEntity = self:ResolveActorEntity(targetActorId)
+        if isvalid(targetEntity) == false then
+            log_warning("[SingleMemberUICom] Actor not found. actorId=" .. tostring(targetActorId))
+            self:ClearMember()
+            return
+        end
+        self:SetMemberEntity(targetEntity)
+    end
+
+    @ExecSpace("ClientOnly")
+    method Entity ResolveActorEntity(string targetActorId)
+        if targetActorId == nil or targetActorId == "" then
+            return nil
+        end
+
+        local directEntity = _EntityService:GetEntity(targetActorId)
+        if isvalid(directEntity) then
+            return directEntity
+        end
+
+        for userId, userEntity in pairs(_UserService.UserEntities) do
+            if isvalid(userEntity) then
+                if tostring(userId) == targetActorId or userEntity.Id == targetActorId or userEntity.Name == targetActorId then
+                    return userEntity
+                end
+
+                local battleActor = userEntity.BattleActorCom
+                if isvalid(battleActor) and battleActor.configId == targetActorId then
+                    return userEntity
+                end
+            end
+        end
+
+        return nil
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RefreshMember()
+        if isvalid(self.memberEntity) == false then
+            self:ClearMember()
+            return
+        end
+
+        self:RefreshAvatar(self.memberEntity)
+        self:RefreshTexts(self.memberEntity)
+        log("[SingleMemberUICom] Refreshed member. entity=" .. tostring(self.memberEntity.Name))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RefreshAvatar(Entity sourceEntity)
+        if isvalid(self.iconEntity) == false then
+            return
+        end
+
+        local avatarGui = self.iconEntity.AvatarGUIRendererComponent
+        local sourceCostume = sourceEntity.CostumeManagerComponent
+        if isvalid(avatarGui) == false or isvalid(sourceCostume) == false then
+            log_warning("[SingleMemberUICom] Avatar renderer or source costume is missing.")
+            return
+        end
+
+        local previewCostume = self.iconEntity.CostumeManagerComponent
+        if isvalid(previewCostume) == false then
+            log_warning("[SingleMemberUICom] Preview CostumeManagerComponent is missing.")
+            return
+        end
+
+        local sourcePlayer = sourceEntity.PlayerComponent
+        if isvalid(sourcePlayer) and sourcePlayer.UserId ~= nil and sourcePlayer.UserId ~= "" then
+            previewCostume.DefaultEquipUserId = sourcePlayer.UserId
+        else
+            previewCostume.DefaultEquipUserId = sourceCostume.DefaultEquipUserId
+        end
+
+        -- Copy the same custom overrides used by the world avatar. Assigning the
+        -- matching slot properties avoids SetEquip category validation failures.
+        previewCostume.UseCustomEquipOnly = sourceCostume.UseCustomEquipOnly
+        previewCostume.CustomBodyEquip = sourceCostume.CustomBodyEquip
+        previewCostume.CustomCapEquip = sourceCostume.CustomCapEquip
+        previewCostume.CustomCapeEquip = sourceCostume.CustomCapeEquip
+        previewCostume.CustomCoatEquip = sourceCostume.CustomCoatEquip
+        previewCostume.CustomEarAccessoryEquip = sourceCostume.CustomEarAccessoryEquip
+        previewCostume.CustomEarEquip = sourceCostume.CustomEarEquip
+        previewCostume.CustomEyeAccessoryEquip = sourceCostume.CustomEyeAccessoryEquip
+        previewCostume.CustomFaceAccessoryEquip = sourceCostume.CustomFaceAccessoryEquip
+        previewCostume.CustomFaceEquip = sourceCostume.CustomFaceEquip
+        previewCostume.CustomGloveEquip = sourceCostume.CustomGloveEquip
+        previewCostume.CustomHairEquip = sourceCostume.CustomHairEquip
+        previewCostume.CustomLongcoatEquip = sourceCostume.CustomLongcoatEquip
+        previewCostume.CustomOneHandedWeaponEquip = sourceCostume.CustomOneHandedWeaponEquip
+        previewCostume.CustomPantsEquip = sourceCostume.CustomPantsEquip
+        previewCostume.CustomShoesEquip = sourceCostume.CustomShoesEquip
+        previewCostume.CustomSubWeaponEquip = sourceCostume.CustomSubWeaponEquip
+        previewCostume.CustomTwoHandedWeaponEquip = sourceCostume.CustomTwoHandedWeaponEquip
+    end
+
+    @ExecSpace("ClientOnly")
+    method void RefreshTexts(Entity sourceEntity)
+        local displayName = sourceEntity.Name
+        local player = sourceEntity.PlayerComponent
+        if isvalid(player) and player.Nickname ~= nil and player.Nickname ~= "" then
+            displayName = player.Nickname
+        end
+
+        if isvalid(self.nameTextEntity) and isvalid(self.nameTextEntity.TextComponent) then
+            self.nameTextEntity.TextComponent.Text = displayName
+        end
+
+        local status = "Online"
+        local battleActor = sourceEntity.BattleActorCom
+        if isvalid(battleActor) then
+            status = "Lv. " .. tostring(battleActor.level)
+            if battleActor.maxHp > 0 then
+                status = status .. "  HP " .. tostring(battleActor.hp) .. "/" .. tostring(battleActor.maxHp)
+            end
+        end
+        if isvalid(self.statusTextEntity) and isvalid(self.statusTextEntity.TextComponent) then
+            self.statusTextEntity.TextComponent.Text = status
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ClearMember()
+        self.memberEntity = nil
+        self.entityId = ""
+        self.actorId = ""
+        self.Entity.Enable = false
+    end
+
+end

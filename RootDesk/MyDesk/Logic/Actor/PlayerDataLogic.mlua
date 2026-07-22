@@ -65,15 +65,15 @@ script PlayerDataLogic extends Logic
     end
 
     @ExecSpace("Server")
-    method void RequestSaveAndReturnToMenu()
-        -- Returns to the main menu without collecting or writing slot data.
+    method void RequestReturnToMenu()
+        -- Returns to the main menu without saving; save and exit are separate actions.
         if senderUserId == nil or senderUserId == "" then
-            log_warning("[PlayerDataLogic] RequestSaveAndReturnToMenu ignored: senderUserId is empty.")
+            log_warning("[PlayerDataLogic] RequestReturnToMenu ignored: senderUserId is empty.")
             return
         end
 
         _GameplayFlowLogic:ReturnToMainMenuForUser(senderUserId, "ReturnToMenu")
-        log("[PlayerDataLogic] RequestSaveAndReturnToMenu complete without save. userId=" .. senderUserId)
+        log("[PlayerDataLogic] RequestReturnToMenu complete without save. userId=" .. senderUserId)
     end
 
     @ExecSpace("ServerOnly")
@@ -218,7 +218,15 @@ script PlayerDataLogic extends Logic
             return nil
         end
 
-        log("[PlayerDataLogic] LoadSlotData. userId=" .. userId .. ", slotKey=" .. slotKey)
+        local loadedActor = nil
+        if slotData.Actors ~= nil then
+            loadedActor = slotData.Actors[1]
+        end
+        log("[PlayerDataLogic] LoadSlotData. userId=" .. userId
+            .. ", slotKey=" .. slotKey
+            .. ", actorHp=" .. tostring(loadedActor ~= nil and loadedActor.hp or nil)
+            .. ", actorMp=" .. tostring(loadedActor ~= nil and loadedActor.mp or nil)
+            .. ", actorStamina=" .. tostring(loadedActor ~= nil and loadedActor.stamina or nil))
         return slotData
     end
 
@@ -242,7 +250,15 @@ script PlayerDataLogic extends Logic
 
         self.dirtyUsers[userId] = nil
         self.slotDataCache[userId] = slotData
-        log("[PlayerDataLogic] SaveSlotData. userId=" .. userId .. ", slotKey=" .. slotKey)
+        local savedActor = nil
+        if slotData.Actors ~= nil then
+            savedActor = slotData.Actors[1]
+        end
+        log("[PlayerDataLogic] SaveSlotData. userId=" .. userId
+            .. ", slotKey=" .. slotKey
+            .. ", actorHp=" .. tostring(savedActor ~= nil and savedActor.hp or nil)
+            .. ", actorMp=" .. tostring(savedActor ~= nil and savedActor.mp or nil)
+            .. ", actorStamina=" .. tostring(savedActor ~= nil and savedActor.stamina or nil))
         return true
     end
 
@@ -350,33 +366,22 @@ script PlayerDataLogic extends Logic
     @ExecSpace("ServerOnly")
     method table ComputeActorDerivedFromAttributes(table actorAttrs)
         -- Player-only: five attributes -> derived fields. Never outputs attack.
-        -- Curves are placeholders — see docs/Actor/ActorVariableExplain.md.
-        local level = math.max(1, math.floor(tonumber(actorAttrs.level) or 1))
-        local constitution = math.max(0, math.floor(tonumber(actorAttrs.constitution) or 0))
-        local dexterity = math.max(0, math.floor(tonumber(actorAttrs.dexterity) or 0))
-        local intelligence = math.max(0, math.floor(tonumber(actorAttrs.intelligence) or 0))
-        local will = math.max(0, math.floor(tonumber(actorAttrs.will) or 0))
-        local perception = math.max(0, math.floor(tonumber(actorAttrs.perception) or 0))
-
+        -- TODO(ActorDerivedFormula): Replace every value below when the balance
+        -- formulas for level / jobType / five primary attributes are finalized.
         local derived = {}
-        -- constitution -> maxHp, defense
-        derived.maxHp = math.max(1, 50 + constitution * 7 + level * 5)
-        derived.defense = math.max(0, 1 + math.floor((constitution + will) / 3))
-        -- dexterity -> speed, jumpForce, maxStamina
-        derived.speed = math.max(0, 2 + dexterity * 0.15)
-        derived.jumpForce = math.max(0, 0.8 + dexterity * 0.08)
-        derived.maxStamina = math.max(0, 40 + dexterity * 4 + will * 2 + level * 2)
-        -- intelligence -> maxMp, castRange, mpCostRate
-        derived.maxMp = math.max(0, 10 + intelligence * 5 + level * 2)
-        derived.castRange = math.max(0, 1 + intelligence * 0.05)
-        derived.mpCostRate = math.max(0.5, 1.1 - intelligence * 0.02)
-        -- will -> recoveryRate, resistance, effectPotency
-        derived.recoveryRate = math.max(0, will * 0.05)
-        derived.resistance = math.max(0, will * 0.03)
-        derived.effectPotency = math.max(0, 1 + will * 0.02)
-        -- perception -> effectHitRate, criticalRate
-        derived.effectHitRate = math.max(0, math.min(1, 0.05 + perception * 0.01))
-        derived.criticalRate = math.max(0, math.min(1, 0.02 + perception * 0.008))
+        derived.maxHp = 1
+        derived.maxMp = 1
+        derived.maxStamina = 1
+        derived.defense = 1
+        derived.speed = 1
+        derived.jumpForce = 1
+        derived.castRange = 1
+        derived.mpCostRate = 1
+        derived.recoveryRate = 1
+        derived.resistance = 1
+        derived.effectPotency = 1
+        derived.effectHitRate = 1
+        derived.criticalRate = 1
         return derived
     end
 

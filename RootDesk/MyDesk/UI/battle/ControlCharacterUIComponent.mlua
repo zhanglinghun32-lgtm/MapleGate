@@ -27,7 +27,6 @@ script ControlCharacterUIComponent extends Component
     property Entity skillDescriptionPopupEntity = "f2aa244a-ba2d-4da6-872c-c7515931aa49"
     property Entity skillSelectionOverlay = "477eb56e-1b26-49e8-ab97-0d333b35bbe7"
     property Entity skillRangePreviewEntity = nil
-    property number selectionOverlayOffsetX = 10
     property string skillRangePreviewModelId = "skillrangepreview"
     property Entity confirmSkillButtonEntity = "d495af5d-037c-4b1d-bd0a-a5d39bfb8595"
     property Entity confirmSkillAvailableImageEntity = "45a23ae7-d6ea-4f70-8f67-a70b82e5db05"
@@ -549,23 +548,38 @@ script ControlCharacterUIComponent extends Component
 
     method void ShowSelectionForSlot(Entity slotEntity)
         -- Selection feedback belongs to the skill-selection controller, not the details popup.
-        if isvalid(self.skillSelectionOverlay) == false or isvalid(slotEntity) == false then
+        if isvalid(self.skillSelectionOverlay) == false
+            or isvalid(self.skillGrid) == false
+            or isvalid(slotEntity) == false then
             log_warning("[ControlCharacterUIComponent] ShowSelectionForSlot ignored: invalid UI entity.")
             return
         end
 
         local slotTransform = slotEntity.UITransformComponent
         local overlayTransform = self.skillSelectionOverlay.UITransformComponent
-        local slotPosition = slotTransform.anchoredPosition
-        local slotSize = slotTransform.RectSize
-        local overlaySize = overlayTransform.RectSize
-        local x = slotPosition.x + (slotSize.x - overlaySize.x) / 2 + self.selectionOverlayOffsetX
-        local y = slotPosition.y + (overlaySize.y - slotSize.y) / 2
+        if slotTransform == nil or overlayTransform == nil then
+            log_warning("[ControlCharacterUIComponent] ShowSelectionForSlot ignored: UITransformComponent is missing.")
+            return
+        end
 
-        overlayTransform.anchoredPosition = Vector2(x, y)
+        -- Parent the overlay to the selected slot so SkillGrid's layout does not
+        -- treat the overlay as another layout item. Keep its existing anchors.
+        if self.skillSelectionOverlay.Parent ~= slotEntity then
+            local attached = self.skillSelectionOverlay:AttachTo(slotEntity)
+            if attached == false then
+                log_warning("[ControlCharacterUIComponent] ShowSelectionForSlot failed to attach overlay to skill slot.")
+                return
+            end
+        end
+
+        overlayTransform.anchoredPosition = Vector2(0, 0)
+        -- Dynamic selection feedback must render above every other child of the slot.
+        _UILogic:SetSiblingIndex(overlayTransform, 1000000)
         self.skillSelectionOverlay.Enable = false
         self.skillSelectionOverlay.Enable = true
-        log("[ControlCharacterUIComponent] Selection overlay x=" .. tostring(x) .. ", y=" .. tostring(y))
+        log("[ControlCharacterUIComponent] Selection overlay attached to skill slot. slot="
+            .. tostring(slotEntity.Name) .. ", siblingIndex="
+            .. tostring(_UILogic:GetSiblingIndex(overlayTransform)))
     end
 
     method void HideSkillSelectionOverlay()

@@ -191,6 +191,11 @@ script BattleActorCom extends Component
     @ExecSpace("ServerOnly")
     method void RecalculateStats()
         -- Attack totals come from equip/skill/buff (attack field), not five attributes.
+        -- TODO(AttackFormula): Replace this fallback when equipment / skill / buff
+        -- sources provide the actor's authoritative attack value.
+        if self.attack <= 0 then
+            self.attack = 1
+        end
         self.totalAttack = math.max(0, self.attack)
         self.totalDefense = math.max(0, self.defense)
     end
@@ -256,6 +261,13 @@ script BattleActorCom extends Component
 
         local savedConfigId = self:GetSaveString(saveData, "configId", "ConfigId", self.configId)
         if savedConfigId ~= nil and savedConfigId ~= "" then
+            -- Seed archetype-owned fields first. Saved current resources and the
+            -- PlayerDataLogic-computed runtime values are overlaid below.
+            if self:ApplyConfig(savedConfigId) == false then
+                log_warning("[BattleActorCom] ImportSaveData continued without Config seed. configId="
+                    .. savedConfigId)
+            end
+            self.statsSource = "Save"
             self.configId = savedConfigId
         end
 

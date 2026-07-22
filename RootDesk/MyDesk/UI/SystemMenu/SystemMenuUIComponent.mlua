@@ -90,7 +90,7 @@ script SystemMenuUIComponent extends Component
     method void OnBackToMenuClicked(ButtonClickEvent event)
         -- Saves the loaded slot before returning to the main menu.
         self:SetExpanded(false)
-        _PlayerDataLogic:RequestSaveAndReturnToMenu()
+        _PlayerDataLogic:RequestReturnToMenu()
         log("[SystemMenuUIComponent] OnBackToMenuClicked.")
     end
 

@@ -24,7 +24,7 @@
           "enable": true,
           "visible": true,
           "localize": true,
-          "displayOrder": 1,
+          "displayOrder": 0,
           "pathConstraints": "//",
           "revision": 1,
           "origin": {
@@ -96,7 +96,7 @@
             {
               "@type": "MOD.Core.UIGroupComponent",
               "DefaultShow": false,
-              "GroupOrder": 1,
+              "GroupOrder": 4,
               "GroupType": 1,
               "Enable": true
             },
