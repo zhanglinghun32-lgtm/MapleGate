@@ -30,7 +30,7 @@ table is a JSON array or object. The sentinel is removed immediately after decod
 
 | Exact key | Type | Required | Owner | Notes |
 |---|---|---:|---|---|
-| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `3`. v2 added `PlayerPosition` + JSON; v3 Actors keys are slim lowerCamelCase (`configId`, five attrs, current `hp`/`mp`/`stamina`). |
+| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `4`. v2 added `PlayerPosition` + JSON; v3 Actors slim lowerCamelCase; **v4 drops persisted current `hp`/`mp`/`stamina`** (fill full on Com import / battle entry). |
 | `Profile` | table | Yes | `PlayerDataLogic` | Slot metadata. |
 | `PlayerPosition` | table | Yes | `PlayerDataLogic` | Last world position captured when the slot is saved. |
 | `Actors` | array<table> | Yes | `PlayerDataLogic` / `BattleActorCom` | `Actors[1]` is currently applied to DefaultPlayer. |
@@ -81,21 +81,21 @@ columns; Save does not copy them. See `docs/Actor/ActorVariableExplain.md`.
 | `intelligence` | integer | `4` | 智力 — allocatable. |
 | `will` | integer | `6` | 意志 — allocatable. |
 | `perception` | integer | `5` | 感知 — allocatable. |
-| `hp` | integer | (full after formula) | **Current** HP only. |
-| `mp` | integer | (full after formula) | **Current** MP only. |
-| `stamina` | integer | (full after formula) | **Current** stamina only. |
 
-**Do not persist** (recomputed in `PlayerDataLogic:BuildRuntimeActorState`):
+**Do not persist** (filled or recomputed at runtime):
 
+- **Current** `hp` / `mp` / `stamina` — not remembered; `BuildRuntimeActorState`
+  / battle entry fills **full** (`= max*`, buff TBD) into `BattleActorCom`
 - Derived: `maxHp` / `maxMp` / `maxStamina` / `defense` / `speed` / `jumpForce` /
   `castRange` / `mpCostRate` / `recoveryRate` / `resistance` / `effectPotency` /
   `effectHitRate` / `criticalRate`
-- Attack: `attack` / `totalAttack` (equip / skill / buff at runtime)
+- Attack / `atk`: never persisted (cast-time only in Wrapper)
 - `totalDefense`
 
-Load: slim `Actors[]` → `BuildRuntimeActorState` →
+Load: slim `Actors[]` → `BuildRuntimeActorState` (currents = full) →
 `BattleActorCom:ImportSaveData(runtime)`.  
-Export: `ExportSaveData()` writes slim keys only (legacy fat keys drop on next save).
+Export: `ExportSaveData()` writes slim keys only (no currents; legacy current
+keys drop on next save).
 
 ## Party
 
@@ -199,7 +199,7 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
 
 ```lua
 {
-    Version = 2,
+    Version = 4,
     Profile = {
         DisplayName = "Player",
         PlayTimeSeconds = 0,
@@ -219,10 +219,7 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
             dexterity = 6,
             intelligence = 4,
             will = 6,
-            perception = 5,
-            hp = 125,
-            mp = 32,
-            stamina = 78
+            perception = 5
         }
     },
     Party = {

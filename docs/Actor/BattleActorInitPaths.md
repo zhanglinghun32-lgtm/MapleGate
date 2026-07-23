@@ -13,10 +13,11 @@ startup. One component serves every combatant; the branch is
 `playerWarrior`, `slime`). It is not “always reload grown stats from CSV”.
 Combat field names are **lowerCamelCase** across Config / Actors[] / Com.
 
-Player Save is **slim** (five attrs + jobType/level + current hp/mp/stamina).
-`maxHp` / attack / def / speed are computed in `PlayerDataLogic` at load, then
-imported into `BattleActorCom`. Monster/NPC stay full Config literals.
-Details: `ActorVariableExplain.md`.
+Player Save is **slim** (five attrs + jobType/level only). Current
+`hp`/`mp`/`stamina` are **not** persisted; `BuildRuntimeActorState` fills them
+to full max for `ImportSaveData` / battle entry. `maxHp` / def / speed are
+computed in `PlayerDataLogic` at load. Monster/NPC stay full Config literals
+(and seed currents to max on `ApplyConfig`). Details: `ActorVariableExplain.md`.
 
 Script: `RootDesk/MyDesk/Battle/BattleActorCom.mlua`  
 Related: `docs/Actor/BattleActorComponent.md`, `docs/Actor/ActorVariableExplain.md`, `docs/PlayerData/SaveSlotSchema.md`
@@ -26,7 +27,7 @@ Related: `docs/Actor/BattleActorComponent.md`, `docs/Actor/ActorVariableExplain.
 ## Decision Rule
 
 ```text
-Is this entity a player-owned combatant whose level / maxHp / baseAttack grow
+Is this entity a player-owned combatant whose level / maxHp / attributes grow
 and persist in SaveSlot?
 
   YES -> statsSource = "Save"
@@ -50,7 +51,7 @@ Maker or spawn
 
 OnBeginPlay
   -> ApplyConfig(configId)
-  -> fill level / maxHp / hp / baseAttack / ... from actorConfig row
+  -> fill level / maxHp / hp / five attrs / ... from actorConfig row
   -> RecalculateStats + ClampResources
 ```
 
@@ -70,22 +71,22 @@ Load / NewGame / Continue
   -> ApplyPrimaryActorToPlayer(userId, slotData.Actors)
        1. Ensure BattleActorCom on DefaultPlayer
        2. battleActor.statsSource = "Save"
-       3. runtime = BuildRuntimeActorState(Actors[1])  -- formula -> max*/attack/def/speed
+       3. runtime = BuildRuntimeActorState(Actors[1])  -- formula -> max*/def/speed; currents = full
        4. battleActor:ImportSaveData(runtime)
             a. ApplyConfig(configId)     -- archetype seed
-            b. Overlay slim Save + computed runtime fields
+            b. Overlay slim Save + computed runtime fields (incl. full currents)
             c. RecalculateStats + Clamp
 
-OnBeginPlay (if it runs with statsSource already "Save")
+    OnBeginPlay (if it runs with statsSource already "Save")
   -> skip ApplyConfig
   -> wait for / already applied ImportSaveData
 ```
 
 Rules:
 
-- Save stores only slim fields; capacities are never authoritative in Save.
-- New-game seed: `CreateDefaultActorList()` writes slim Actors + full currents.
-- Flush: `ExportSaveData()` → slim `Actors[1]` only.
+- Save stores only slim fields; capacities and currents are never authoritative in Save.
+- New-game seed: `CreateDefaultActorList()` writes slim Actors only (no currents).
+- Flush: `ExportSaveData()` → slim `Actors[1]` only (no currents).
 
 Flush on save:
 
@@ -103,9 +104,9 @@ PlayerDataLogic:CollectPlayerActors
 |---|---|---|---|
 | Archetype / job / level | yes | yes (slim) | yes |
 | Five attributes | Monster literals; player template | yes (allocation) | yes |
-| Current `hp` / `mp` / `stamina` | seed = max | yes | yes |
+| Current `hp` / `mp` / `stamina` | seed = max | **no** (fill full on import) | yes (session) |
 | Derived (`maxHp`, `defense`, `speed`, …) | Monster literals in Config | **no** | yes (PlayerDataLogic → Import) |
-| `attack` / `totalAttack` | **not in Config** | **no** | yes (equip/skill/buff later) |
+| `atk` / 攻擊力 | **not in Config** | **no** | **no** (Wrapper cast-time only) |
 | `totalDefense` | from Config `defense` | **no** | yes (`RecalculateStats`) |
 
 ---

@@ -137,7 +137,6 @@ Suggested entry:
     maxMp = 0,
     stamina = 0,
     maxStamina = 0,
-    totalAttack = 0,
     totalDefense = 0,
     speed = 0,
     skillKeys = {}
@@ -262,7 +261,7 @@ Canonical save schema lives in `docs/PlayerData/SaveSlotSchema.md`.
 
 | Information | Owner |
 |-------------|-------|
-| Persistent actor identity, level, HP, MP, stamina, base stats | `slotData.Actors` via `BattleActorCom` / `PlayerDataLogic` |
+| Persistent actor identity, level, five attrs (not current HP/MP/stamina) | `slotData.Actors` via `BattleActorCom` / `PlayerDataLogic` |
 | Party membership references | `slotData.Party.Formation` via `PartyLogic` |
 | Active field slot | `slotData.Party.ActiveFieldSlot` via `PartyLogic` |
 | Derived battle totals | runtime only on `BattleActorCom` |

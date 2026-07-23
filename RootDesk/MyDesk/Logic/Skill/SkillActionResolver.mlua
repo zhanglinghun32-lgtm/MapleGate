@@ -1,0 +1,24 @@
+@Logic
+script SkillActionResolver extends Logic
+
+    -- Applies post-calc results only: damage, buff, movement, animation events.
+    -- Never sees atk / attributes / skill coeffs — those end at Wrapper → Calculator.
+    -- Independent of BattleSystem; Field and Battle both call this after formulas.
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        log("[SkillActionResolver] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method table Resolve(table castContext, table calculationResults, table effectRequests)
+        -- TODO: apply calculationResults[].damage, effectRequests, move / anim events.
+        -- Do not read atk from any request bundle.
+        log("[SkillActionResolver] Resolve stub.")
+        local resolveResult = {}
+        resolveResult.Success = false
+        resolveResult.Reason = "NotImplemented"
+        return resolveResult
+    end
+
+end

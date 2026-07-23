@@ -9,8 +9,11 @@ read live entity state, mutate resources, play effects, or decide turn order.
 
 ## File Placement
 
-- Logic script: `RootDesk/MyDesk/Logic/BattleCalculatorLogic.mlua`
+- Logic script: `RootDesk/MyDesk/Logic/Battle/BattleCalculatorLogic.mlua`
   (`@Logic`, world-session singleton, stateless calculation gateway).
+- Called from the skill cast pipeline by `SkillActionLogic` /
+  `SkillActionWrapper` (Field and Battle). See
+  [SkillCastPipeline.md](../SkillAction/SkillCastPipeline.md).
 - The calculator does not read Config. Its caller must resolve Config rules and
   pass the final numeric values.
 
@@ -21,7 +24,7 @@ The concrete pipeline stages and the exact return structure are filled in later.
 
 - Own all battle math formulas in one location: damage, defense reduction,
   critical, hit/evade, level/exp curves, and future combat formulas.
-- Receive already-converged numeric values from `SkillExecutionLogic`. It does
+- Receive already-converged numeric values from `SkillActionWrapper`. It does
   not know where those values came from.
 - Return a structured result that callers apply through the proper authority
   (e.g. `BattleActorCom:ApplyDamage`).
@@ -45,23 +48,46 @@ The concrete pipeline stages and the exact return structure are filled in later.
 - Do not decide turn permission or targeting.
 - Do not hold per-battle state.
 
-## Confirmed Damage Formula
+## Cast-time `atk` → Calculator → `damage`
 
-The attack-output formula (before defense subtraction) is:
+Actors have **no 攻擊力**. Skills author base + coeff against an attribute;
+Wrapper evaluates that into `atk` before calling Calculator.
 
 ```text
-輸出 = 總攻擊力 * 技能倍率 * 傷害% * 最終傷害 * 熟練度
-damage = totalAttack * skillPower * damageMultiplier
-       * finalDamageMultiplier * masteryMultiplier
+-- Wrapper only (example)
+atk = 50 + 0.5 * will
+
+-- Calculator
+damage = f(atk, damageMultiplier, finalDamageMultiplier, masteryMultiplier, defense, …)
+
+-- Resolver
+ApplyDamage(damage)   -- never receives atk
 ```
 
-| Factor | Context field | Aggregation | Notes |
-|--------|---------------|-------------|-------|
-| 總攻擊力 | `totalAttack` | — | Already aggregated **outside** (base + equip + buff). Calculator just reads it. |
-| 技能倍率 | `skillPower` | — | Final coefficient after skill/target rules. |
-| 傷害% | `damageMultiplier` | — | Already converged as `1 + Σ damageRate`. |
-| 最終傷害 | `finalDamageMultiplier` | — | Already converged as `Π (1 + finalDamage)`. |
-| 熟練度 | `masteryMultiplier` | — | Already normalized; expected range currently `0.3 .. 1.0`. |
+| Concept | Owner | Notes |
+|---------|-------|-------|
+| Five attributes | Actor / Save | No `atk` on actor |
+| Skill base + coeff | Skill Config | e.g. base `50`, coeff `0.5`, attr `will` |
+| Cast-time `atk` | `SkillActionWrapper` only | e.g. `50 + 0.5 * will` |
+| `damage` | `BattleCalculatorLogic` out | Only value Resolver uses for HP |
+
+Do **not** pass skill base/coeff or attributes into Calculator — only finished
+`atk` and other pure scalars. Do **not** cache `atk` on the actor.
+
+## Confirmed Damage Formula (shape)
+
+Calculator starts from Wrapper-supplied `atk` (already includes skill base/coeff):
+
+```text
+輸出 ≈ f(atk, damage%, 最終傷害, 熟練度, defense, …)
+```
+
+| Factor | Context field | Notes |
+|--------|---------------|-------|
+| 施放攻擊力 | `atk` | From Wrapper only. Not on actor. Not passed to Resolver. |
+| 傷害% | `damageMultiplier` | Converged outside as `1 + Σ damageRate` |
+| 最終傷害 | `finalDamageMultiplier` | Converged outside as `Π (1 + finalDamage)` |
+| 熟練度 | `masteryMultiplier` | Normalized outside; range currently `0.3 .. 1.0` |
 
 Aggregation difference (important):
 
@@ -70,9 +96,7 @@ Aggregation difference (important):
 最終傷害 : finalDamageMultiplier = (1 + f1) * (1 + f2) * ... -- 乘法
 ```
 
-The equations above describe how `SkillExecutionLogic` prepares the two
-multipliers. `BattleCalculatorLogic` receives only their resulting numbers.
-Defense subtraction happens **after** this attack output (kept as a later stage).
+Defense subtraction happens **after** attack output (later stage).
 
 ## Calling Contract — 方案一：Context Table
 
@@ -81,8 +105,7 @@ parameter list. This avoids "parameter explosion" as the game grows.
 
 ```lua
 local result = _BattleCalculatorLogic:CalculateDamage({
-    totalAttack = 120,
-    skillPower = 1.20,
+    atk = 85,                  -- e.g. Wrapper: 50 + 0.5 * will
     damageMultiplier = 1.35,
     finalDamageMultiplier = 1.32,
     masteryMultiplier = 0.85,
@@ -90,18 +113,17 @@ local result = _BattleCalculatorLogic:CalculateDamage({
     -- Defense input shape remains TODO.
     totalDefense = 40
 })
+-- result.damage is what SkillActionResolver applies
 ```
 
 Rules for the context table:
 
-- The context contains **numbers only**. No entities, Config rows/keys, modifier
-  lists, target classifications, or decision flags.
-- `SkillExecutionLogic` must supply every required value.
-- The calculator does not infer missing values or choose neutral defaults.
-- The calculator does not clamp/normalize prepared multipliers. Invalid input is
-  a caller contract violation.
-- Adding a new formula factor requires the wrapper to converge it first, then
-  add one numeric context field and one arithmetic pipeline stage.
+- **Numbers only.** No entities, five attributes, skill base/coeff rows, or
+  decision flags.
+- Wrapper must supply finished `atk` (skill formula already evaluated).
+- Calculator does not infer defaults or re-read skill Config.
+- Invalid / missing required input is a Wrapper contract failure.
+- Resolver must not be given this context — only `{ damage, ... }` results.
 
 ## Internal Implementation — 方案四：Damage Pipeline
 
@@ -113,8 +135,7 @@ isolated, testable, and reorderable.
 ```lua
 -- conceptual shape (stages are data, not one giant expression)
 local PIPELINE = {
-    Stage_TotalAttack,     -- acc = totalAttack
-    Stage_SkillPower,      -- acc = acc * skillPower
+    Stage_Atk,             -- acc = atk  (already = skill base + coeff * attr)
     Stage_DamagePercent,   -- acc = acc * damageMultiplier
     Stage_FinalDamage,     -- acc = acc * finalDamageMultiplier
     Stage_Mastery,         -- acc = acc * masteryMultiplier
@@ -147,13 +168,12 @@ post-output steps that are still open (see Boundary Decisions).
 
 | # | Stage | Reads from context | Effect on accumulator | Status |
 |---|-------|--------------------|-----------------------|--------|
-| 1 | `Stage_TotalAttack` | `totalAttack` | `acc = totalAttack` | ✅ confirmed |
-| 2 | `Stage_SkillPower` | `skillPower` | `acc = acc * skillPower` | ✅ confirmed |
-| 3 | `Stage_DamagePercent` | `damageMultiplier` | `acc = acc * damageMultiplier` | ✅ confirmed; aggregation is outside |
-| 4 | `Stage_FinalDamage` | `finalDamageMultiplier` | `acc = acc * finalDamageMultiplier` | ✅ confirmed; aggregation is outside |
-| 5 | `Stage_Mastery` | `masteryMultiplier` | `acc = acc * masteryMultiplier` | ✅ shape confirmed; normalization is outside |
-| 6 | `Stage_Defense` | input shape TODO | apply the fixed defense formula | ⏳ formula TODO |
-| 7 | `Stage_Clamp` | no gameplay classification | apply the fixed floor/cap/round rule | ⏳ TODO |
+| 1 | `Stage_Atk` | `atk` | `acc = atk` | ✅ atk built in Wrapper |
+| 2 | `Stage_DamagePercent` | `damageMultiplier` | `acc = acc * damageMultiplier` | ✅ aggregation outside |
+| 3 | `Stage_FinalDamage` | `finalDamageMultiplier` | `acc = acc * finalDamageMultiplier` | ✅ aggregation outside |
+| 4 | `Stage_Mastery` | `masteryMultiplier` | `acc = acc * masteryMultiplier` | ✅ shape; normalize outside |
+| 5 | `Stage_Defense` | input shape TODO | apply the fixed defense formula | ⏳ formula TODO |
+| 6 | `Stage_Clamp` | no gameplay classification | apply the fixed floor/cap/round rule | ⏳ TODO |
 
 > Additional stages (critical / element / damage-taken) are only added once the
 > open decisions below are settled — insert them as new stages without touching
@@ -183,15 +203,15 @@ Rules for the result:
 
 ## Boundary Decisions
 
-### D1. Skill/target amplification — **DECIDED: wrapper owns convergence**
+### D1. Skill base/coeff → atk — **DECIDED: wrapper owns it**
 
-`SkillExecutionLogic` reads `skillType`, `targetType`, `targetCount`, and Config,
-then supplies final `skillPower` and `damageMultiplier`. The calculator never
-sees those classifications.
+`SkillActionWrapper` evaluates skill formulas such as `50 + 0.5 * will` into
+`atk`, and converges other multipliers. Calculator never sees attributes, skill
+base, or skill coeff columns. Resolver never sees `atk`.
 
 ### D2. 熟練度 (mastery) 算法
 
-Shape confirmed: `SkillExecutionLogic` supplies a normalized `0.3 .. 1.0`
+Shape confirmed: `SkillActionWrapper` supplies a normalized `0.3 .. 1.0`
 `masteryMultiplier`; `Stage_Mastery` only multiplies it. The source algorithm
 (fixed per skill level? grows with use? config curve?) remains TODO.
 
@@ -216,34 +236,27 @@ in the calculator.
 
 ```text
 SkillActionLogic validates the confirmed request
-  -> SkillExecutionLogic resolves sponsor / skill / targets
-  -> SkillExecutionLogic converges all source values
-  -> build numeric-only context table (方案一)
-  -> BattleCalculatorLogic:CalculateDamage(context)   (方案四 pipeline inside)
-  -> returns structured result
-  -> SkillExecutionLogic collects all target results
-  -> BattleActorCom:ApplyDamage(result.damage)        (authority applies it)
+  -> SkillActionWrapper: atk = skillBase + skillCoeff * attr
+  -> DamageRequest { atk, … }
+  -> BattleCalculatorLogic:CalculateDamage → { damage, … }
+  -> SkillActionResolver:ApplyDamage(damage)   -- no atk
   -> @Sync / OnSyncProperty refresh UI bars
 ```
 
-`BattleCalculator` sits strictly between "all numeric values are converged" and
-"the wrapper applies results". It never crosses into lookup, classification,
-aggregation, validation, or mutation.
+`BattleCalculator` sits between finished `atk` and apply-time `damage`. It never
+crosses into attribute lookup, skill Config, or mutation.
 
 ## Agent TODO
 
-1. **`BattleCalculatorLogic.mlua`** — `@Logic`; implement `CalculateDamage(context)`
-   with a numeric-only pipeline and no Config/entity lookups.
-2. Implement confirmed stages 1–5 (`TotalAttack → SkillPower → DamagePercent(加法)
-   → FinalDamage(乘法) → Mastery`) using scalar multiplier inputs only.
-3. Treat missing/malformed required input as a wrapper contract failure; do not
-   add gameplay fallback decisions inside Calculator.
-4. Fill in `Stage_Defense` input and formula once decided.
-5. Finalize the structured return fields once presentation needs are known.
+1. Implement `CalculateDamage` numeric pipeline from `atk` seed.
+2. Keep DamagePercent(加法) / FinalDamage(乘法) / Mastery as scalar stages.
+3. Treat missing `atk` as Wrapper contract failure.
+4. Fill in `Stage_Defense` and structured return fields once decided.
+5. Keep Resolver API free of `atk` / `DamageRequest`.
 
 ## Related Docs
 
-- `docs/Actor/BattleActorComponent.md` — provides prepared `total*` values.
-- `docs/SkillAction/SkillExecutionLogic.md` — resolves and converges all inputs.
+- `docs/Actor/ActorVariableExplain.md` — no actor 攻擊力; Wrapper owns `atk`.
+- `docs/SkillAction/SkillCastPipeline.md` — value lifetime table.
 - `docs/BattleFlow/BattleSystem.md` — turn permission / settlement.
-- `docs/SkillAction/SkillActionSystem.md` — where skill inputs originate.
+- `docs/SkillAction/SkillActionSystem.md` — request gateway.

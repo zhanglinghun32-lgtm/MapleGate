@@ -55,8 +55,9 @@ Resource values:
 
 Stat values:
 
-- `baseAttack`: actor's attack before equipment, buffs, debuffs, and temporary effects.
-- `totalAttack`: final attack value after all modifiers are applied.
+- **No actor 攻擊力** (`atk` / `baseAttack` / `totalAttack`). Skills supply
+  formulas such as `50 + 0.5 * will`; only `SkillActionWrapper` evaluates that
+  into cast-time `DamageRequest.atk`. Resolver applies `damage` only.
 - `baseDefense`: actor's defense before modifiers.
 - `totalDefense`: final defense value after modifiers.
 - `speed`: turn order or action timing value.
@@ -128,26 +129,24 @@ mp / maxMp
 stamina / maxStamina
 ```
 
-Stats usually need a base value and a calculated total value:
+Defense and similar stats may use a base / total pair:
 
 ```text
-baseAttack / totalAttack
 baseDefense / totalDefense
 ```
 
-Do not force every property into one generic shape just because some values have
-pairs. `hp` and `attack` look similar as numbers, but they behave differently:
+**攻擊力 is not a Com property.** Wrapper builds cast-time `atk` from the skill
+formula; Calculator turns it into `damage`; Resolver never sees `atk`.
 
-- HP changes during battle and is clamped by `maxHp`.
-- MP changes during battle and is clamped by `maxMp`.
-- Stamina changes during actions and is clamped by `maxStamina`.
-- Base attack rarely changes during one action.
-- Total attack is recalculated from base stats, equipment, buffs, debuffs, and battle rules.
+Do not force every property into one generic shape:
+
+- HP / MP / stamina change during play and are clamped by max.
+- `atk` exists only inside `DamageRequest` for one cast; never on the actor.
 
 Recommended first implementation:
 
 - Use explicit properties such as `hp`, `maxHp`, `mp`, `maxMp`,
-  `stamina`, `maxStamina`, `baseAttack`, and `totalAttack`.
+  `stamina`, `maxStamina`, five attributes, and defense / speed totals.
 - Add helper methods to avoid duplicate logic.
 - Consider a shared data structure later only if resource handling becomes repetitive.
 
@@ -174,46 +173,24 @@ Example:
 
 ```text
 weaponKey = "IronSword"
-EquipmentConfig["IronSword"].attackBonus = 10
+EquipmentConfig["IronSword"] = { ... bonuses that Wrapper / RecalculateStats can read }
 ```
 
-`totalAttack` should not be manually incremented once and then treated as the new
-base value. Instead, it should be recalculated from sources whenever actor stats
-are initialized or equipment changes.
+Equipment may still contribute to **cast-time** damage, but that contribution is
+folded by `SkillActionWrapper` when building `DamageRequest.atk` (and related
+scalars), not stored as actor `totalAttack`.
 
-Recommended first-version formula:
-
-```text
-totalAttack = baseAttack + equipmentAttackBonus
-```
-
-For a sword with `+10 attack`:
-
-```text
-baseAttack = 20
-weaponKey = "IronSword"
-equipmentAttackBonus = 10
-totalAttack = 30
-```
-
-Important rule:
-
-- `baseAttack` remains the actor's own attack.
-- `weaponKey` remembers which equipment is equipped.
-- Config data says what the weapon provides.
-- `totalAttack` is a derived cache produced by `RecalculateStats()`.
-
-This prevents double-counting. For example, if the actor equips a `+10` sword,
-then later equips a `+15` sword, the implementation should recalculate from
-`baseAttack`, not subtract and add directly against the previous `totalAttack`.
+`totalDefense` and similar non-attack totals should be recalculated from sources
+whenever actor stats are initialized or equipment changes — never manually
+incremented once and treated as a new base.
 
 Recommended first implementation:
 
 - Store equipped keys explicitly on `BattleActorComponent`.
-- Load equipment effects from Config during `RecalculateStats()`.
-- Recalculate all `total*` stats from base values every time equipment changes.
-- Treat `totalAttack` and other `total*` values as runtime cached results, not
-  persistent save data.
+- Load equipment effects from Config during `RecalculateStats()` for defense /
+  speed / resource modifiers as needed.
+- Treat `total*` defense-like values as runtime caches, not Save data.
+- Leave skill damage attack power to `SkillActionWrapper` → Calculator.
 - Do not introduce `EquipmentActor` while equipment has no customization or
   runtime instance state.
 
@@ -259,28 +236,20 @@ Recommended responsibilities:
 - `BattleActorComponent` asks `EffectSystem` for modifiers during
   `RecalculateStats()`.
 - `BattleActorComponent` still owns the final `total*` stat cache.
-- `SkillExecutionLogic` reads the final `total*` caches and converges all skill,
-  target-count, and modifier sources into scalar calculator inputs.
-- `BattleCalculatorLogic` receives those scalar values and does not read this
-  component, EffectSystem, entities, or Config.
+- `SkillActionWrapper` evaluates skill base + coeff × attribute into `atk`.
+- `BattleCalculatorLogic` turns `atk` (+ scalars) into `damage`.
+- `SkillActionResolver` applies `damage` only — no `atk` on the apply path.
 
-Do not let effects directly mutate `totalAttack`, equipment keys, or Config
-data. Effects should provide modifiers; `BattleActorComponent` should combine
-those modifiers into final values.
+Do not store permanent 攻擊力 on the actor.
 
 Recommended attack flow:
 
 ```text
 SkillActionLogic validates the request
-  -> SkillExecutionLogic freezes sponsor/target BattleActorCom snapshots
-  -> SkillExecutionLogic converges numeric values
-  -> BattleCalculatorLogic:CalculateDamage(numericContext)
-  -> SkillExecutionLogic applies result through target BattleActorCom
+  -> SkillActionWrapper: atk = 50 + 0.5 * will (example)
+  -> BattleCalculatorLogic:CalculateDamage({ atk, … }) → { damage, … }
+  -> SkillActionResolver: ApplyDamage(damage)
 ```
-
-`BattleCalculatorLogic` receives no sponsor/target entity references. Its
-context contains only final numeric values such as `totalAttack`, `skillPower`,
-`damageMultiplier`, `finalDamageMultiplier`, and `masteryMultiplier`.
 
 Recommended first EffectSystem interface:
 
@@ -294,34 +263,18 @@ GetStatFlat(actorId, statKey)
 
 Recommended modifier targets:
 
-- `BaseAttack`
-- `EquipmentAttackBonus`
-- `TotalAttack`
-- `DamageDealt`
+- `DamageDealt` / cast-time atk inputs (consumed by Wrapper, not stored as atk)
 - `DamageTaken`
 - `Defense`
 - `Speed`
 - `MpCost`
 - `StaminaCost`
+- Five-attribute modifiers when effects change attrs temporarily
 
-Example future formula:
-
-```text
-totalAttack = baseAttack + equipmentAttackBonus * equipmentAttackBonusRate
-```
-
-For a debuff that reduces equipment attack bonus by 50%:
-
-```text
-baseAttack = 20
-equipmentAttackBonus = 10
-equipmentAttackBonusRate = 0.5
-totalAttack = 25
-```
-
-Even after the effect system is added, keep the raw equipment calculation
-independent and deterministic. Effects should wrap or modify that result during
-`RecalculateStats()`, not rewrite equipment data.
+Even after the effect system is added, keep equipment and attribute sources
+independent and deterministic. Effects should feed Wrapper convergence or
+`RecalculateStats()` for defense-like totals — not invent a permanent actor
+`atk` field.
 
 ## Component Interaction
 
@@ -335,7 +288,7 @@ Recommended direction:
 Example conceptual flow:
 
 ```text
-SkillExecutionLogic / Inventory
+SkillActionResolver / Inventory
   -> BattleActorCom:ApplyDamage()
   -> BattleActorCom updates hp (clamped to maxHp)
   -> @Sync / OnSyncProperty refreshes UI bars on that entity

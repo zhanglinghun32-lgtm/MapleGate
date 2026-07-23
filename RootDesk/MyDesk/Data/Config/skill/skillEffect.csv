@@ -1,0 +1,4 @@
+skillKey,timing,effectType,param1,param2,param3,param4,targetSide
+spearPower,BeforeDamage,LOW_HP_DAMAGE_BONUS,1.3,0.7,,,All
+venomEdge,AfterDamage,ADD_BUFF,Poison,5,,,Enemy
+guardStrike,AfterAction,ADD_BUFF,Guard,1,,,Ally

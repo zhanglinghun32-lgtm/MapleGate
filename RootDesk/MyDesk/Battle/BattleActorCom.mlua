@@ -22,7 +22,7 @@ script BattleActorCom extends Component
     @Sync property integer will = 0
     @Sync property integer perception = 0
 
-    -- Current resources (player Save stores these only among combat numbers).
+    -- Session current resources (not persisted in Actors[]; filled full on Create/Import).
     @Sync property integer hp = 0
     @Sync property integer mp = 0
     @Sync property integer stamina = 0
@@ -209,8 +209,17 @@ script BattleActorCom extends Component
     end
 
     @ExecSpace("ServerOnly")
+    method void FillResourcesToFull()
+        -- Battle entry / Create fill: currents = max (buff TBD may change effective full).
+        self.hp = self.maxHp
+        self.mp = self.maxMp
+        self.stamina = self.maxStamina
+        self:ClampResources()
+    end
+
+    @ExecSpace("ServerOnly")
     method table ExportSaveData()
-        -- Slim Actors[] only. No derived fields, no attack.
+        -- Slim Actors[] only. No derived fields, no current hp/mp/stamina, no atk.
         local saveData = {}
         saveData.configId = self.configId
         saveData.jobType = self.jobType
@@ -220,16 +229,16 @@ script BattleActorCom extends Component
         saveData.intelligence = self.intelligence
         saveData.will = self.will
         saveData.perception = self.perception
-        saveData.hp = self.hp
-        saveData.mp = self.mp
-        saveData.stamina = self.stamina
         return saveData
     end
 
     @ExecSpace("ServerOnly")
     method table ExportSnapshot()
-        -- Runtime combat snapshot (not Save): slim + derived + attack totals.
+        -- Runtime combat snapshot (not Save): slim + session currents + derived.
         local snapshot = self:ExportSaveData()
+        snapshot.hp = self.hp
+        snapshot.mp = self.mp
+        snapshot.stamina = self.stamina
         snapshot.maxHp = self.maxHp
         snapshot.maxMp = self.maxMp
         snapshot.maxStamina = self.maxStamina
@@ -244,8 +253,6 @@ script BattleActorCom extends Component
         snapshot.effectPotency = self.effectPotency
         snapshot.effectHitRate = self.effectHitRate
         snapshot.criticalRate = self.criticalRate
-        snapshot.attack = self.attack
-        snapshot.totalAttack = self.totalAttack
         return snapshot
     end
 
@@ -261,8 +268,7 @@ script BattleActorCom extends Component
 
         local savedConfigId = self:GetSaveString(saveData, "configId", "ConfigId", self.configId)
         if savedConfigId ~= nil and savedConfigId ~= "" then
-            -- Seed archetype-owned fields first. Saved current resources and the
-            -- PlayerDataLogic-computed runtime values are overlaid below.
+            -- Seed archetype-owned fields first. PlayerDataLogic runtime values overlay below.
             if self:ApplyConfig(savedConfigId) == false then
                 log_warning("[BattleActorCom] ImportSaveData continued without Config seed. configId="
                     .. savedConfigId)
@@ -281,6 +287,7 @@ script BattleActorCom extends Component
 
         self:ApplyDerivedFromTable(saveData)
 
+        -- Currents come from runtime fill (usually full max), not from Save persistence.
         self.hp = self:GetSaveInteger(saveData, "hp", "Hp", self.maxHp)
         self.mp = self:GetSaveInteger(saveData, "mp", "Mp", self.maxMp)
         self.stamina = self:GetSaveInteger(saveData, "stamina", "Stamina", self.maxStamina)

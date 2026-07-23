@@ -236,7 +236,7 @@ Config column name TBD (working name: `battlePullRadius` on monster /
 
 ### What callers do **not** pass
 
-- HP / MP / stamina / attack numbers (those live on each entity's `BattleActorCom`)
+- HP / MP / stamina / attribute numbers (those live on each entity's `BattleActorCom`; no actor `atk`)
 - Full skill tables as authority (optional display hints only; prefer reading
   from actor / SkillLogic via the entity)
 - Inventory / item stacks (owned by `InventoryLogic`; not battle payload)
@@ -377,7 +377,7 @@ Rules:
 **Removed from authoritative payload design** (do not treat as live HP):
 
 - `hp` / `maxHp` / `mp` / `maxMp` / `stamina` / `maxStamina`
-- `baseAttack` / `totalAttack` / `baseDefense` / `totalDefense` / `speed`
+- `baseDefense` / `totalDefense` / `speed` (no `atk` / `totalAttack` on actor)
 - Copied `SkillKeys` / `Buffs` as the only skill/buff store
 
 Skills and buffs for gameplay also prefer live actor / effect systems on the

@@ -1,12 +1,42 @@
 @Logic
 script SkillActionLogic extends Logic
 
+    -- Public skill gateway for Field and Battle. Builds SkillCastContext, then
+    -- runs SkillActionWrapper -> BattleCalculatorLogic -> SkillActionResolver.
+    -- BattleSystem only answers turn permission / settlement — not this pipeline.
+
     property string executionModeBattle = "Battle"
     property string executionModeField = "Field"
 
     @ExecSpace("ServerOnly")
     method void OnBeginPlay()
         log("[SkillActionLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildCastContext(string userId, integer requestId, string actionKey, table actionContext, string executionMode)
+        -- TODO: freeze sponsor / skillKey / targets / mode into SkillCastContext.
+        log("[SkillActionLogic] BuildCastContext stub. mode=" .. tostring(executionMode) .. ", action=" .. tostring(actionKey))
+        local castContext = {}
+        castContext.RequestId = requestId
+        castContext.UserId = userId
+        castContext.SkillKey = actionKey
+        castContext.ExecutionMode = executionMode
+        castContext.ActionContext = actionContext
+        return castContext
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ExecuteCastPipeline(table castContext)
+        -- TODO: wire Wrapper -> Calculator -> Resolver; return resolve result.
+        -- Resolver gets damage results + effectRequests only — never atk / DamageRequest.
+        log("[SkillActionLogic] ExecuteCastPipeline stub.")
+        local requestBundle = _SkillActionWrapper:BuildRequests(castContext)
+        local calculationResults = {}
+        for _, damageRequest in ipairs(requestBundle.DamageRequests or {}) do
+            table.insert(calculationResults, _BattleCalculatorLogic:CalculateDamage(damageRequest))
+        end
+        return _SkillActionResolver:Resolve(castContext, calculationResults, requestBundle.EffectRequests)
     end
 
     @ExecSpace("Server")

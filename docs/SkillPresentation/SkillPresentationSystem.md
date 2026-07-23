@@ -7,9 +7,10 @@ method or one action-key branch per skill.
 
 ## Shared Key
 
-`skillKey` is the only join key. `skillConfig`, `skillPresentationConfig`, and
-`skillPresentationStepConfig` use the exact same value (for example
-`spearPower`). There is no separate `presentationKey` column.
+`skillKey` is the only join key. `skillConfig`, `skillRange` (`keyName`),
+`skillEffect`, `skillPresentationConfig`, and `skillPresentationStepConfig`
+use the exact same value (for example `spearPower`). There is no separate
+`presentationKey` column.
 
 ## Config
 

@@ -36,50 +36,71 @@ templates). Player Save does **not** mirror the whole Config row.
 | `jobType` | Job |
 | `level` | Level |
 | `constitution` / `dexterity` / `intelligence` / `will` / `perception` | 五大屬性（升級加點） |
-| `hp` / `mp` / `stamina` | **Current** resources only |
 
-### What is NOT persisted (recomputed / system-driven at runtime)
+### What is NOT persisted
 
 | Not in Save | Why |
 |---|---|
+| `hp` / `mp` / `stamina` (**current**) | **Not remembered.** Each battle entry (and Create / fill into `BattleActorCom`) starts at full max (buffs may adjust). |
 | `maxHp` / `maxMp` / `maxStamina` | Derived from five attributes (+ level / job); exact curves TBD |
 | `baseDefense` / `speed` (and related) | Partly driven by attributes; full equations TBD |
-| Attack / magic attack | **Not** from five attributes — skill / equip / buff (see below) |
-| `totalAttack` / `totalDefense` | Runtime after equip / buff (`RecalculateStats`) |
+| Cast-time `atk` | **Not an actor field** — `SkillActionWrapper` builds it per skill cast |
+| `totalDefense` | Runtime after defense + buff (`RecalculateStats`) when needed |
 
 ```text
-Save (slim)                          Runtime
+Save (slim)                          Runtime / BattleActorCom
 configId, jobType, level      ->
 five attributes               ->  PlayerDataLogic:BuildRuntimeActorState
-hp, mp, stamina (current)     ->       | attribute-driven capacities / mobility / …
+                                       | attribute-driven maxHp / maxMp / maxStamina / …
                                        v
-                                 maxHp, maxMp, maxStamina, defense, speed, …
+                                 hp/mp/stamina = max (full fill; buff TBD)
                                        v
                                  BattleActorCom:ImportSaveData(runtime)
-                                 (+ equip/skill/buff for attack & totals)
+                                 (Com still owns live current during battle)
+                                       v
+                                 SkillActionWrapper (on cast)
+                                       five attrs + skillEffect / skill coeffs
+                                       -> DamageRequest.atk  (cast-time only)
 ```
 
-**`BattleActorCom` never runs attribute formulas.** It only receives finished
-runtime numbers from `PlayerDataLogic` (and later equip/buff pipelines).
+**Save never stores current resources.** `BattleActorCom` still has live
+`hp` / `mp` / `stamina` for the session; Create / Import fills them to full
+(max, optionally modified by buff).
+
+**`BattleActorCom` never runs attribute→damage formulas and has no `atk`
+field.** Capacities / mobility stay in `PlayerDataLogic`. Cast-time `atk` is
+owned by `SkillActionWrapper`.
 
 ### Monster / NPC
 
 Hardcoded in `actorConfig`: **five attributes + all derived columns**
-(`maxHp`, `defense`, `speed`, `jumpForce`, …). Loaded by `ApplyConfig`.
-**No attack column** in Config (attack comes from skill/equip/buff at runtime,
-same rule as players). No Save slim shape, no PlayerData formula.
+(`maxHp`, `defense`, `speed`, `jumpForce`, …). Loaded by `ApplyConfig`, which
+also seeds current resources to full max. **No attack / atk column** in Config.
+No Save slim shape, no PlayerData formula.
 
-### Attack = magic attack（不受五大屬性）
+### Cast-time `atk`（只在 Wrapper；Actor / Resolver 都沒有）
 
-Design intent (formulas still TBD in code):
+Design intent:
 
-- **物理攻擊力**與**魔法攻擊力**視為同一套攻擊力（同一數值語意 / 同一來源管線）。
-- 攻擊力**一般不受五大屬性影響**。
-- 攻擊力主要來自：**技能 / 裝備 / buff**（以及後續職業或專武規則，若有）。
+- Actor **沒有攻擊力**（無 `atk` / `baseAttack` / `totalAttack`）。
+- **技能**提供基礎值與係數，並指定用哪個屬性，例如：
 
-五大屬性負責生存、機動、施法輔助、回復抗性、命中爆擊等；**不要**把
-`baseAttack` / `totalAttack` 寫成「體質 + 靈巧」這類屬性加總（舊 placeholder
-已廢止）。
+```text
+atk = 50 + 0.5 * will
+```
+
+- 只有 `SkillActionWrapper` 在施放時計算 `atk`，寫入 `DamageRequest`。
+- `BattleCalculatorLogic` 吃 `atk` 等純數值，輸出 `{ damage, ... }`。
+- `SkillActionResolver` **只有 `damage`**（與 EffectRequest）；不讀 `atk`。
+
+```text
+skill base/coeff + attrs  --Wrapper-->  DamageRequest.atk
+                          --Calculator-->  result.damage
+                          --Resolver-->  ApplyDamage(damage)
+```
+
+五大屬性仍負責生存、機動、施法輔助、回復抗性、命中爆擊等；**不要**在
+`BattleActorCom` 上快取全域攻擊力。
 
 ### Five primary attributes（五大屬性）— 簡介
 
@@ -144,11 +165,11 @@ Same key spelling wherever a field appears. Do not mix `MaxHp` / `maxHp`.
 | Layer | Contents |
 |---|---|
 | `actorConfig.csv` | Meta + five attrs + **derived** columns (no attack) |
-| `Actors[]` Save | **Slim** only (no derived, no attack) |
-| `BuildRuntimeActorState` | Slim + PlayerData-computed derived |
-| `BattleActorCom` | Live: five attrs + derived + attack (from equip/skill/buff) |
-| `ExportSaveData` | Slim only |
-| `ExportSnapshot` | Runtime full (not Save) |
+| `Actors[]` Save | **Slim** only: identity + five attrs (**no** current hp/mp/stamina) |
+| `BuildRuntimeActorState` | Slim + derived + **current filled to full max** for Com import |
+| `BattleActorCom` | Live: five attrs + derived + **session current** hp/mp/stamina; **no atk** |
+| `ExportSaveData` | Slim only (drops current resources) |
+| `ExportSnapshot` | Runtime full including current (not Save) |
 
 ### `actorConfig` column groups
 
@@ -157,7 +178,8 @@ Same key spelling wherever a field appears. Do not mix `MaxHp` / `maxHp`.
 | Meta | `configId`, `displayName`, `actorType`, `jobType`, `level`, `naturalSkillKeys`, `defaultEquipmentKeys`, `description`, `enabled` |
 | Five attrs | `constitution`, `dexterity`, `intelligence`, `will`, `perception` |
 | Derived | `maxHp`, `maxMp`, `maxStamina`, `defense`, `speed`, `jumpForce`, `castRange`, `mpCostRate`, `recoveryRate`, `resistance`, `effectPotency`, `effectHitRate`, `criticalRate` |
-| **Removed** | `baseAttack` / attack — not attribute-derived |
+| **Removed** | `baseAttack` / `atk` on actor — cast-time only via Wrapper |
+| **Not in Save** | current `hp` / `mp` / `stamina` |
 
 ---
 
@@ -167,16 +189,19 @@ Same key spelling wherever a field appears. Do not mix `MaxHp` / `maxHp`.
 |---|---|---|---|---|---|
 | Archetype / job / level | `configId` / `jobType` / `level` | yes | — | yes | yes |
 | Five attrs | `constitution`…`perception` | yes | — | yes | yes |
-| Current resources | `hp` / `mp` / `stamina` | yes | clamp | seed = max | yes |
+| Current resources | `hp` / `mp` / `stamina` | **no** | fill **full** (= max, buff TBD) | seed = max | yes (session) |
 | Derived capacities / combat helpers | `maxHp`, `defense`, `speed`, … | **no** | **yes** (`PlayerDataLogic`) | hardcoded | yes |
-| Attack (= magic attack) | `attack` / `totalAttack` | **no** | **no** | **no** | yes (equip/skill/buff) |
+| Cast-time atk | `atk` on `DamageRequest` only | **no** | **no** (Wrapper on cast) | **no** | **no** |
 | Final defense | `totalDefense` | **no** | from `defense` + buff later | from Config `defense` | yes |
 
 ---
 
 ## Resources
 
-- **Current** (`hp` / `mp` / `stamina`): persist for players; clamp after load.
+- **Current** (`hp` / `mp` / `stamina`): **not persisted**. On Create /
+  `BuildRuntimeActorState` / battle entry fill, set to full `max*` (buffs may
+  change the effective full value later). Live only on `BattleActorCom` during
+  play / battle.
 - **Max**: player = attribute-driven formulas (TBD); monster = Config. Never
   store player max in Save.
 
@@ -192,10 +217,10 @@ Same key spelling wherever a field appears. Do not mix `MaxHp` / `maxHp`.
 | `will` | `recoveryRate`, `resistance`, `effectPotency` |
 | `perception` | `effectHitRate`, `criticalRate` |
 
-Attack / magic attack: **skill / equipment / buff** only — never written by
-`ComputeActorDerivedFromAttributes`, never a Config column.
+Cast-time `atk`: **`SkillActionWrapper` only** — never written by
+`ComputeActorDerivedFromAttributes`, never a Config / Save / Com column.
 
-Placeholder curves live in `PlayerDataLogic`; replace when balance locks.
+Placeholder capacity curves live in `PlayerDataLogic`; replace when balance locks.
 
 ---
 
@@ -203,18 +228,21 @@ Placeholder curves live in `PlayerDataLogic`; replace when balance locks.
 
 | Concern | Owner |
 |---|---|
-| Slim Save read/write | `ExportSaveData` / SaveSlot |
+| Slim Save read/write (no currents) | `ExportSaveData` / SaveSlot |
 | Attribute → capacities / mobility / resist / … (player) | `PlayerDataLogic` (TBD) |
-| Attack / magic attack from equip/skill/buff | Equip / Skill / Effect systems (TBD) |
+| Fill current = full for Com Create / Import | `PlayerDataLogic:BuildRuntimeActorState` |
+| Fill current = full on battle entry (player/ally) | `BattleFlowLogic:FillRosterResourcesToFull` → `BattleActorCom:FillResourcesToFull` |
+| Skill base + coeff × attr → cast-time `atk` | `SkillActionWrapper` only |
+| `atk` → `damage` (numbers only) | `BattleCalculatorLogic` |
+| Apply `damage` / effects | `SkillActionResolver` (no `atk`) |
 | Apply finished runtime to entity | `BattleActorCom:ImportSaveData` |
 | Monster/NPC full load | `BattleActorCom:ApplyConfig` |
-| Damage math | `BattleCalculatorLogic` |
 
 ---
 
 ## Quick examples
 
-| `configId` | Role | Persist five attrs? | Persist maxHp? |
-|---|---|---|---|
-| `playerWarrior` | Player template + Save seed | yes (Save) | no (compute) |
-| `slime` | Monster Config only | in Config only | in Config only |
+| `configId` | Role | Persist five attrs? | Persist current hp? | Persist maxHp? |
+|---|---|---|---|---|
+| `playerWarrior` | Player template + Save seed | yes (Save) | **no** | no (compute) |
+| `slime` | Monster Config only | in Config only | **no** (seed full on ApplyConfig) | in Config only |

@@ -8,7 +8,7 @@ folder — it is for humans and AI collaborators only.
 Read **`ScriptRules.md`** first. It defines:
 
 - New-system workflow: **Design doc → Config → Logic → Component (domain folder)**
-- `Data/Config/` flat by default (`skill/` for presentation tables); flat `ui/`
+- `Data/Config/` flat by default (`skill/` for range / effect / presentation); flat `ui/`
 - No RUID Catalog — use Config columns or Maker `.ui` preview
 - `@Logic` in `Logic/`; `@Component` in domain folders (`UI/`, `Battle/`, …)
 
@@ -30,13 +30,14 @@ Read **`ScriptRules.md`** first. It defines:
 | [GameplayFlow/GameplayFlowLogic.md](GameplayFlow/GameplayFlowLogic.md) | Playable world entry/exit coordination |
 | [PlayerControl/PlayerControlLogic.md](PlayerControl/PlayerControlLogic.md) | Local player operation lock ownership |
 | [SkillAction/SkillActionSystem.md](SkillAction/SkillActionSystem.md) | Shared skill requests in field and battle contexts |
-| [SkillAction/SkillExecutionLogic.md](SkillAction/SkillExecutionLogic.md) | Skill execution wrapper: snapshot, converge, calculate-all, apply-all, results |
+| [SkillAction/SkillCastPipeline.md](SkillAction/SkillCastPipeline.md) | Cast pipeline: Context → Wrapper → Calculator → Resolver |
 | [SkillPresentation/SkillPresentationSystem.md](SkillPresentation/SkillPresentationSystem.md) | Data-driven avatar action and effect timelines |
+| [SkillEffect/SkillEffectSystem.md](SkillEffect/SkillEffectSystem.md) | Timed skill logic effects (`skillEffect` Config schema) |
 
 ## Adding A New System
 
 1. Create `docs/{System}/{System}.md` (or `docs/Design/{System}.md`) with scope, Config columns, Logic API, and component list.
-2. Add Config tables under `Data/Config/` (skill presentation under `Config/skill/`).
+2. Add Config tables under `Data/Config/` (skill range / effect / presentation under `Config/skill/`).
 3. Add `@Logic` under `Logic/`.
 4. Add `@Component` under the matching domain folder (`UI/`, `Battle/`, `MapScene/`, …) and bind on the entity in Maker.
 5. Add UI in flat `ui/` if the system needs new screens; put UI scripts in `UI/` (subfolders per screen OK).

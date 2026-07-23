@@ -135,7 +135,9 @@ script BattleFlowLogic extends Logic
         if refs == nil or #refs == 0 then
             refs = { sponsorEntity }
         end
-        return self:BuildRoster(refs, _BattleKeys.actorTypePlayer, "Player", "Player", mapEntity)
+        local roster = self:BuildRoster(refs, _BattleKeys.actorTypePlayer, "Player", "Player", mapEntity)
+        self:FillRosterResourcesToFull(roster)
+        return roster
     end
 
     @ExecSpace("ServerOnly")
@@ -145,7 +147,30 @@ script BattleFlowLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method table BuildAllyParty(table request, Entity mapEntity)
-        return self:BuildRoster(request.allyRefs, _BattleKeys.actorTypeCompanion, "Ally", "AI", mapEntity)
+        local roster = self:BuildRoster(request.allyRefs, _BattleKeys.actorTypeCompanion, "Ally", "AI", mapEntity)
+        self:FillRosterResourcesToFull(roster)
+        return roster
+    end
+
+    @ExecSpace("ServerOnly")
+    method void FillRosterResourcesToFull(table roster)
+        -- Currents are not persisted; each battle entry starts HP/MP/stamina full.
+        if roster == nil then
+            return
+        end
+        for _, entry in ipairs(roster) do
+            local entityId = ""
+            if entry ~= nil then
+                entityId = tostring(entry.entityId or "")
+            end
+            local entity = _EntityService:GetEntity(entityId)
+            if isvalid(entity) then
+                local battleActor = entity:GetComponent("script.BattleActorCom")
+                if battleActor ~= nil then
+                    battleActor:FillResourcesToFull()
+                end
+            end
+        end
     end
 
     @ExecSpace("ServerOnly")

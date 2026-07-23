@@ -1,0 +1,93 @@
+@Logic
+script SkillActionWrapper extends Logic
+
+    -- Expands SkillCastContext into pure numeric DamageRequest / EffectRequest.
+    -- Owns cast-time atk (skill base + coeff * attr) and BeforeDamage numeric bonuses.
+    -- Actors have no 攻擊力. Calculator never sees attributes / skillEffect rows.
+    -- Independent of BattleSystem; usable in Field and Battle.
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        log("[SkillActionWrapper] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildRequests(table castContext)
+        -- Template: per target → atk + BeforeDamage scalars → DamageRequest; After* → EffectRequest.
+        log("[SkillActionWrapper] BuildRequests stub.")
+        local bundle = {}
+        bundle.DamageRequests = {}
+        bundle.EffectRequests = {}
+
+        local targetEntries = self:ResolveTargetEntries(castContext)
+        for _, targetEntry in ipairs(targetEntries) do
+            local damageRequest = self:BuildBaseDamageRequest(castContext, targetEntry)
+            self:ApplyBeforeDamageEffects(castContext, targetEntry, damageRequest)
+            table.insert(bundle.DamageRequests, damageRequest)
+        end
+
+        -- TODO: collect AfterDamage / AfterAction rows into bundle.EffectRequests for Resolver.
+        return bundle
+    end
+
+    @ExecSpace("ServerOnly")
+    method table ResolveTargetEntries(table castContext)
+        -- TODO: resolve authoritative target list from castContext (range / TargetIds).
+        return {}
+    end
+
+    @ExecSpace("ServerOnly")
+    method table BuildBaseDamageRequest(table castContext, table targetEntry)
+        -- TODO: atk = skillBase + skillCoeff * attr; pack defense / other scalars.
+        local damageRequest = {}
+        damageRequest.atk = 0
+        damageRequest.damageMultiplier = 1
+        damageRequest.finalDamageMultiplier = 1
+        damageRequest.masteryMultiplier = 1
+        damageRequest.totalDefense = 0
+        damageRequest.targetEntityId = ""
+        return damageRequest
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ApplyBeforeDamageEffects(table castContext, table targetEntry, table damageRequest)
+        -- Reads skillEffect rows with timing=BeforeDamage for this skillKey.
+        -- Converts live target state (e.g. HP ratio) into pure numeric bonuses on damageRequest.
+        -- Example spearPower / LOW_HP_DAMAGE_BONUS:
+        --   param1 = max bonus amplitude
+        --   param2 = HP remaining ratio that reaches full bonus
+        --   targetSide = only matching targets receive this bonus
+        log("[SkillActionWrapper] ApplyBeforeDamageEffects stub.")
+        local effectRows = self:GetSkillEffectRows(castContext, "BeforeDamage")
+        for _, effectRow in ipairs(effectRows) do
+            if self:DoesEffectApplyToTarget(effectRow, castContext, targetEntry) == true then
+                local effectType = _DataUtil:GetRowString(effectRow, "effectType", "")
+                if effectType == "LOW_HP_DAMAGE_BONUS" then
+                    local bonus = self:ComputeLowHpDamageBonus(effectRow, targetEntry)
+                    -- TODO: fold bonus into damageRequest.damageMultiplier (or dedicated scalar).
+                    log("[SkillActionWrapper] LOW_HP_DAMAGE_BONUS bonus=" .. tostring(bonus))
+                end
+            end
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method table GetSkillEffectRows(table castContext, string timing)
+        -- TODO: scan skillEffect DataSet for skillKey + timing.
+        return {}
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean DoesEffectApplyToTarget(any effectRow, table castContext, table targetEntry)
+        -- TODO: filter by targetSide (Enemy / Ally / Self / Target / All / …).
+        return false
+    end
+
+    @ExecSpace("ServerOnly")
+    method number ComputeLowHpDamageBonus(any effectRow, table targetEntry)
+        -- TODO: hpRatio = hp/maxHp; scale bonus up to param1 as ratio approaches param2.
+        -- param1 = max damage-bonus amplitude; param2 = HP remaining ratio for full bonus.
+        return 0
+    end
+
+end

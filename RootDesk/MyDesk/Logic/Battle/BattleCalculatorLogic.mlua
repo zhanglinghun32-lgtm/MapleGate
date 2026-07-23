@@ -1,0 +1,24 @@
+@Logic
+script BattleCalculatorLogic extends Logic
+
+    -- Pure numeric combat formulas only. No entities, Config, attributes, or mutations.
+    -- Input DamageRequest.atk is already built by SkillActionWrapper (e.g. 50 + 0.5 * will).
+    -- Output is damage (and related result fields) — Resolver never receives atk.
+    -- Shared by Field and Battle skill pipelines.
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        log("[BattleCalculatorLogic] OnBeginPlay.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CalculateDamage(table damageRequest)
+        -- TODO: stages from atk (+ other scalars) → result.damage only for apply path.
+        log("[BattleCalculatorLogic] CalculateDamage stub.")
+        local result = {}
+        result.damage = 0
+        result.isCritical = false
+        return result
+    end
+
+end

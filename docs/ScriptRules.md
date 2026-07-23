@@ -47,7 +47,7 @@ c:\github\
     └── Data/
         ├── Config/                   # Static design tables (default flat)
         │   ├── skillConfig.csv       # Skill balance stays at Config root
-        │   ├── skill/                # skillRange + presentation DataSets
+        │   ├── skill/                # skillRange / skillEffect / presentation DataSets
         │   └── skillAnimation/       # Skill animation JSON assets
         └── PlayerData/               # Save slot schemas
 ```
@@ -65,6 +65,7 @@ other category subfolders unless documented here.
 | `actorConfig` | `Config/` | `"actorConfig"` | Actor base stats |
 | `skillConfig` | `Config/` | `"skillConfig"` | Skills (`iconRuid`, balance); no range geometry |
 | `skillRange` | `Config/skill/` | `"skillRange"` | Skill range shape/size (`keyName` == `skillKey`) |
+| `skillEffect` | `Config/skill/` | `"skillEffect"` | Timed skill logic effects (`skillKey` join) |
 | `skillPresentationConfig` | `Config/skill/` | `"skillPresentationConfig"` | Skill presentation header |
 | `skillPresentationStepConfig` | `Config/skill/` | `"skillPresentationStepConfig"` | Skill presentation timeline steps |
 | `consumableConfig` | `Config/` | `"consumableConfig"` | Consumables |
@@ -148,9 +149,9 @@ they do not maintain a separate RUID registry.
 - Script declarations match the file name exactly: `script SceneLogic extends Logic`.
 - Public scene/UI/data keys use PascalCase strings: `"MainMenu"`, `"World"`, `"CharacterStatus"`, `"Party"`.
 - Config row keys use camelCase or PascalCase consistently per table (`skillKey`, `encounterKey`).
-- Actor combat fields (`configId`, `maxHp`, `baseAttack`, …) use **lowerCamelCase** in
-  `actorConfig`, `SaveSlot.Actors[]`, `BattleActorCom`, and snapshots — see
-  `docs/Actor/ActorVariableExplain.md`.
+- Actor combat fields (`configId`, `maxHp`, five attrs, …) use **lowerCamelCase**
+  in `actorConfig`, `SaveSlot.Actors[]`, `BattleActorCom`, and snapshots — see
+  `docs/Actor/ActorVariableExplain.md`. Actors have no `atk` / 攻擊力.
 - Properties, local variables, and parameters use lowerCamelCase: `mainMenuSceneKey`, `userId`, `entryPosition`.
 - Methods use PascalCase: `ChangeScene`, `OpenUI`, `GetEntryPosition`.
 - Engine lifecycle methods keep the engine spelling: `OnBeginPlay`, `OnEndPlay`, `OnUpdate`.

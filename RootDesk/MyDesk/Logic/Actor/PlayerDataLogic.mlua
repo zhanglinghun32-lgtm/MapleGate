@@ -10,7 +10,7 @@ script PlayerDataLogic extends Logic
     property string mainMenuSceneKey = "MainMenu"
     property string slotKeyPrefix = "Slot"
     property integer maxSlotIndex = 3
-    property integer currentSchemaVersion = 3
+    property integer currentSchemaVersion = 4
     property any loadedSlotIndexes = nil
     property any slotDataCache = nil
     property any dirtyUsers = nil
@@ -224,9 +224,8 @@ script PlayerDataLogic extends Logic
         end
         log("[PlayerDataLogic] LoadSlotData. userId=" .. userId
             .. ", slotKey=" .. slotKey
-            .. ", actorHp=" .. tostring(loadedActor ~= nil and loadedActor.hp or nil)
-            .. ", actorMp=" .. tostring(loadedActor ~= nil and loadedActor.mp or nil)
-            .. ", actorStamina=" .. tostring(loadedActor ~= nil and loadedActor.stamina or nil))
+            .. ", configId=" .. tostring(loadedActor ~= nil and (loadedActor.configId or loadedActor.ConfigId) or nil)
+            .. ", level=" .. tostring(loadedActor ~= nil and (loadedActor.level or loadedActor.Level) or nil))
         return slotData
     end
 
@@ -256,9 +255,8 @@ script PlayerDataLogic extends Logic
         end
         log("[PlayerDataLogic] SaveSlotData. userId=" .. userId
             .. ", slotKey=" .. slotKey
-            .. ", actorHp=" .. tostring(savedActor ~= nil and savedActor.hp or nil)
-            .. ", actorMp=" .. tostring(savedActor ~= nil and savedActor.mp or nil)
-            .. ", actorStamina=" .. tostring(savedActor ~= nil and savedActor.stamina or nil))
+            .. ", configId=" .. tostring(savedActor ~= nil and (savedActor.configId or savedActor.ConfigId) or nil)
+            .. ", level=" .. tostring(savedActor ~= nil and (savedActor.level or savedActor.Level) or nil))
         return true
     end
 
@@ -304,7 +302,7 @@ script PlayerDataLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method table CreateDefaultActorList()
-        -- Slim Actors[] seed only. Capacities / attack are not persisted.
+        -- Slim Actors[] seed only. No current hp/mp/stamina (not persisted).
         local actors = {}
         local actorData = {}
         actorData.configId = "playerWarrior"
@@ -315,19 +313,14 @@ script PlayerDataLogic extends Logic
         actorData.intelligence = 4
         actorData.will = 6
         actorData.perception = 5
-        -- Currents filled after formula so new games start at full.
-        local runtime = self:BuildRuntimeActorState(actorData)
-        actorData.hp = runtime.maxHp
-        actorData.mp = runtime.maxMp
-        actorData.stamina = runtime.maxStamina
         actors[1] = actorData
         return actors
     end
 
     @ExecSpace("ServerOnly")
     method table BuildRuntimeActorState(table saveActor)
-        -- Expands slim Actors[] with computed derived fields for BattleActorCom:ImportSaveData.
-        -- Does not persist derived values; does not compute attack (equip/skill/buff later).
+        -- Expands slim Actors[] with derived fields + full current resources for BattleActorCom.
+        -- Current hp/mp/stamina are never read from Save; always filled to max (buff TBD).
         local runtime = {}
         if saveActor == nil then
             return runtime
@@ -357,9 +350,10 @@ script PlayerDataLogic extends Logic
         runtime.effectHitRate = derived.effectHitRate
         runtime.criticalRate = derived.criticalRate
 
-        runtime.hp = self:ClampCurrentResource(saveActor.hp or saveActor.Hp, runtime.maxHp)
-        runtime.mp = self:ClampCurrentResource(saveActor.mp or saveActor.Mp, runtime.maxMp)
-        runtime.stamina = self:ClampCurrentResource(saveActor.stamina or saveActor.Stamina, runtime.maxStamina)
+        -- Session currents for Com Create/Import / battle entry — not Save fields.
+        runtime.hp = runtime.maxHp
+        runtime.mp = runtime.maxMp
+        runtime.stamina = runtime.maxStamina
         return runtime
     end
 
@@ -387,7 +381,8 @@ script PlayerDataLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method integer ClampCurrentResource(any currentValue, integer maxValue)
-        -- Clamps a persisted current resource into 0 .. maxValue; nil means full.
+        -- Clamps a session current into 0 .. maxValue; nil means full.
+        -- Not used for Save persistence (currents are never stored in Actors[]).
         if maxValue == nil then
             maxValue = 0
         end

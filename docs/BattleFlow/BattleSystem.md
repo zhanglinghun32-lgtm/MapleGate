@@ -147,17 +147,16 @@ Forward `OnSyncProperty` through `BattleClientLogic` to:
 Settlement means session-level consequences after an accepted turn action (or
 turn-start/end hooks), not skill formula ownership:
 
-- receive the already-applied `SkillExecutionResult` from
-  `SkillExecutionLogic`
+- receive the already-applied resolve result from the skill cast pipeline
+  (`SkillActionWrapper` → `BattleCalculatorLogic` → `SkillActionResolver`)
 - query `IsDead()` on that component
 - remove dead actors from the turn queue
 - check victory / defeat / escape / cancel
 - advance to the next turn or finish and notify `BattleFlowLogic`
 
-`SkillExecutionLogic` calculates and applies mutations through
-`BattleActorCom`. Battle **schedules** when that execution counts as a completed
-turn and whether the battle ends. `BattleCalculatorLogic` only returns numeric
-formula results.
+`SkillActionResolver` applies mutations through `BattleActorCom`. Battle
+**schedules** when that execution counts as a completed turn and whether the
+battle ends. `BattleCalculatorLogic` only returns numeric formula results.
 
 ## Actor Registry
 
@@ -214,15 +213,15 @@ of `BattleSystem` when unsure.
      finish callback.
    - Extract / stop growing: skill target-range expansion, `ResolveAction` skill
      formulas/mutations, skill presentation ownership. Route shared execution
-     through `SkillExecutionLogic`.
+     through `SkillActionLogic:ExecuteCastPipeline`.
    - Add: explicit `IsOperationAllowed` / `CanSubmitTurnAction` (or equivalent)
      used by Skill / Party / Item gateways.
    - Mark `RequestAction*` as legacy; ensure no new UI callers.
 
 2. **`RootDesk/MyDesk/Logic/Skill/SkillActionLogic.mlua`**
    - Remain the only skill request gateway from UI.
-   - Query battle permission, then call `SkillExecutionLogic`; do not embed turn
-     scheduling or formula work.
+   - Query battle permission, then run Wrapper → Calculator → Resolver; do not
+     embed turn scheduling or formula work.
 
 3. **`RootDesk/MyDesk/UI/battle/ControlCharacterUIComponent.mlua`**
    - Keep skill select / confirm / range preview here (not in BattleUI).
