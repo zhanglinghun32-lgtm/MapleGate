@@ -8,6 +8,12 @@ script PlayerDataLogic extends Logic
     --
     -- actorConfig supplies one initial job for a template.
     -- Player saves persist every acquired job under actor.jobs.
+    --
+    -- TODO(ShopPersistence):
+    -- Add a ShopState SaveSlot section owned by ShopLogic. A missing shop entry is seeded
+    -- from shopConfig/shopProductConfig once, then all later opens and save loads use the
+    -- player's persisted state. Shop transactions must update the in-memory section and
+    -- call MarkDirty(userId); PlayerDataLogic remains the serialization coordinator.
 
     property string worldSceneKey = "World"
     property string mainMenuSceneKey = "MainMenu"

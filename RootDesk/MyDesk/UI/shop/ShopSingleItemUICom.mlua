@@ -1,0 +1,81 @@
+@Component
+@ExecSpace("ClientOnly")
+script ShopSingleItemUICom extends Component
+
+    property ButtonComponent slotButton = nil
+    property SpriteGUIRendererComponent itemIcon = nil
+    property TextGUIRendererComponent itemName = nil
+    property TextGUIRendererComponent itemAmount = nil
+    property TextGUIRendererComponent itemSinglePrize = nil
+    property SpriteGUIRendererComponent selectedBg = nil
+
+    property any owner = nil
+    property table productData = nil
+    property any clickHandler = nil
+    property boolean isSelected = false
+
+    method void OnBeginPlay()
+        if self.slotButton ~= nil then
+            self.clickHandler = self.slotButton.Entity:ConnectEvent(ButtonClickEvent, self.OnSlotClicked)
+        end
+        self:SetSelected(false)
+        if self.productData ~= nil then
+            self:RefreshProduct()
+        end
+    end
+
+    method void OnEndPlay()
+        if self.clickHandler ~= nil and self.slotButton ~= nil then
+            self.slotButton.Entity:DisconnectEvent(ButtonClickEvent, self.clickHandler)
+            self.clickHandler = nil
+        end
+    end
+
+    method void SetOwner(any owner)
+        self.owner = owner
+    end
+
+    method void SetProduct(table productData)
+        self.productData = productData or {}
+        self:SetSelected(false)
+        self:RefreshProduct()
+    end
+
+    method void RefreshProduct()
+        if self.itemIcon ~= nil then
+            self.itemIcon.ImageRUID = tostring(self.productData.IconRuid or "")
+        end
+        if self.itemName ~= nil then
+            local displayName = tostring(self.productData.DisplayName or "")
+            if displayName == "" then
+                displayName = tostring(self.productData.ItemKey or "")
+            end
+            self.itemName.Text = displayName
+        end
+        if self.itemAmount ~= nil then
+            self.itemAmount.Text = tostring(math.floor(tonumber(self.productData.Amount) or 0))
+        end
+        if self.itemSinglePrize ~= nil then
+            self.itemSinglePrize.Text = tostring(math.floor(tonumber(self.productData.UnitPrice)
+                or tonumber(self.productData.BuyPrice)
+                or tonumber(self.productData.SellPrice)
+                or 0))
+        end
+    end
+
+    method void OnSlotClicked(ButtonClickEvent event)
+        if self.owner ~= nil and self.productData ~= nil then
+            log("[ShopSingleItemUICom] Clicked. itemKey=" .. tostring(self.productData.ItemKey)
+                .. ", vendorSide=" .. tostring(self.productData.IsVendorSide))
+            self.owner:SelectVendorSlot(self, self.productData)
+        end
+    end
+
+    method void SetSelected(boolean isSelected)
+        self.isSelected = isSelected
+        if self.selectedBg ~= nil then
+            self.selectedBg.Entity.Enable = isSelected
+        end
+    end
+
+end

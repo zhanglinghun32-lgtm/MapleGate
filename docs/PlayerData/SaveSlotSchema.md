@@ -38,6 +38,24 @@ table is a JSON array or object. The sentinel is removed immediately after decod
 | `Inventory` | table | Yes | `InventoryLogic` | Legacy compatibility shell. On v4/older load, its contents migrate once into `Actors[1].inventory`; v5 saves it empty. |
 | `Skill` | table | Yes | `SkillLogic` | Learned skills and hotkeys. |
 | `Mission` | table | Yes | `MissionLogic` | Active and completed missions. |
+| `ShopState` | table | Planned | `ShopLogic` | **TODO:** Per-player vendor state. Missing shops are seeded from Config once; initialized shops load from PlayerData thereafter. |
+
+## ShopState (Planned)
+
+TODO — transaction and persistence are not implemented yet.
+
+- `ShopUICom` will send buy/sell intent to the server after confirmation; it must
+  never change inventory, currency, or vendor stock locally.
+- `ShopLogic` will validate the request and perform the authoritative currency,
+  player inventory, and vendor stock transfer before returning refreshed snapshots.
+- `shopConfig` and `shopProductConfig` are initialization templates only. A shop is
+  read from Config when that player has no saved state for it, such as the first
+  open in a new slot.
+- After initialization, opening the shop and loading a save use
+  `slotData.ShopState`.
+- Successful transactions update the in-memory SaveSlot section and mark the user
+  dirty through `PlayerDataLogic`; persistence still occurs through the normal
+  explicit SaveSlot flow.
 
 ## Profile
 

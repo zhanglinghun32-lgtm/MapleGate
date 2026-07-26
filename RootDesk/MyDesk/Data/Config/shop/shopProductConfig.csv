@@ -1,0 +1,4 @@
+﻿productKey,shopKey,itemKey,buyPrice,stockMode,stockLimit,restockSeconds,purchaseLimit,conditionKey,displayOrder,enabled
+general_hp_01,generalStore01,hpPotionSmall,20,Unlimited,0,0,0,,100,true
+general_mp_01,generalStore01,mpPotionSmall,20,Unlimited,0,0,0,,110,true
+general_hp_02,generalStore02,hpPotionSmall,20,Session,10,0,030,,100,true

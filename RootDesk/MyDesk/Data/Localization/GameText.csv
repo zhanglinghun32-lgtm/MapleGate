@@ -1,2 +1,10 @@
 ﻿Key,Source,Note,zh-TW,en
 system_locale_probe,語言資料已載入,Infrastructure validation only,語言資料已載入,Localization dataset loaded
+Shop_Left,商品剩餘,shop panel show left amount,剩餘：,"""left: """
+Shop_prize,商品售價,shop prize label,價格：,"""prize: """
+leave_shop,離開商店,leave label,離開商店,leave shop
+buy,購買,,購買,buy
+sell,販賣,,販賣,sell
+sure_buy,真的要買嗎?,,確定購買?,Sure Buy?
+sure_sell,,,確定販賣?,Sure Sell?
+dialog_NPC_vendor_common,來買東C8,come and buy,來買東西,Open Store

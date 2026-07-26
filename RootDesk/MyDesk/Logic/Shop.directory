@@ -1,20 +1,20 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "directory://753a145d51b948b6ac0bfdfefc850703",
+  "EntryKey": "directory://2fa42f86328b4207bfe5d941187f0956",
   "ContentType": "x-mod/directory",
   "Content": "",
   "Usage": 0,
   "UsePublish": 1,
   "UseService": 0,
   "CoreVersion": "26.5.0.0",
-  "StudioVersion": "",
+  "StudioVersion": "0.1.0.0",
   "DynamicLoading": 0,
   "ContentProto": {
     "Use": "Json",
     "Json": {
-      "entry_id": "directory://753a145d51b948b6ac0bfdfefc850703",
-      "name": "SaveSlot03",
+      "entry_id": "directory://2fa42f86328b4207bfe5d941187f0956",
+      "name": "Shop",
       "lock": false,
       "folding": false,
       "nameEditable": true

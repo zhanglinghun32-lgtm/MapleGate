@@ -1,7 +1,7 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "directory://753a145d51b948b6ac0bfdfefc850703",
+  "EntryKey": "directory://0fabdf1cf6064c3cb2190d978e48372d",
   "ContentType": "x-mod/directory",
   "Content": "",
   "Usage": 0,
@@ -13,8 +13,8 @@
   "ContentProto": {
     "Use": "Json",
     "Json": {
-      "entry_id": "directory://753a145d51b948b6ac0bfdfefc850703",
-      "name": "SaveSlot03",
+      "entry_id": "directory://0fabdf1cf6064c3cb2190d978e48372d",
+      "name": "shop",
       "lock": false,
       "folding": false,
       "nameEditable": true

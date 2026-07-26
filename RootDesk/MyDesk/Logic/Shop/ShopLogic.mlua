@@ -1,0 +1,218 @@
+@Logic
+script ShopLogic extends Logic
+
+    -- TODO(ShopTransaction):
+    -- Add server-authoritative buy/sell request handlers. Re-resolve every submitted key,
+    -- validate price/currency/stock/ownership/count, transfer currency and items together,
+    -- update the user's persisted shop state, mark PlayerData dirty, then return a fresh
+    -- shop + inventory snapshot to the requesting client.
+    --
+    -- TODO(ShopPersistence):
+    -- Config is only the seed for a shop that has no saved state yet. Once initialized,
+    -- opening a shop must use the current user's PlayerData shop state rather than rebuilding
+    -- stock from Config. Loading a SaveSlot must restore that state.
+
+    property string shopUIKey = "Shop"
+    property string shopDataSetName = "shopConfig"
+    property string productDataSetName = "shopProductConfig"
+    property string inventoryDataSetName = "inventoryConfig"
+
+    property table shopCache = nil
+    property table productCache = nil
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        self:LoadShopCaches()
+        log("[ShopLogic] OnBeginPlay. shopCount=" .. tostring(self:CountKeys(self.shopCache)))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadShopCaches()
+        self.shopCache = {}
+        self.productCache = {}
+
+        local shopDataSet = _DataService:GetTable(self.shopDataSetName)
+        if shopDataSet == nil then
+            log_warning("[ShopLogic] Shop DataSet missing. name=" .. self.shopDataSetName)
+            return
+        end
+        for rowIndex = 1, shopDataSet:GetRowCount() do
+            if self:GetCellBoolean(shopDataSet, rowIndex, "enabled", true) then
+                local shopKey = self:GetCellString(shopDataSet, rowIndex, "shopKey")
+                if shopKey ~= "" then
+                    self.shopCache[shopKey] = {
+                        ShopKey = shopKey,
+                        TitleKey = self:GetCellString(shopDataSet, rowIndex, "titleKey"),
+                        VendorActorId = self:GetCellString(shopDataSet, rowIndex, "vendorActorId"),
+                        CurrencyItemKey = self:GetCellString(shopDataSet, rowIndex, "currencyItemKey"),
+                        AllowBuy = self:GetCellBoolean(shopDataSet, rowIndex, "allowBuy", true),
+                        AllowSell = self:GetCellBoolean(shopDataSet, rowIndex, "allowSell", true),
+                        SellPriceRate = self:GetCellNumber(shopDataSet, rowIndex, "sellPriceRate", 1)
+                    }
+                end
+            end
+        end
+
+        local productDataSet = _DataService:GetTable(self.productDataSetName)
+        if productDataSet == nil then
+            log_warning("[ShopLogic] Product DataSet missing. name=" .. self.productDataSetName)
+            return
+        end
+        for rowIndex = 1, productDataSet:GetRowCount() do
+            if self:GetCellBoolean(productDataSet, rowIndex, "enabled", true) then
+                local shopKey = self:GetCellString(productDataSet, rowIndex, "shopKey")
+                local itemKey = self:GetCellString(productDataSet, rowIndex, "itemKey")
+                if shopKey ~= "" and itemKey ~= "" then
+                    if self.productCache[shopKey] == nil then
+                        self.productCache[shopKey] = {}
+                    end
+                    table.insert(self.productCache[shopKey], {
+                        ProductKey = self:GetCellString(productDataSet, rowIndex, "productKey"),
+                        ShopKey = shopKey,
+                        ItemKey = itemKey,
+                        BuyPrice = self:GetCellInteger(productDataSet, rowIndex, "buyPrice", 0),
+                        DisplayOrder = self:GetCellInteger(productDataSet, rowIndex, "displayOrder", rowIndex)
+                    })
+                end
+            end
+        end
+        for _, products in pairs(self.productCache) do
+            table.sort(products, function(left, right)
+                return left.DisplayOrder < right.DisplayOrder
+            end)
+        end
+        log("[ShopLogic] LoadShopCaches. shops=" .. tostring(self:CountKeys(self.shopCache))
+            .. ", productGroups=" .. tostring(self:CountKeys(self.productCache)))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void OpenShopForUser(string userId, string shopKey, string vendorEntityId)
+        local shop = self.shopCache[shopKey]
+        if shop == nil then
+            log_warning("[ShopLogic] OpenShopForUser failed: shop missing. shopKey=" .. tostring(shopKey))
+            return
+        end
+
+        local products = {}
+        local productPriceByItemKey = {}
+        local inventoryDataSet = _DataService:GetTable(self.inventoryDataSetName)
+        for _, product in ipairs(self.productCache[shopKey] or {}) do
+            local itemRow = inventoryDataSet ~= nil and inventoryDataSet:FindRow("itemKey", product.ItemKey) or nil
+            if itemRow ~= nil then
+                table.insert(products, {
+                    ProductKey = product.ProductKey,
+                    ItemKey = product.ItemKey,
+                    BuyPrice = product.BuyPrice,
+                    DisplayOrder = product.DisplayOrder,
+                    DisplayName = _DataUtil:GetRowString(itemRow, "displayName", product.ItemKey),
+                    ItemType = _DataUtil:GetRowString(itemRow, "itemType", ""),
+                    IconRuid = _DataUtil:GetRowString(itemRow, "iconRuid", "")
+                })
+                productPriceByItemKey[product.ItemKey] = product.BuyPrice
+            else
+                log_warning("[ShopLogic] Product skipped: inventory item missing. itemKey=" .. product.ItemKey)
+            end
+        end
+
+        local playerItems = {}
+        for actorIndex, actorEntry in ipairs(_InventoryLogic:GetActorInventories(userId)) do
+            for slotIndex, itemStack in pairs(actorEntry.Inventory.Items or {}) do
+                if type(slotIndex) == "number" and itemStack ~= nil then
+                    local itemKey = tostring(itemStack.ItemKey or "")
+                    local itemRow = inventoryDataSet ~= nil
+                        and inventoryDataSet:FindRow("itemKey", itemKey) or nil
+                    if itemRow ~= nil then
+                        local buyPrice = math.floor(tonumber(productPriceByItemKey[itemKey]) or 0)
+                        table.insert(playerItems, {
+                            ActorIndex = actorIndex,
+                            ActorKey = tostring(actorEntry.ActorKey or ""),
+                            SlotIndex = math.floor(slotIndex),
+                            ItemKey = itemKey,
+                            Count = math.floor(tonumber(itemStack.Count) or 0),
+                            SellPrice = math.floor(buyPrice * shop.SellPriceRate),
+                            DisplayName = _DataUtil:GetRowString(itemRow, "displayName", itemKey),
+                            ItemType = _DataUtil:GetRowString(itemRow, "itemType", ""),
+                            IconRuid = _DataUtil:GetRowString(itemRow, "iconRuid", "")
+                        })
+                    end
+                end
+            end
+        end
+        table.sort(playerItems, function(left, right)
+            if left.ActorIndex ~= right.ActorIndex then
+                return left.ActorIndex < right.ActorIndex
+            end
+            return left.SlotIndex < right.SlotIndex
+        end)
+
+        self:OpenShopClient({
+            ShopKey = shop.ShopKey,
+            TitleKey = shop.TitleKey,
+            CurrencyItemKey = shop.CurrencyItemKey,
+            AllowBuy = shop.AllowBuy,
+            AllowSell = shop.AllowSell,
+            VendorEntityId = vendorEntityId,
+            Products = products,
+            PlayerItems = playerItems
+        }, userId)
+        log("[ShopLogic] OpenShopForUser. userId=" .. userId
+            .. ", shopKey=" .. shopKey
+            .. ", productCount=" .. tostring(#products)
+            .. ", playerItemCount=" .. tostring(#playerItems))
+    end
+
+    @ExecSpace("Client")
+    method void OpenShopClient(table shopContext)
+        local shopEntity = _UIManagerLogic:GetUIEntity(self.shopUIKey)
+        if isvalid(shopEntity) == false then
+            log_warning("[ShopLogic] OpenShopClient failed: Shop UI missing.")
+            return
+        end
+        _UIManagerLogic:OpenUI(self.shopUIKey)
+        local shopUI = shopEntity:GetComponent("script.ShopUICom")
+        if shopUI == nil then
+            log_warning("[ShopLogic] OpenShopClient failed: ShopUICom missing.")
+            return
+        end
+        shopUI:OpenShop(shopContext or {})
+    end
+
+    @ExecSpace("ServerOnly")
+    method string GetCellString(any dataSet, integer rowIndex, string columnName)
+        local value = dataSet:GetCell(rowIndex, columnName)
+        if value == nil or tostring(value) == "nil" then
+            return ""
+        end
+        return tostring(value)
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetCellInteger(any dataSet, integer rowIndex, string columnName, integer fallback)
+        return math.floor(tonumber(dataSet:GetCell(rowIndex, columnName)) or fallback)
+    end
+
+    @ExecSpace("ServerOnly")
+    method number GetCellNumber(any dataSet, integer rowIndex, string columnName, number fallback)
+        return tonumber(dataSet:GetCell(rowIndex, columnName)) or fallback
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean GetCellBoolean(any dataSet, integer rowIndex, string columnName, boolean fallback)
+        local value = dataSet:GetCell(rowIndex, columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+        local normalized = string.lower(tostring(value))
+        return normalized == "true" or normalized == "1"
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer CountKeys(table target)
+        local count = 0
+        for _, _ in pairs(target or {}) do
+            count = count + 1
+        end
+        return count
+    end
+
+end

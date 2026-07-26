@@ -7,3 +7,4 @@ conditionMissionWelcomeAccepted,main,2,MissionCompleted,missionWelcome,Equal,fal
 conditionMissionWelcomeCompleted,main,1,MissionCompleted,missionWelcome,Equal,true,true,初次差事已完成
 conditionWelcomeActiveOrCompleted,active,1,MissionAccepted,missionWelcome,Equal,true,true,OR 群組一：任務已接受
 conditionWelcomeActiveOrCompleted,completed,1,MissionCompleted,missionWelcome,Equal,true,true,OR 群組二：任務已完成
+AlwaysPassCondition,main,1,AlwaysPass,,,,,預設通過

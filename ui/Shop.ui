@@ -1,0 +1,2499 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "ui://0bab460d-5959-4f64-bf1a-d73666172cd5",
+  "ContentType": "x-mod/ui",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Binary",
+    "Entities": [
+      {
+        "id": "0bab460d-5959-4f64-bf1a-d73666172cd5",
+        "path": "/ui/Shop",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.UIGroupComponent,MOD.Core.CanvasGroupComponent,script.ShopUICom",
+        "jsonString": {
+          "name": "Shop",
+          "path": "/ui/Shop",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 9,
+          "pathConstraints": "//",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uigroup",
+            "sub_entity_id": null,
+            "root_entity_id": null,
+            "replaced_model_id": null
+          },
+          "modelId": "uigroup",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 15,
+              "AnchorsMax": {
+                "x": 1.0,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "OffsetMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 1920.0,
+                "y": 1080.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.UIGroupComponent",
+              "DefaultShow": true,
+              "GroupOrder": 9,
+              "GroupType": 2,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.CanvasGroupComponent",
+              "Enable": true
+            },
+            {
+              "@type": "script.ShopUICom",
+              "Enable": true,
+              "vendorAvatar": {
+                "IsRelative": false,
+                "ComponentId": "82354748-1c64-4524-b042-e8f52797eaea:CostumeManagerComponent",
+                "UseNested": false
+              },
+              "playerAvatar": {
+                "IsRelative": false,
+                "ComponentId": "79d8cd3b-dbd6-4d24-a666-6b3d55cad1a0:CostumeManagerComponent",
+                "UseNested": false
+              },
+              "doubleCheckPanel": {
+                "tempEntityId": null,
+                "IsRelative": false,
+                "EntityId": "24cd0932-51e0-45b9-a015-2d35607eb6d5",
+                "Version2": false
+              },
+              "leaveShopButton": {
+                "IsRelative": false,
+                "ComponentId": "a875218a-9975-4b99-b907-6a9fb678d9f2:ButtonComponent",
+                "UseNested": false
+              },
+              "buyItemButton": {
+                "IsRelative": false,
+                "ComponentId": "c5f705ac-3b9a-4e9d-ac61-936382d30383:ButtonComponent",
+                "UseNested": false
+              },
+              "sellItemButton": {
+                "IsRelative": false,
+                "ComponentId": "5d714037-ae2d-473b-9d39-16adaae04dfa:ButtonComponent",
+                "UseNested": false
+              },
+              "doubleCheckTitle": {
+                "IsRelative": false,
+                "ComponentId": "b4ba8662-f3d1-48b7-b353-b0fd7551d975:TextGUIRendererComponent",
+                "UseNested": false
+              },
+              "doubleCheckCommondityName": {
+                "IsRelative": false,
+                "ComponentId": "c331b719-e4f8-4a5d-bf9a-54ad41ba830b:TextGUIRendererComponent",
+                "UseNested": false
+              },
+              "doubleCheckCommondityAmount": {
+                "IsRelative": false,
+                "ComponentId": "91ddb025-2fda-4654-874c-db809d7cfe1b:TextGUIRendererComponent",
+                "UseNested": false
+              },
+              "doubleCheckTotalPrize": {
+                "IsRelative": false,
+                "ComponentId": "e5086e5c-79ad-4a3d-9e39-ef4a2b3edb98:TextGUIRendererComponent",
+                "UseNested": false
+              },
+              "doubleCheckButton": {
+                "IsRelative": false,
+                "ComponentId": "4aeeb120-d234-48ce-aa77-f6c377e85831:ButtonComponent",
+                "UseNested": false
+              },
+              "doubleCheckCancelButton": {
+                "IsRelative": false,
+                "ComponentId": "cc441102-8540-495d-9c9d-2ede5d311712:ButtonComponent",
+                "UseNested": false
+              }
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "8d66c1fe-fbb0-42e5-9d9f-cc907e24950c",
+        "path": "/ui/Shop/mask",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
+        "jsonString": {
+          "name": "mask",
+          "path": "/ui/Shop/mask",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "///",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uisprite",
+            "sub_entity_id": null,
+            "root_entity_id": "8d66c1fe-fbb0-42e5-9d9f-cc907e24950c",
+            "replaced_model_id": null
+          },
+          "modelId": "uisprite",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 15,
+              "AnchorsMax": {
+                "x": 1.0,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "OffsetMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 1920.0,
+                "y": 1080.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "OverrideSorting": false,
+              "Color": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 0.435546875
+              },
+              "FlipX": true,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "90b2b7b1-9ff3-4a71-99e3-e0218c62fe15",
+        "path": "/ui/Shop/panel",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
+        "jsonString": {
+          "name": "panel",
+          "path": "/ui/Shop/panel",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 1,
+          "pathConstraints": "///",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uiempty",
+            "sub_entity_id": null,
+            "root_entity_id": "90b2b7b1-9ff3-4a71-99e3-e0218c62fe15",
+            "replaced_model_id": null
+          },
+          "modelId": "uiempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 650.0,
+                "y": 450.0
+              },
+              "OffsetMin": {
+                "x": -650.0,
+                "y": -450.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 1300.0,
+                "y": 900.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "ImageRUID": {
+                "DataId": "d0bff8bedec84b22b349454173f5c307"
+              },
+              "OverrideSorting": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "0cbafbd0-b3bc-4c00-8aa6-fd02868daa40",
+        "path": "/ui/Shop/panel/NpcSide",
+        "componentNames": "MOD.Core.UITransformComponent",
+        "jsonString": {
+          "name": "NpcSide",
+          "path": "/ui/Shop/panel/NpcSide",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uiempty",
+            "sub_entity_id": null,
+            "root_entity_id": "0cbafbd0-b3bc-4c00-8aa6-fd02868daa40",
+            "replaced_model_id": null
+          },
+          "modelId": "uiempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 0.0,
+                "y": 450.0
+              },
+              "OffsetMin": {
+                "x": -650.0,
+                "y": -450.0
+              },
+              "Pivot": {
+                "x": 0.0,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 650.0,
+                "y": 900.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -650.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": -650.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "82354748-1c64-4524-b042-e8f52797eaea",
+        "path": "/ui/Shop/panel/NpcSide/Avatar",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.CostumeManagerComponent,MOD.Core.AvatarGUIRendererComponent",
+        "jsonString": {
+          "name": "Avatar",
+          "path": "/ui/Shop/panel/NpcSide/Avatar",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uiempty",
+            "sub_entity_id": null,
+            "root_entity_id": "82354748-1c64-4524-b042-e8f52797eaea",
+            "replaced_model_id": null
+          },
+          "modelId": "uiempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": -105.505569,
+                "y": 420.0006
+              },
+              "OffsetMin": {
+                "x": -325.000244,
+                "y": 202.01239
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 219.494659,
+                "y": 217.98822
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -215.2529,
+                "y": 311.0065
+              },
+              "Position": {
+                "x": 109.7471,
+                "y": 311.0065,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.CostumeManagerComponent",
+              "CustomBodyEquip": "",
+              "CustomCapEquip": "",
+              "DefaultEquipUserId": "",
+              "UseCustomEquipOnly": true,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.AvatarGUIRendererComponent",
+              "FlipX": true,
+              "PreserveAvatar": 1,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "65b926e0-e588-4318-a986-3b6d6b1d8811",
+        "path": "/ui/Shop/panel/NpcSide/SellPanel",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
+        "jsonString": {
+          "name": "SellPanel",
+          "path": "/ui/Shop/panel/NpcSide/SellPanel",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 1,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uisprite",
+            "sub_entity_id": null,
+            "root_entity_id": "65b926e0-e588-4318-a986-3b6d6b1d8811",
+            "replaced_model_id": null
+          },
+          "modelId": "uisprite",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 324.913574,
+                "y": 193.331314
+              },
+              "OffsetMin": {
+                "x": -317.8656,
+                "y": -454.147339
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 642.7792,
+                "y": 647.478638
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 3.52398682,
+                "y": -130.408
+              },
+              "Position": {
+                "x": 328.524,
+                "y": -130.408,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "ImageRUID": {
+                "DataId": "ad85ed45b432471987315dcd1c5feaa2"
+              },
+              "OverrideSorting": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "4a0ff7a6-2ed4-4732-a53d-aa853f5cd434",
+        "path": "/ui/Shop/panel/NpcSide/SellPanel/Layout",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.ScrollLayoutGroupComponent",
+        "jsonString": {
+          "name": "Layout",
+          "path": "/ui/Shop/panel/NpcSide/SellPanel/Layout",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "//////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uiempty",
+            "sub_entity_id": null,
+            "root_entity_id": "4a0ff7a6-2ed4-4732-a53d-aa853f5cd434",
+            "replaced_model_id": null
+          },
+          "modelId": "uiempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 15,
+              "AnchorsMax": {
+                "x": 1.0,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": -10.0,
+                "y": -15.0
+              },
+              "OffsetMin": {
+                "x": 10.0,
+                "y": 15.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 622.7792,
+                "y": 617.478638
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ScrollLayoutGroupComponent",
+              "OverrideSorting": false,
+              "ScrollBarVisible": 2,
+              "Spacing": 8.0,
+              "Type": 1,
+              "UseScroll": true,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "c5f705ac-3b9a-4e9d-ac61-936382d30383",
+        "path": "/ui/Shop/panel/NpcSide/BuyButton",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent",
+        "jsonString": {
+          "name": "BuyButton",
+          "path": "/ui/Shop/panel/NpcSide/BuyButton",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 2,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uibutton",
+            "sub_entity_id": null,
+            "root_entity_id": "c5f705ac-3b9a-4e9d-ac61-936382d30383",
+            "replaced_model_id": null
+          },
+          "modelId": "uibutton",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 257.763947,
+                "y": 311.6329
+              },
+              "OffsetMin": {
+                "x": -0.6427307,
+                "y": 214.478668
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 258.406677,
+                "y": 97.15425
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 128.560608,
+                "y": 263.0558
+              },
+              "Position": {
+                "x": 453.5606,
+                "y": 263.0558,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "OverrideSorting": false,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ButtonComponent",
+              "Colors": {
+                "NormalColor": {
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0,
+                  "a": 1.0
+                },
+                "HighlightedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "PressedColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 1.0
+                },
+                "SelectedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "DisabledColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 0.5019608
+                },
+                "ColorMultiplier": 1.0,
+                "FadeDuration": 0.1
+              },
+              "ImageRUIDs": {
+                "HighlightedSprite": null,
+                "PressedSprite": null,
+                "SelectedSprite": null,
+                "DisabledSprite": null
+              },
+              "OverrideSorting": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "1805e24e-3f15-4700-bb87-9a3fa1c2f5de",
+        "path": "/ui/Shop/panel/NpcSide/BuyButton/UIText",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.TextGUIRendererComponent",
+        "jsonString": {
+          "name": "UIText",
+          "path": "/ui/Shop/panel/NpcSide/BuyButton/UIText",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "//////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uitextguirenderer",
+            "sub_entity_id": null,
+            "root_entity_id": "1805e24e-3f15-4700-bb87-9a3fa1c2f5de",
+            "replaced_model_id": null
+          },
+          "modelId": "uitextguirenderer",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 123.511856,
+                "y": 50.0001
+              },
+              "OffsetMin": {
+                "x": -125.525848,
+                "y": -49.9999
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 249.0377,
+                "y": 100.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -1.007,
+                "y": 0.0001
+              },
+              "Position": {
+                "x": -1.007,
+                "y": 0.0001,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.TextGUIRendererComponent",
+              "BestFit": true,
+              "IsLocalizationKey": true,
+              "OverrideSorting": false,
+              "Text": "buy",
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "a875218a-9975-4b99-b907-6a9fb678d9f2",
+        "path": "/ui/Shop/panel/NpcSide/LeaveButton",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent",
+        "jsonString": {
+          "name": "LeaveButton",
+          "path": "/ui/Shop/panel/NpcSide/LeaveButton",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 3,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uibutton",
+            "sub_entity_id": null,
+            "root_entity_id": "c5f705ac-3b9a-4e9d-ac61-936382d30383",
+            "replaced_model_id": null
+          },
+          "modelId": "uibutton",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 257.763733,
+                "y": 421.246124
+              },
+              "OffsetMin": {
+                "x": -0.642944336,
+                "y": 324.0919
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 258.406677,
+                "y": 97.15425
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 128.5604,
+                "y": 372.669
+              },
+              "Position": {
+                "x": 453.5604,
+                "y": 372.669,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "OverrideSorting": false,
+              "SortingLayer": "MapLayer0",
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ButtonComponent",
+              "Colors": {
+                "NormalColor": {
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0,
+                  "a": 1.0
+                },
+                "HighlightedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "PressedColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 1.0
+                },
+                "SelectedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "DisabledColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 0.5019608
+                },
+                "ColorMultiplier": 1.0,
+                "FadeDuration": 0.1
+              },
+              "ImageRUIDs": {
+                "HighlightedSprite": null,
+                "PressedSprite": null,
+                "SelectedSprite": null,
+                "DisabledSprite": null
+              },
+              "OverrideSorting": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "3033f978-653d-4bef-9922-abc33d23c8be",
+        "path": "/ui/Shop/panel/NpcSide/LeaveButton/UIText",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.TextGUIRendererComponent",
+        "jsonString": {
+          "name": "UIText",
+          "path": "/ui/Shop/panel/NpcSide/LeaveButton/UIText",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "//////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uitextguirenderer",
+            "sub_entity_id": null,
+            "root_entity_id": "1805e24e-3f15-4700-bb87-9a3fa1c2f5de",
+            "replaced_model_id": null
+          },
+          "modelId": "uitextguirenderer",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 123.511856,
+                "y": 50.0001
+              },
+              "OffsetMin": {
+                "x": -125.525848,
+                "y": -49.9999
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 249.0377,
+                "y": 100.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -1.007,
+                "y": 0.0001
+              },
+              "Position": {
+                "x": -1.007,
+                "y": 0.0001,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.TextGUIRendererComponent",
+              "BestFit": true,
+              "IsLocalizationKey": true,
+              "OverrideSorting": false,
+              "SortingLayer": "MapLayer0",
+              "Text": "leave_shop",
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "8204ffa9-22be-4eb2-bd6c-70c43b527625",
+        "path": "/ui/Shop/panel/PlayerSide",
+        "componentNames": "MOD.Core.UITransformComponent",
+        "jsonString": {
+          "name": "PlayerSide",
+          "path": "/ui/Shop/panel/PlayerSide",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 1,
+          "pathConstraints": "////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uiempty",
+            "sub_entity_id": null,
+            "root_entity_id": "0cbafbd0-b3bc-4c00-8aa6-fd02868daa40",
+            "replaced_model_id": null
+          },
+          "modelId": "uiempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 649.9137,
+                "y": 449.9999
+              },
+              "OffsetMin": {
+                "x": -0.08630371,
+                "y": -450.0001
+              },
+              "Pivot": {
+                "x": 0.0,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 650.0,
+                "y": 900.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -0.08630371,
+                "y": -0.0001
+              },
+              "Position": {
+                "x": -0.08630371,
+                "y": -0.0001,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "79d8cd3b-dbd6-4d24-a666-6b3d55cad1a0",
+        "path": "/ui/Shop/panel/PlayerSide/Avatar",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.CostumeManagerComponent,MOD.Core.AvatarGUIRendererComponent",
+        "jsonString": {
+          "name": "Avatar",
+          "path": "/ui/Shop/panel/PlayerSide/Avatar",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uiempty",
+            "sub_entity_id": null,
+            "root_entity_id": "82354748-1c64-4524-b042-e8f52797eaea",
+            "replaced_model_id": null
+          },
+          "modelId": "uiempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 324.91333,
+                "y": 421.2463
+              },
+              "OffsetMin": {
+                "x": 105.418686,
+                "y": 203.258087
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 219.494659,
+                "y": 217.98822
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 215.166016,
+                "y": 312.2522
+              },
+              "Position": {
+                "x": 540.166,
+                "y": 312.2522,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.CostumeManagerComponent",
+              "CustomBodyEquip": "",
+              "CustomCapEquip": "",
+              "DefaultEquipUserId": "",
+              "UseCustomEquipOnly": true,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.AvatarGUIRendererComponent",
+              "FlipX": false,
+              "PreserveAvatar": 1,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "14cb53fc-1a87-4cde-a8ec-32e43881a8ca",
+        "path": "/ui/Shop/panel/PlayerSide/SellPanel",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
+        "jsonString": {
+          "name": "SellPanel",
+          "path": "/ui/Shop/panel/PlayerSide/SellPanel",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 1,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uisprite",
+            "sub_entity_id": null,
+            "root_entity_id": "65b926e0-e588-4318-a986-3b6d6b1d8811",
+            "replaced_model_id": null
+          },
+          "modelId": "uisprite",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 324.913574,
+                "y": 193.331314
+              },
+              "OffsetMin": {
+                "x": -317.8656,
+                "y": -454.147339
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 642.7792,
+                "y": 647.478638
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 3.52398682,
+                "y": -130.408
+              },
+              "Position": {
+                "x": 328.524,
+                "y": -130.408,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "ImageRUID": {
+                "DataId": "ad85ed45b432471987315dcd1c5feaa2"
+              },
+              "OverrideSorting": false,
+              "SortingLayer": "MapLayer0",
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "1f15ed27-d52e-4bb8-af09-452763d35bde",
+        "path": "/ui/Shop/panel/PlayerSide/SellPanel/Layout",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.ScrollLayoutGroupComponent",
+        "jsonString": {
+          "name": "Layout",
+          "path": "/ui/Shop/panel/PlayerSide/SellPanel/Layout",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "//////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uiempty",
+            "sub_entity_id": null,
+            "root_entity_id": "4a0ff7a6-2ed4-4732-a53d-aa853f5cd434",
+            "replaced_model_id": null
+          },
+          "modelId": "uiempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 15,
+              "AnchorsMax": {
+                "x": 1.0,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": -10.0,
+                "y": -15.0
+              },
+              "OffsetMin": {
+                "x": 10.0,
+                "y": 15.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 622.7792,
+                "y": 617.478638
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ScrollLayoutGroupComponent",
+              "OverrideSorting": false,
+              "ScrollBarVisible": 2,
+              "SortingLayer": "MapLayer0",
+              "Spacing": 8.0,
+              "Type": 1,
+              "UseScroll": true,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "5d714037-ae2d-473b-9d39-16adaae04dfa",
+        "path": "/ui/Shop/panel/PlayerSide/SellButton",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent",
+        "jsonString": {
+          "name": "SellButton",
+          "path": "/ui/Shop/panel/PlayerSide/SellButton",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 2,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uibutton",
+            "sub_entity_id": null,
+            "root_entity_id": "c5f705ac-3b9a-4e9d-ac61-936382d30383",
+            "replaced_model_id": null
+          },
+          "modelId": "uibutton",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": -26.7628326,
+                "y": 315.478424
+              },
+              "OffsetMin": {
+                "x": -285.1695,
+                "y": 218.324188
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 258.406677,
+                "y": 97.15425
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -155.966171,
+                "y": 266.9013
+              },
+              "Position": {
+                "x": 169.033829,
+                "y": 266.9013,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "OverrideSorting": false,
+              "SortingLayer": "MapLayer0",
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ButtonComponent",
+              "Colors": {
+                "NormalColor": {
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0,
+                  "a": 1.0
+                },
+                "HighlightedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "PressedColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 1.0
+                },
+                "SelectedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "DisabledColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 0.5019608
+                },
+                "ColorMultiplier": 1.0,
+                "FadeDuration": 0.1
+              },
+              "ImageRUIDs": {
+                "HighlightedSprite": null,
+                "PressedSprite": null,
+                "SelectedSprite": null,
+                "DisabledSprite": null
+              },
+              "OverrideSorting": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "ed3d8b92-c670-4de4-942b-263de30fb001",
+        "path": "/ui/Shop/panel/PlayerSide/SellButton/UIText",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.TextGUIRendererComponent",
+        "jsonString": {
+          "name": "UIText",
+          "path": "/ui/Shop/panel/PlayerSide/SellButton/UIText",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "//////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uitextguirenderer",
+            "sub_entity_id": null,
+            "root_entity_id": "1805e24e-3f15-4700-bb87-9a3fa1c2f5de",
+            "replaced_model_id": null
+          },
+          "modelId": "uitextguirenderer",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 123.512054,
+                "y": 50.0001
+              },
+              "OffsetMin": {
+                "x": -125.52565,
+                "y": -49.9999
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 249.0377,
+                "y": 100.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -1.00679994,
+                "y": 9.918213E-05
+              },
+              "Position": {
+                "x": -1.00679994,
+                "y": 9.918213E-05,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.TextGUIRendererComponent",
+              "BestFit": true,
+              "IsLocalizationKey": true,
+              "OverrideSorting": false,
+              "SortingLayer": "MapLayer0",
+              "Text": "sell",
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "24cd0932-51e0-45b9-a015-2d35607eb6d5",
+        "path": "/ui/Shop/CheckActionToggle",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
+        "jsonString": {
+          "name": "CheckActionToggle",
+          "path": "/ui/Shop/CheckActionToggle",
+          "nameEditable": true,
+          "enable": false,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 2,
+          "pathConstraints": "///",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uiempty",
+            "sub_entity_id": null,
+            "root_entity_id": "24cd0932-51e0-45b9-a015-2d35607eb6d5",
+            "replaced_model_id": null
+          },
+          "modelId": "uiempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 15,
+              "AnchorsMax": {
+                "x": 1.0,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "OffsetMin": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 1920.0,
+                "y": 1080.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "OverrideSorting": false,
+              "Color": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 0.193359375
+              },
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "fecbe39c-2144-4411-a8aa-332379967776",
+        "path": "/ui/Shop/CheckActionToggle/Bg",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent",
+        "jsonString": {
+          "name": "Bg",
+          "path": "/ui/Shop/CheckActionToggle/Bg",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uisprite",
+            "sub_entity_id": null,
+            "root_entity_id": "fecbe39c-2144-4411-a8aa-332379967776",
+            "replaced_model_id": null
+          },
+          "modelId": "uisprite",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 300.0,
+                "y": 200.0
+              },
+              "OffsetMin": {
+                "x": -300.0,
+                "y": -200.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 600.0,
+                "y": 400.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "ImageRUID": {
+                "DataId": "d0bff8bedec84b22b349454173f5c307"
+              },
+              "OverrideSorting": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "b4ba8662-f3d1-48b7-b353-b0fd7551d975",
+        "path": "/ui/Shop/CheckActionToggle/Bg/checkText",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.TextGUIRendererComponent",
+        "jsonString": {
+          "name": "checkText",
+          "path": "/ui/Shop/CheckActionToggle/Bg/checkText",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uitextguirenderer",
+            "sub_entity_id": null,
+            "root_entity_id": "b4ba8662-f3d1-48b7-b353-b0fd7551d975",
+            "replaced_model_id": null
+          },
+          "modelId": "uitextguirenderer",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 3,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 1.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 150.0,
+                "y": 0.0
+              },
+              "OffsetMin": {
+                "x": -150.0,
+                "y": -100.0
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 300.0,
+                "y": 100.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": -50.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": 150.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.TextGUIRendererComponent",
+              "BestFit": true,
+              "FontSize": 55.0,
+              "IsLocalizationKey": true,
+              "MaxSize": 55.0,
+              "MinSize": 10.0,
+              "OverrideSorting": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "4aeeb120-d234-48ce-aa77-f6c377e85831",
+        "path": "/ui/Shop/CheckActionToggle/Bg/doubleCheckBtn",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent",
+        "jsonString": {
+          "name": "doubleCheckBtn",
+          "path": "/ui/Shop/CheckActionToggle/Bg/doubleCheckBtn",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 1,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uibutton",
+            "sub_entity_id": null,
+            "root_entity_id": "4aeeb120-d234-48ce-aa77-f6c377e85831",
+            "replaced_model_id": null
+          },
+          "modelId": "uibutton",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 6,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.0
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": -44.1880035,
+                "y": 134.63559
+              },
+              "OffsetMin": {
+                "x": -244.188,
+                "y": 34.6355972
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 200.0,
+                "y": 100.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -144.188,
+                "y": 84.6356
+              },
+              "Position": {
+                "x": -144.188,
+                "y": -115.3644,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "ImageRUID": {
+                "DataId": "719be29027084f97ae86e88bc3790d7b"
+              },
+              "OverrideSorting": false,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ButtonComponent",
+              "Colors": {
+                "NormalColor": {
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0,
+                  "a": 1.0
+                },
+                "HighlightedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "PressedColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 1.0
+                },
+                "SelectedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "DisabledColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 0.5019608
+                },
+                "ColorMultiplier": 1.0,
+                "FadeDuration": 0.1
+              },
+              "ImageRUIDs": {
+                "HighlightedSprite": null,
+                "PressedSprite": null,
+                "SelectedSprite": null,
+                "DisabledSprite": null
+              },
+              "OverrideSorting": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "cc441102-8540-495d-9c9d-2ede5d311712",
+        "path": "/ui/Shop/CheckActionToggle/Bg/cancelBtn",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.SpriteGUIRendererComponent,MOD.Core.ButtonComponent",
+        "jsonString": {
+          "name": "cancelBtn",
+          "path": "/ui/Shop/CheckActionToggle/Bg/cancelBtn",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 2,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uibutton",
+            "sub_entity_id": null,
+            "root_entity_id": "4aeeb120-d234-48ce-aa77-f6c377e85831",
+            "replaced_model_id": null
+          },
+          "modelId": "uibutton",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 6,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.0
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 256.477417,
+                "y": 134.6355
+              },
+              "OffsetMin": {
+                "x": 56.4774,
+                "y": 34.635498
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 200.0,
+                "y": 100.0
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 156.4774,
+                "y": 84.6355
+              },
+              "Position": {
+                "x": 156.4774,
+                "y": -115.3645,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.SpriteGUIRendererComponent",
+              "ImageRUID": {
+                "DataId": "ad332bd2f263480f994c2cc4e9a12e99"
+              },
+              "OverrideSorting": false,
+              "SortingLayer": "MapLayer0",
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ButtonComponent",
+              "Colors": {
+                "NormalColor": {
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0,
+                  "a": 1.0
+                },
+                "HighlightedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "PressedColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 1.0
+                },
+                "SelectedColor": {
+                  "r": 0.9607843,
+                  "g": 0.9607843,
+                  "b": 0.9607843,
+                  "a": 1.0
+                },
+                "DisabledColor": {
+                  "r": 0.784313738,
+                  "g": 0.784313738,
+                  "b": 0.784313738,
+                  "a": 0.5019608
+                },
+                "ColorMultiplier": 1.0,
+                "FadeDuration": 0.1
+              },
+              "ImageRUIDs": {
+                "HighlightedSprite": null,
+                "PressedSprite": null,
+                "SelectedSprite": null,
+                "DisabledSprite": null
+              },
+              "OverrideSorting": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "17e9c95b-9a2a-4238-acb3-fdea4d2b11a5",
+        "path": "/ui/Shop/CheckActionToggle/Bg/description",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.ScrollLayoutGroupComponent",
+        "jsonString": {
+          "name": "description",
+          "path": "/ui/Shop/CheckActionToggle/Bg/description",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 3,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uiempty",
+            "sub_entity_id": null,
+            "root_entity_id": "17e9c95b-9a2a-4238-acb3-fdea4d2b11a5",
+            "replaced_model_id": null
+          },
+          "modelId": "uiempty",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 276.851776,
+                "y": 88.449295
+              },
+              "OffsetMin": {
+                "x": -278.775177,
+                "y": 8.7421
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 555.626953,
+                "y": 79.7072
+              },
+              "UIMode": 1,
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": -0.9617,
+                "y": 48.5957
+              },
+              "Position": {
+                "x": -0.9617,
+                "y": 48.5957,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.ScrollLayoutGroupComponent",
+              "ChildAlignment": 4,
+              "OverrideSorting": false,
+              "ScrollBarVisible": 2,
+              "Spacing": 20.0,
+              "UseScroll": false,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "c331b719-e4f8-4a5d-bf9a-54ad41ba830b",
+        "path": "/ui/Shop/CheckActionToggle/Bg/description/commidityName",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.TextGUIRendererComponent",
+        "jsonString": {
+          "name": "commidityName",
+          "path": "/ui/Shop/CheckActionToggle/Bg/description/commidityName",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 0,
+          "pathConstraints": "//////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uitextguirenderer",
+            "sub_entity_id": null,
+            "root_entity_id": "c331b719-e4f8-4a5d-bf9a-54ad41ba830b",
+            "replaced_model_id": null
+          },
+          "modelId": "uitextguirenderer",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 4,
+              "AnchorsMax": {
+                "x": 0.0,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.0,
+                "y": 1.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 266.89,
+                "y": -9.999996
+              },
+              "OffsetMin": {
+                "x": 183.0,
+                "y": -69.20999
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 83.89,
+                "y": 59.21
+              },
+              "UIMode": 1,
+              "UIScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 224.945,
+                "y": -39.6049957
+              },
+              "Rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "Position": {
+                "x": 224.945,
+                "y": -39.6049957,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": -1.0
+              },
+              "Scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "ZRotation": 0.0,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.TextGUIRendererComponent",
+              "FontSize": 40.0,
+              "IsLocalizationKey": true,
+              "MaxSize": 40.0,
+              "MinSize": 10.0,
+              "OverrideSorting": false,
+              "SizeFit": true,
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "91ddb025-2fda-4654-874c-db809d7cfe1b",
+        "path": "/ui/Shop/CheckActionToggle/Bg/description/commidityAmount",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.TextGUIRendererComponent",
+        "jsonString": {
+          "name": "commidityAmount",
+          "path": "/ui/Shop/CheckActionToggle/Bg/description/commidityAmount",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 1,
+          "pathConstraints": "//////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uitextguirenderer",
+            "sub_entity_id": null,
+            "root_entity_id": "c331b719-e4f8-4a5d-bf9a-54ad41ba830b",
+            "replaced_model_id": null
+          },
+          "modelId": "uitextguirenderer",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 4,
+              "AnchorsMax": {
+                "x": 0.0,
+                "y": 1.0
+              },
+              "AnchorsMin": {
+                "x": 0.0,
+                "y": 1.0
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 370.780029,
+                "y": -9.999996
+              },
+              "OffsetMin": {
+                "x": 286.89,
+                "y": -69.20999
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 83.89,
+                "y": 59.21
+              },
+              "UIMode": 1,
+              "UIScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 328.835022,
+                "y": -39.6049957
+              },
+              "Rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "Position": {
+                "x": 328.835022,
+                "y": -39.6049957,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": -1.0
+              },
+              "Scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "ZRotation": 0.0,
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.TextGUIRendererComponent",
+              "FontSize": 40.0,
+              "MaxSize": 40.0,
+              "MinSize": 10.0,
+              "OverrideSorting": false,
+              "SizeFit": true,
+              "SortingLayer": "MapLayer0",
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "e5086e5c-79ad-4a3d-9e39-ef4a2b3edb98",
+        "path": "/ui/Shop/CheckActionToggle/Bg/totalPrizeAmount",
+        "componentNames": "MOD.Core.UITransformComponent,MOD.Core.TextGUIRendererComponent",
+        "jsonString": {
+          "name": "totalPrizeAmount",
+          "path": "/ui/Shop/CheckActionToggle/Bg/totalPrizeAmount",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": true,
+          "displayOrder": 4,
+          "pathConstraints": "/////",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "uitextguirenderer",
+            "sub_entity_id": null,
+            "root_entity_id": "c331b719-e4f8-4a5d-bf9a-54ad41ba830b",
+            "replaced_model_id": null
+          },
+          "modelId": "uitextguirenderer",
+          "@components": [
+            {
+              "@type": "MOD.Core.UITransformComponent",
+              "AlignmentOption": 0,
+              "AnchorsMax": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "AnchorsMin": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "MobileOnly": false,
+              "OffsetMax": {
+                "x": 34.2,
+                "y": 9.605
+              },
+              "OffsetMin": {
+                "x": -34.2,
+                "y": -49.605
+              },
+              "Pivot": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "RectSize": {
+                "x": 68.4,
+                "y": 59.21
+              },
+              "UIMode": 1,
+              "UIScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "UIVersion": 2,
+              "anchoredPosition": {
+                "x": 0.0,
+                "y": -20.0
+              },
+              "Position": {
+                "x": 0.0,
+                "y": -20.0,
+                "z": 0.0
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.TextGUIRendererComponent",
+              "FontSize": 40.0,
+              "IsLocalizationKey": false,
+              "MaxSize": 40.0,
+              "MinSize": 10.0,
+              "OverrideSorting": false,
+              "SizeFit": true,
+              "SortingLayer": "MapLayer0",
+              "Text": "123",
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      }
+    ]
+  }
+}

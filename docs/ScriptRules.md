@@ -126,6 +126,35 @@ Rules:
 - Attach the script on the target entity in Maker (`.ui`, `.map`, or `.model`).
 - Use `.model` only when the entity composition is **reused** (≥2 map instances) or **spawned at runtime** via `SpawnByModelId`. A `.model` is not the default place for component scripts.
 
+### Entity / Component property binding — no fixed entity IDs
+
+Do not assign a scene entity UUID directly as the default value of an `Entity` or
+component-reference property in `.mlua`.
+
+```lua
+-- Correct: leave the reference unassigned in source, then bind it in Maker.
+property Entity selectedBackground = nil
+property ButtonComponent slotButton = nil
+
+-- Wrong: clones keep pointing back to this original prefab / dummy entity.
+property Entity selectedBackground = "7f59b0c7-e7e5-4f14-b3cd-4a46e44bce25"
+```
+
+Binding rules:
+
+- Bind `Entity`, `Component`, and UI child references by dragging the target from
+  the current scene, UI, map, or model hierarchy into the script property in Maker.
+- Cloneable entities, dummy UI items, prefabs, runtime-spawned models, and their
+  child components must never contain hard-coded source entity UUIDs in `.mlua`.
+  Each instance must resolve to its own bound children after cloning.
+- Do not use UI Builder binding injection to place UUID defaults into scripts used
+  by cloneable UI items. The `.ui` / `.model` instance owns those property values.
+- Fixed IDs are allowed only for documented world-wide registry data such as
+  `UIRegistry`; they must not be used as a substitute for a local component
+  property binding.
+- When reviewing a clone-related display or click bug, first check whether a script
+  property points back to the prefab / dummy entity instead of the cloned instance.
+
 ### Models — reuse and spawn only
 
 `Models/{Category}/` holds `.model` templates for entities that appear multiple

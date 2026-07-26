@@ -1,0 +1,3 @@
+﻿shopKey,titleKey,vendorActorId,currencyItemKey,allowBuy,allowSell,sellPriceRate,conditionKey,enabled
+generalStore01,shop_general_title,npcGuard,coin,true,true,1.0,,true
+generalStore02,shop_general_title,npcVendor,coin,true,true,1.0,,true

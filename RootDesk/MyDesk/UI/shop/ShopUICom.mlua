@@ -1,0 +1,314 @@
+@Component
+@ExecSpace("ClientOnly")
+script ShopUICom extends Component
+
+    -- TODO(ShopTransaction):
+    -- After buy/sell confirmation, send only the selected shop/product/actor/slot/count
+    -- request to ShopLogic. Do not mutate inventory, currency, or vendor stock on client.
+    -- Refresh both lists only from the server-authoritative transaction result.
+
+    property CostumeManagerComponent vendorAvatar = "82354748-1c64-4524-b042-e8f52797eaea"
+    property CostumeManagerComponent playerAvatar = "79d8cd3b-dbd6-4d24-a666-6b3d55cad1a0"
+    property Entity vendorAvatarEntity = "82354748-1c64-4524-b042-e8f52797eaea"
+    property string commonditySlotModelId = "ff0b43cb-0149-4a4a-aa5a-08b1801166e3"
+    property Entity vendorItemLayout = "4a0ff7a6-2ed4-4732-a53d-aa853f5cd434"
+    property Entity playerItemLayout = "1f15ed27-d52e-4bb8-af09-452763d35bde"
+    property Entity doubleCheckPanel = "24cd0932-51e0-45b9-a015-2d35607eb6d5"
+    property ButtonComponent leaveShopButton = "a875218a-9975-4b99-b907-6a9fb678d9f2"
+    property ButtonComponent buyItemButton = "c5f705ac-3b9a-4e9d-ac61-936382d30383"
+    property ButtonComponent sellItemButton = "5d714037-ae2d-473b-9d39-16adaae04dfa"
+
+    property TextGUIRendererComponent doubleCheckTitle = "b4ba8662-f3d1-48b7-b353-b0fd7551d975"
+    property TextGUIRendererComponent doubleCheckCommondityName = "c331b719-e4f8-4a5d-bf9a-54ad41ba830b"
+    property TextGUIRendererComponent doubleCheckCommondityAmount = "91ddb025-2fda-4654-874c-db809d7cfe1b"
+    property TextGUIRendererComponent doubleCheckTotalPrize = "e5086e5c-79ad-4a3d-9e39-ef4a2b3edb98"
+    property ButtonComponent doubleCheckButton = "4aeeb120-d234-48ce-aa77-f6c377e85831"
+    property ButtonComponent doubleCheckCancelButton = "cc441102-8540-495d-9c9d-2ede5d311712"
+
+    property table shopContext = nil
+    property table spawnedSlots = nil
+    property any selectedVendorSlot = nil
+    property table selectedProduct = nil
+    property boolean selectedIsVendorSide = true
+    property any leaveHandler = nil
+    property any buyHandler = nil
+    property any doubleCheckCancelHandler = nil
+
+    method void OnBeginPlay()
+        self.spawnedSlots = {}
+        self:BindButtons()
+        self:SetEntityVisible(self.doubleCheckPanel, false)
+        self:ClearVendorSelection()
+        self.Entity.Enable = false
+        log("[ShopUICom] OnBeginPlay.")
+    end
+
+    method void OnEndPlay()
+        self:UnbindButtons()
+        self:ClearVendorSlots()
+    end
+
+    method void OpenShop(table shopContext)
+        self.shopContext = shopContext or {}
+        self.Entity.Enable = true
+        self:ClearVendorSlots()
+        self:SetEntityVisible(self.doubleCheckPanel, false)
+        self:ApplyVendorAppearance(tostring(self.shopContext.VendorEntityId or ""))
+        self:ApplyPlayerAppearance()
+        self:RenderVendorProducts(self.shopContext.Products or {})
+        self:RenderPlayerItems(self.shopContext.PlayerItems or {})
+        log("[ShopUICom] OpenShop. shopKey=" .. tostring(self.shopContext.ShopKey)
+            .. ", productCount=" .. tostring(#(self.shopContext.Products or {}))
+            .. ", playerItemCount=" .. tostring(#(self.shopContext.PlayerItems or {})))
+    end
+
+    method void CloseShop()
+        self:ClearVendorSlots()
+        self:ClearVendorSelection()
+        self.shopContext = nil
+        self:SetEntityVisible(self.doubleCheckPanel, false)
+        _UIManagerLogic:CloseUI("Shop")
+        log("[ShopUICom] CloseShop.")
+    end
+
+    method void RenderVendorProducts(table products)
+        if self.commonditySlotModelId == nil or self.commonditySlotModelId == ""
+            or isvalid(self.vendorItemLayout) == false then
+            log_warning("[ShopUICom] RenderVendorProducts failed: modelId or layout missing.")
+            return
+        end
+
+        for productIndex, productData in ipairs(products or {}) do
+            productData.IsVendorSide = true
+            productData.Amount = 1
+            productData.UnitPrice = productData.BuyPrice
+            local slotEntity = _SpawnService:SpawnByModelId(
+                self.commonditySlotModelId,
+                "ShopProduct_" .. tostring(productData.ProductKey or productIndex),
+                Vector3(0, 0, 0),
+                self.vendorItemLayout
+            )
+            if isvalid(slotEntity) then
+                slotEntity.Enable = true
+                local slotUI = slotEntity:GetComponent("script.ShopSingleItemUICom")
+                if slotUI ~= nil then
+                    slotUI:SetOwner(self)
+                    slotUI:SetProduct(productData)
+                    _TimerService:SetTimerOnce(function()
+                        if isvalid(slotEntity) then
+                            local initializedSlotUI = slotEntity:GetComponent("script.ShopSingleItemUICom")
+                            if initializedSlotUI ~= nil then
+                                initializedSlotUI:SetOwner(self)
+                                initializedSlotUI:SetProduct(productData)
+                            end
+                        end
+                    end, 0.05)
+                else
+                    log_warning("[ShopUICom] ShopSingleItemUICom missing on spawned slot.")
+                end
+                table.insert(self.spawnedSlots, slotEntity)
+            end
+        end
+        log("[ShopUICom] RenderVendorProducts. slotCount=" .. tostring(#self.spawnedSlots))
+    end
+
+    method void RenderPlayerItems(table playerItems)
+        if self.commonditySlotModelId == nil or self.commonditySlotModelId == ""
+            or isvalid(self.playerItemLayout) == false then
+            log_warning("[ShopUICom] RenderPlayerItems failed: modelId or layout missing.")
+            return
+        end
+
+        local startCount = #self.spawnedSlots
+        for itemIndex, itemData in ipairs(playerItems or {}) do
+            itemData.IsVendorSide = false
+            itemData.Amount = itemData.Count
+            itemData.UnitPrice = itemData.SellPrice
+            local slotEntity = _SpawnService:SpawnByModelId(
+                self.commonditySlotModelId,
+                "PlayerItem_" .. tostring(itemData.ActorIndex or 0)
+                    .. "_" .. tostring(itemData.SlotIndex or itemIndex),
+                Vector3(0, 0, 0),
+                self.playerItemLayout
+            )
+            if isvalid(slotEntity) then
+                slotEntity.Enable = true
+                local slotUI = slotEntity:GetComponent("script.ShopSingleItemUICom")
+                if slotUI ~= nil then
+                    slotUI:SetOwner(self)
+                    slotUI:SetProduct(itemData)
+                else
+                    log_warning("[ShopUICom] ShopSingleItemUICom missing on player item slot.")
+                end
+                table.insert(self.spawnedSlots, slotEntity)
+            end
+        end
+        log("[ShopUICom] RenderPlayerItems. slotCount="
+            .. tostring(#self.spawnedSlots - startCount))
+    end
+
+    method void ClearVendorSlots()
+        self:ClearVendorSelection()
+        for _, slotEntity in ipairs(self.spawnedSlots or {}) do
+            if isvalid(slotEntity) then
+                _EntityService:Destroy(slotEntity)
+            end
+        end
+        self.spawnedSlots = {}
+    end
+
+    method void SelectVendorSlot(any slotUI, table productData)
+        if self.selectedVendorSlot ~= nil and self.selectedVendorSlot ~= slotUI then
+            self.selectedVendorSlot:SetSelected(false)
+        end
+        self.selectedVendorSlot = slotUI
+        self.selectedProduct = productData
+        self.selectedIsVendorSide = productData.IsVendorSide ~= false
+        if self.selectedVendorSlot ~= nil then
+            self.selectedVendorSlot:SetSelected(true)
+        end
+        log("[ShopUICom] Product selected. productKey=" .. tostring(productData.ProductKey))
+    end
+
+    method void ClearVendorSelection()
+        if self.selectedVendorSlot ~= nil then
+            self.selectedVendorSlot:SetSelected(false)
+        end
+        self.selectedVendorSlot = nil
+        self.selectedProduct = nil
+        self.selectedIsVendorSide = true
+    end
+
+    method void OpenSelectedProductDoubleCheck()
+        if self.selectedProduct == nil or self.selectedIsVendorSide == false then
+            log_warning("[ShopUICom] Buy ignored: no vendor product selected.")
+            return
+        end
+        local displayName = tostring(self.selectedProduct.DisplayName or "")
+        if displayName == "" then
+            displayName = tostring(self.selectedProduct.ItemKey or "")
+        end
+        self:OpenDoubleCheckPanel(
+            true,
+            displayName,
+            1,
+            math.floor(tonumber(self.selectedProduct.BuyPrice) or 0)
+        )
+        log("[ShopUICom] Buy confirmation opened. productKey="
+            .. tostring(self.selectedProduct.ProductKey))
+    end
+
+    method void OpenDoubleCheckPanel(boolean isVendorSide, string commondityName,
+        number commondityAmount, number totalPrize)
+        if self.doubleCheckTitle ~= nil then
+            self.doubleCheckTitle.Text = isVendorSide and "sure_buy" or "sure_sell"
+        end
+        if self.doubleCheckCommondityName ~= nil then
+            self.doubleCheckCommondityName.Text = commondityName
+        end
+        if self.doubleCheckCommondityAmount ~= nil then
+            self.doubleCheckCommondityAmount.Text = tostring(commondityAmount)
+        end
+        if self.doubleCheckTotalPrize ~= nil then
+            self.doubleCheckTotalPrize.Text = tostring(totalPrize)
+        end
+        self:SetEntityVisible(self.doubleCheckPanel, true)
+    end
+
+    method void ApplyVendorAppearance(string entityId)
+        if self.vendorAvatar == nil or entityId == nil or entityId == "" then
+            return
+        end
+        local vendorEntity = _EntityService:GetEntity(entityId)
+        if isvalid(vendorEntity) == false or vendorEntity.CostumeManagerComponent == nil then
+            return
+        end
+        self:CopyCostume(vendorEntity.CostumeManagerComponent, self.vendorAvatar)
+        self:SetEntityVisible(self.vendorAvatarEntity, true)
+    end
+
+    method void ApplyPlayerAppearance()
+        if self.playerAvatar == nil then
+            return
+        end
+        local controlledActor = _UserService.LocalPlayer
+        if isvalid(controlledActor) == false then
+            log_warning("[ShopUICom] ApplyPlayerAppearance failed: controlled actor missing.")
+            return
+        end
+        self.playerAvatar.UseCustomEquipOnly = false
+        self.playerAvatar.DefaultEquipUserId = tostring(controlledActor.OwnerId)
+        self:SetEntityVisible(self.playerAvatar.Entity, true)
+        log("[ShopUICom] Applied controlled actor appearance. entityId="
+            .. tostring(controlledActor.Id))
+    end
+
+    method void CopyCostume(CostumeManagerComponent source, CostumeManagerComponent target)
+        local categories = {
+            MapleAvatarItemCategory.Body, MapleAvatarItemCategory.Hair,
+            MapleAvatarItemCategory.Face, MapleAvatarItemCategory.Cap,
+            MapleAvatarItemCategory.Cape, MapleAvatarItemCategory.Coat,
+            MapleAvatarItemCategory.Glove, MapleAvatarItemCategory.Longcoat,
+            MapleAvatarItemCategory.Pants, MapleAvatarItemCategory.Shield,
+            MapleAvatarItemCategory.Shoes, MapleAvatarItemCategory.OneHandedWeapon,
+            MapleAvatarItemCategory.TwoHandedWeapon, MapleAvatarItemCategory.SubWeapon,
+            MapleAvatarItemCategory.FaceAccessory, MapleAvatarItemCategory.EyeAccessory,
+            MapleAvatarItemCategory.EarAccessory, MapleAvatarItemCategory.Ear
+        }
+        target.UseCustomEquipOnly = true
+        target.DefaultEquipUserId = ""
+        for _, category in ipairs(categories) do
+            target:SetEquip(category, source:GetEquip(category) or "")
+        end
+    end
+
+    method void BindButtons()
+        self:UnbindButtons()
+        if self.leaveShopButton ~= nil then
+            self.leaveHandler = self.leaveShopButton.Entity:ConnectEvent(ButtonClickEvent, self.OnLeaveClicked)
+        end
+        if self.buyItemButton ~= nil then
+            self.buyHandler = self.buyItemButton.Entity:ConnectEvent(
+                ButtonClickEvent, self.OnBuyItemClicked)
+        end
+        if self.doubleCheckCancelButton ~= nil then
+            self.doubleCheckCancelHandler = self.doubleCheckCancelButton.Entity:ConnectEvent(
+                ButtonClickEvent, self.OnDoubleCheckCancelClicked)
+        end
+    end
+
+    method void UnbindButtons()
+        if self.leaveHandler ~= nil and self.leaveShopButton ~= nil then
+            self.leaveShopButton.Entity:DisconnectEvent(ButtonClickEvent, self.leaveHandler)
+            self.leaveHandler = nil
+        end
+        if self.buyHandler ~= nil and self.buyItemButton ~= nil then
+            self.buyItemButton.Entity:DisconnectEvent(ButtonClickEvent, self.buyHandler)
+            self.buyHandler = nil
+        end
+        if self.doubleCheckCancelHandler ~= nil and self.doubleCheckCancelButton ~= nil then
+            self.doubleCheckCancelButton.Entity:DisconnectEvent(
+                ButtonClickEvent, self.doubleCheckCancelHandler)
+            self.doubleCheckCancelHandler = nil
+        end
+    end
+
+    method void SetEntityVisible(Entity targetEntity, boolean visible)
+        if isvalid(targetEntity) then
+            targetEntity.Enable = visible
+        end
+    end
+
+    method void OnLeaveClicked(ButtonClickEvent event)
+        self:CloseShop()
+    end
+
+    method void OnBuyItemClicked(ButtonClickEvent event)
+        self:OpenSelectedProductDoubleCheck()
+    end
+
+    method void OnDoubleCheckCancelClicked(ButtonClickEvent event)
+        self:SetEntityVisible(self.doubleCheckPanel, false)
+    end
+
+end

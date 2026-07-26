@@ -24,8 +24,10 @@ Read **`ScriptRules.md`** first. It defines:
 | [Actor/BattleActorInitPaths.md](Actor/BattleActorInitPaths.md) | Player Save vs Monster/NPC Config init paths (`statsSource`) |
 | [Actor/ActorVariableExplain.md](Actor/ActorVariableExplain.md) | Actor field meanings for balance notes and formula review |
 | [Calculator/BattleCalculator.md](Calculator/BattleCalculator.md) | Numeric-only combat formula pipeline; accepts fully converged scalar values |
+| [Dialog/DialogSystem.md](Dialog/DialogSystem.md) | Dialog flow, current status, four Config tables, actions, conditions, and TODOs |
 | [Party/PartySystem.md](Party/PartySystem.md) | Party membership, field control, formation, whole-party battle entry |
 | [PlayerData/SaveSlotSchema.md](PlayerData/SaveSlotSchema.md) | Canonical SaveSlot keys, types, casing, and ownership |
+| [Shop/ShopSystem.md](Shop/ShopSystem.md) | Planned server transactions and per-player shop-state persistence |
 | [Localization/Localization.md](Localization/Localization.md) | LocaleDataSet location, CSV editing workflow, and runtime boundary |
 | [UI/SystemMenuUI.md](UI/SystemMenuUI.md) | Persistent gameplay system menu and save actions |
 | [GameplayFlow/GameplayFlowLogic.md](GameplayFlow/GameplayFlowLogic.md) | Playable world entry/exit coordination |

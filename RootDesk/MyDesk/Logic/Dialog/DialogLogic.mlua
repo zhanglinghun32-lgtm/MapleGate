@@ -236,7 +236,7 @@ script DialogLogic extends Logic
                     .. ", optionIndex=" .. tostring(resolvedIndex))
                 return
             end
-            self:ExecuteAction(userId, choice.ActionKey)
+            self:ExecuteAction(userId, choice.ActionKey, session.EntityId)
             if choice.NextDialogKey ~= "" then
                 self:ShowNode(userId, choice.NextDialogKey)
             else
@@ -246,7 +246,7 @@ script DialogLogic extends Logic
         end
 
         if action == "Next" then
-            self:ExecuteAction(userId, node.ActionKey)
+            self:ExecuteAction(userId, node.ActionKey, session.EntityId)
             if node.NextDialogKey ~= "" then
                 self:ShowNode(userId, node.NextDialogKey)
             else
@@ -402,6 +402,9 @@ script DialogLogic extends Logic
             local actualValue = _MissionLogic:IsCompleted(userId, clause.TargetKey)
             return self:CompareBooleans(actualValue, self:ParseBoolean(clause.RequiredValue), clause.Comparison)
         end
+		if conditionType == "AlwaysPass" then
+			return true
+		end
 
         log_warning("[DialogLogic] Unsupported condition type=" .. tostring(conditionType))
         return false
@@ -434,7 +437,7 @@ script DialogLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
-    method void ExecuteAction(string userId, string actionKey)
+    method void ExecuteAction(string userId, string actionKey, string sourceEntityId)
         if actionKey == nil or actionKey == "" or actionKey == "Close" then
             return
         end
@@ -447,6 +450,9 @@ script DialogLogic extends Logic
         elseif string.sub(actionKey, 1, 16) == "CompleteMission:" then
             actionType = "CompleteMission"
             actionValue = string.sub(actionKey, 17)
+        elseif string.sub(actionKey, 1, 9) == "OpenShop:" then
+            actionType = "OpenShop"
+            actionValue = string.sub(actionKey, 10)
         end
 
         if actionType == "AcceptMission" and actionValue ~= "" then
@@ -455,6 +461,10 @@ script DialogLogic extends Logic
         end
         if actionType == "CompleteMission" and actionValue ~= "" then
             _MissionLogic:CompleteMission(userId, actionValue)
+            return
+        end
+        if actionType == "OpenShop" and actionValue ~= "" then
+            _ShopLogic:OpenShopForUser(userId, actionValue, sourceEntityId)
             return
         end
 

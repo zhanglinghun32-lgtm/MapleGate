@@ -13505,77 +13505,6 @@
         }
       },
       {
-        "id": "9e1c9e7f-4a80-4bae-8e11-ead629ff9cae",
-        "path": "/maps/map01/NPC_shop",
-        "componentNames": "MOD.Core.TransformComponent,MOD.Core.SpriteRendererComponent,MOD.Core.TouchReceiveComponent,script.NPCShopDialogue",
-        "jsonString": {
-          "name": "NPC_shop",
-          "path": "/maps/map01/NPC_shop",
-          "nameEditable": true,
-          "enable": true,
-          "visible": true,
-          "localize": false,
-          "displayOrder": 7,
-          "pathConstraints": "///",
-          "revision": 1,
-          "origin": {
-            "type": "Model",
-            "entry_id": "mapempty",
-            "sub_entity_id": null,
-            "root_entity_id": "9e1c9e7f-4a80-4bae-8e11-ead629ff9cae",
-            "replaced_model_id": null
-          },
-          "modelId": "mapempty",
-          "@components": [
-            {
-              "@type": "MOD.Core.TransformComponent",
-              "Position": {
-                "x": -8.83382,
-                "y": 1.32000017,
-                "z": 999.998047
-              },
-              "QuaternionRotation": {
-                "x": 0.0,
-                "y": 0.0,
-                "z": 0.0,
-                "w": 1.0
-              },
-              "Enable": true
-            },
-            {
-              "@type": "MOD.Core.SpriteRendererComponent",
-              "ActionSheet": {},
-              "EndFrameIndex": 2147483647,
-              "RenderSetting": 0,
-              "SpriteRUID": "bbc6f2efc9ad4f1fa6863be48b03388b",
-              "StartFrameIndex": 0,
-              "Enable": true
-            },
-            {
-              "@type": "MOD.Core.TouchReceiveComponent",
-              "AutoFitToSize": true,
-              "DynamicTouchArea": false,
-              "Offset": {
-                "x": 0.0,
-                "y": 0.0
-              },
-              "RelayEventToBehind": false,
-              "TouchArea": {
-                "x": 1.2,
-                "y": 1.8
-              },
-              "TouchAreaUpdateTime": 1.0,
-              "Enable": true
-            },
-            {
-              "@type": "script.NPCShopDialogue",
-              "Enable": true
-            }
-          ],
-          "@version": 1
-        }
-      },
-      {
         "id": "41a67d28-45d6-4f96-b035-54ad06b46b01",
         "path": "/maps/map01/monsters",
         "componentNames": "MOD.Core.TransformComponent",
@@ -13586,7 +13515,7 @@
           "enable": true,
           "visible": true,
           "localize": false,
-          "displayOrder": 8,
+          "displayOrder": 7,
           "pathConstraints": "///",
           "revision": 1,
           "origin": {
@@ -13725,7 +13654,7 @@
           "enable": true,
           "visible": true,
           "localize": false,
-          "displayOrder": 9,
+          "displayOrder": 8,
           "pathConstraints": "///",
           "revision": 1,
           "origin": {
@@ -13759,8 +13688,8 @@
             {
               "@type": "MOD.Core.CostumeManagerComponent",
               "CustomBodyEquip": "04e82396b2ba40ab9d860f993447f3eb",
-              "CustomCapEquip": "17187132e3a74b248f1fcf8e442a8d99",
-              "CustomCapeEquip": "04458a90640c424bbbe3921952dda263",
+              "CustomCapEquip": "089aecd120f242bfb9f42238120d4bc2",
+              "CustomCapeEquip": "06c764134b76407ba570e3fde9c23c72",
               "CustomCoatEquip": "04690e85a79d422a8fa2ff5dbef31504",
               "CustomFaceEquip": "005b1222ceb14e0082d6ee10887310e7",
               "CustomHairEquip": "003d1f18986842538fcd2cced4df92dd",
@@ -13777,12 +13706,91 @@
             {
               "@type": "script.NPCActorCom",
               "Enable": true,
-              "actorId": ""
+              "actorId": "npcGuard"
             },
             {
               "@type": "script.ActorCenterCom",
               "Enable": true,
               "actorId": "npcGuard"
+            },
+            {
+              "@type": "MOD.Core.TouchReceiveComponent",
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
+      },
+      {
+        "id": "244d85b1-63c5-4192-b603-fbb0d008e603",
+        "path": "/maps/map01/Seller",
+        "componentNames": "MOD.Core.TransformComponent,MOD.Core.AvatarRendererComponent,MOD.Core.CostumeManagerComponent,script.BattleActorCom,script.NPCActorCom,script.ActorCenterCom,MOD.Core.TouchReceiveComponent",
+        "jsonString": {
+          "name": "Seller",
+          "path": "/maps/map01/Seller",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": false,
+          "displayOrder": 9,
+          "pathConstraints": "///",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "avatarrenderer",
+            "sub_entity_id": null,
+            "root_entity_id": "8ec4b155-ec8f-484a-92d4-d327ad0e8c18",
+            "replaced_model_id": null
+          },
+          "modelId": "avatarrenderer",
+          "@components": [
+            {
+              "@type": "MOD.Core.TransformComponent",
+              "Position": {
+                "x": -11.2560968,
+                "y": 1.2185483,
+                "z": 999.999
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.AvatarRendererComponent",
+              "SortingLayer": "MapLayer0",
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.CostumeManagerComponent",
+              "CustomBodyEquip": "04e82396b2ba40ab9d860f993447f3eb",
+              "CustomCapEquip": "17187132e3a74b248f1fcf8e442a8d99",
+              "CustomCapeEquip": "2089b302c8824b9997cdcaf1819535ad",
+              "CustomCoatEquip": "04690e85a79d422a8fa2ff5dbef31504",
+              "CustomFaceEquip": "00e9a792ecd9449aaf59cc33debc0a2f",
+              "CustomHairEquip": "003d1f18986842538fcd2cced4df92dd",
+              "CustomOneHandedWeaponEquip": "12b6dd83799940eda82a8c9e4f63f67c",
+              "CustomPantsEquip": "1c3732a7f57a455ab7f95ea5b5e6311c",
+              "CustomSubWeaponEquip": "2496ad1fa78c4fe98068440a76fd0605",
+              "DefaultEquipUserId": "",
+              "Enable": true
+            },
+            {
+              "@type": "script.BattleActorCom",
+              "Enable": true
+            },
+            {
+              "@type": "script.NPCActorCom",
+              "Enable": true,
+              "actorId": "npcVendor"
+            },
+            {
+              "@type": "script.ActorCenterCom",
+              "Enable": true,
+              "actorId": "npcVendor"
             },
             {
               "@type": "MOD.Core.TouchReceiveComponent",
