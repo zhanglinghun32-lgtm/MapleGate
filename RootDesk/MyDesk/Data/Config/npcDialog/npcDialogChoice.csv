@@ -1,0 +1,4 @@
+﻿choiceKey,dialogKey,displayOrder,textKey,nextDialogKey,actionKey,conditionKey,enabled,notes
+guardAskVillage,npcGuard_Option_01,1,dialog_choice_askVillage,npcGuard_Normal_01,,,true,詢問村莊近況
+guardAcceptMission,npcGuard_Option_01,2,dialog_choice_acceptMission,,AcceptMission:missionWelcome,,true,接受初次差事
+guardLeave,npcGuard_Option_01,3,dialog_choice_leave,,Close,,true,離開對話

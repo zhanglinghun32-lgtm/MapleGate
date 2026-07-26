@@ -1,0 +1,43 @@
+@Component
+script JobDisplay extends Component
+    property JobDisplayItem firstSlot = nil
+    property JobDisplayItem secondSlot = nil
+    property JobDisplayItem thirdSlot = nil
+
+    @ExecSpace("ClientOnly")
+    method void SetJobs(table jobTable)
+        local slots = { self.firstSlot, self.secondSlot, self.thirdSlot }
+        local jobs = {}
+
+        if jobTable ~= nil then
+            for _, jobData in ipairs(jobTable) do
+                table.insert(jobs, jobData)
+            end
+
+            if #jobs == 0 then
+                local jobKeys = { "sword", "magic", "bow", "thief" }
+                for _, jobKey in ipairs(jobKeys) do
+                    local level = jobTable[jobKey]
+                    if level ~= nil then
+                        table.insert(jobs, { job = jobKey, level = level })
+                    end
+                end
+            end
+        end
+
+        for index, slot in ipairs(slots) do
+            if slot ~= nil and isvalid(slot) then
+                local jobData = jobs[index]
+                if jobData == nil then
+                    slot:ClearJob()
+                else
+                    local jobKey = jobData.job or jobData.jobKey or jobData.name or ""
+                    local level = jobData.level or jobData.count or 0
+                    slot:SetJob(jobKey, level)
+                end
+            end
+        end
+
+        log("[JobDisplay] SetJobs count=" .. tostring(#jobs))
+    end
+end

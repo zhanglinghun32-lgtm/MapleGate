@@ -1,0 +1,9 @@
+﻿conditionKey,groupKey,displayOrder,conditionType,targetKey,comparison,requiredValue,enabled,notes
+conditionHasSapphire,main,1,ItemCount,sapphire,GreaterOrEqual,1,true,背包至少持有一顆藍寶石
+conditionHasSealedLetterAndMissionAccepted,main,1,ItemCount,sealedLetter,GreaterOrEqual,1,true,持有密封信
+conditionHasSealedLetterAndMissionAccepted,main,2,MissionAccepted,missionWelcome,Equal,true,true,且已接受初次差事
+conditionMissionWelcomeAccepted,main,1,MissionAccepted,missionWelcome,Equal,true,true,初次差事已接受但尚未完成
+conditionMissionWelcomeAccepted,main,2,MissionCompleted,missionWelcome,Equal,false,true,排除已完成狀態
+conditionMissionWelcomeCompleted,main,1,MissionCompleted,missionWelcome,Equal,true,true,初次差事已完成
+conditionWelcomeActiveOrCompleted,active,1,MissionAccepted,missionWelcome,Equal,true,true,OR 群組一：任務已接受
+conditionWelcomeActiveOrCompleted,completed,1,MissionCompleted,missionWelcome,Equal,true,true,OR 群組二：任務已完成

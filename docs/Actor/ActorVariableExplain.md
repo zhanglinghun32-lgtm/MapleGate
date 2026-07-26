@@ -33,8 +33,8 @@ templates). Player Save does **not** mirror the whole Config row.
 | Persist in `Actors[]` | Why |
 |---|---|
 | `configId` | Archetype / template link |
-| `jobType` | Job |
-| `level` | Level |
+| `jobs[]` | All jobs owned by the saved actor; each entry owns `jobType` and `level` |
+| `activeJobIndex` | Selects which saved job becomes the runtime job |
 | `constitution` / `dexterity` / `intelligence` / `will` / `perception` | 五大屬性（升級加點） |
 
 ### What is NOT persisted
@@ -49,7 +49,7 @@ templates). Player Save does **not** mirror the whole Config row.
 
 ```text
 Save (slim)                          Runtime / BattleActorCom
-configId, jobType, level      ->
+configId, jobs[], activeJobIndex ->
 five attributes               ->  PlayerDataLogic:BuildRuntimeActorState
                                        | attribute-driven maxHp / maxMp / maxStamina / …
                                        v
@@ -165,7 +165,7 @@ Same key spelling wherever a field appears. Do not mix `MaxHp` / `maxHp`.
 | Layer | Contents |
 |---|---|
 | `actorConfig.csv` | Meta + five attrs + **derived** columns (no attack) |
-| `Actors[]` Save | **Slim** only: identity + five attrs (**no** current hp/mp/stamina) |
+| `Actors[]` Save | **Slim** only: identity + `jobs[]` / `activeJobIndex` + five attrs (**no** current hp/mp/stamina) |
 | `BuildRuntimeActorState` | Slim + derived + **current filled to full max** for Com import |
 | `BattleActorCom` | Live: five attrs + derived + **session current** hp/mp/stamina; **no atk** |
 | `ExportSaveData` | Slim only (drops current resources) |
@@ -187,7 +187,7 @@ Same key spelling wherever a field appears. Do not mix `MaxHp` / `maxHp`.
 
 | Meaning | Key | Player Save | Player load compute | Monster Config | On Com |
 |---|---|---|---|---|---|
-| Archetype / job / level | `configId` / `jobType` / `level` | yes | — | yes | yes |
+| Archetype / jobs / level | Save: `configId` / `jobs[]` / `activeJobIndex`; Config/runtime: `jobType` / `level` | yes | selects active job | one initial job | active job only |
 | Five attrs | `constitution`…`perception` | yes | — | yes | yes |
 | Current resources | `hp` / `mp` / `stamina` | **no** | fill **full** (= max, buff TBD) | seed = max | yes (session) |
 | Derived capacities / combat helpers | `maxHp`, `defense`, `speed`, … | **no** | **yes** (`PlayerDataLogic`) | hardcoded | yes |

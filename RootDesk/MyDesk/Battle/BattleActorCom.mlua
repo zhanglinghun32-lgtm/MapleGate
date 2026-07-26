@@ -48,8 +48,10 @@ script BattleActorCom extends Component
     @Sync property integer attack = 0
     @Sync property integer totalAttack = 0
 
+	-- 統一由ActorCenter呼叫初始化確保每個功能的actorId統一。
     @ExecSpace("ServerOnly")
-    method void OnBeginPlay()
+    method void initBattleActor(string actorId)
+		self.configId = actorId
         -- Branches by statsSource. See docs/Actor/BattleActorInitPaths.md.
         if self.statsSource == "Save" then
             log("[BattleActorCom] OnBeginPlay statsSource=Save (wait PlayerDataLogic ImportSaveData). entity="

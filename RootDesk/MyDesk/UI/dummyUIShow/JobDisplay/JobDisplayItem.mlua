@@ -1,0 +1,47 @@
+@Component
+script JobDisplayItem extends Component
+
+    property SpriteGUIRendererComponent jobIcon = nil
+    property TextGUIRendererComponent levelText = "1"
+
+	property string swordRuid = "3cac145f65974c73af770da46483094f"
+	property string magicRuid = "e7deeb5e6a1e4002956f3606f64fb722"
+	property string bowRuid = "43d3ab430bbd4ca19c290276a2a08704"
+	property string thiefRuid = "b5e378e391a84019b0707b1d5c49f8c5"
+
+    @HideFromInspector
+    property Entity memberEntity = nil
+
+    @ExecSpace("ClientOnly")
+    method void SetJob(string job, number level)
+        local normalizedJob = string.lower(job)
+        local iconRuid = ""
+
+        if normalizedJob == "sword" then
+            iconRuid = self.swordRuid
+        elseif normalizedJob == "magic" then
+            iconRuid = self.magicRuid
+        elseif normalizedJob == "bow" then
+            iconRuid = self.bowRuid
+        elseif normalizedJob == "thief" then
+            iconRuid = self.thiefRuid
+        end
+
+        if self.jobIcon == nil or self.levelText == nil or iconRuid == "" then
+            self:ClearJob()
+            return
+        end
+
+        self.jobIcon.ImageRUID = iconRuid
+        self.levelText.Text = tostring(level)
+        self.Entity.Enable = true
+    end
+
+
+    @ExecSpace("ClientOnly")
+    method void ClearJob()
+        self.memberEntity = nil
+        self.Entity.Enable = false
+    end
+
+end

@@ -1,0 +1,163 @@
+@Component
+@ExecSpace("ClientOnly")
+script SelectSlotPanelCom extends Component
+
+    property ButtonComponent slot1Button = nil
+    property ButtonComponent slot2Button = nil
+    property ButtonComponent slot3Button = nil
+    property ButtonComponent slot4Button = nil
+    property ButtonComponent slot5Button = nil
+    property ButtonComponent slot6Button = nil
+
+    property Entity descriptionPanel = nil
+    property ButtonComponent checkButton = nil
+    property ButtonComponent deleteButton = nil
+
+    property Entity doubleCheckPanel = nil
+    property ButtonComponent allowDeleteButton = nil
+    property ButtonComponent cancelButton = nil
+    property ButtonComponent backToMenuButton = "c3ebee69-c430-457b-8eb4-0a522065a2b2"
+    property Entity mainMenuBackground = "9c94b1bc-b84d-4c95-a673-97be1f4bd3fc"
+    property Entity mainMenuContent = "55fbe9d8-8ad4-427a-a38e-dbb9c4826dd5"
+
+    property integer selectedSlotIndex = 0
+    property any clickHandlers = nil
+
+    method void OnBeginPlay()
+        self.clickHandlers = {}
+        self:BindButtons()
+        self:ClearSelection()
+        self:SetDoubleCheckVisible(false)
+        log("[SelectSlotPanelCom] OnBeginPlay. slotCount=6")
+    end
+
+    method void OnEndPlay()
+        self:UnbindButtons()
+        log("[SelectSlotPanelCom] OnEndPlay.")
+    end
+
+    method void BindButtons()
+        self:UnbindButtons()
+        self.clickHandlers = {}
+
+        self:BindButton(self.slot1Button, function() self:SelectSlot(1) end)
+        self:BindButton(self.slot2Button, function() self:SelectSlot(2) end)
+        self:BindButton(self.slot3Button, function() self:SelectSlot(3) end)
+        self:BindButton(self.slot4Button, function() self:SelectSlot(4) end)
+        self:BindButton(self.slot5Button, function() self:SelectSlot(5) end)
+        self:BindButton(self.slot6Button, function() self:SelectSlot(6) end)
+        self:BindButton(self.checkButton, self.OnCheckClicked)
+        self:BindButton(self.deleteButton, self.OnDeleteClicked)
+        self:BindButton(self.allowDeleteButton, self.OnAllowDeleteClicked)
+        self:BindButton(self.cancelButton, self.OnCancelClicked)
+        self:BindButton(self.backToMenuButton, self.OnBackToMenuClicked)
+    end
+
+    method void BindButton(ButtonComponent button, any callback)
+        if button == nil or callback == nil then
+            return
+        end
+
+        local eventHandler = button.Entity:ConnectEvent(ButtonClickEvent, callback)
+        table.insert(self.clickHandlers, {
+            entity = button.Entity,
+            eventHandler = eventHandler
+        })
+    end
+
+    method void UnbindButtons()
+        if self.clickHandlers == nil then
+            return
+        end
+
+        for _, binding in ipairs(self.clickHandlers) do
+            if binding.entity ~= nil and binding.eventHandler ~= nil and isvalid(binding.entity) then
+                binding.entity:DisconnectEvent(ButtonClickEvent, binding.eventHandler)
+            end
+        end
+        self.clickHandlers = {}
+    end
+
+    method void SelectSlot(integer slotIndex)
+        if slotIndex < 1 or slotIndex > 6 then
+            log_warning("[SelectSlotPanelCom] SelectSlot ignored: invalid slotIndex=" .. tostring(slotIndex))
+            return
+        end
+
+        self.selectedSlotIndex = slotIndex
+        if self.descriptionPanel ~= nil and isvalid(self.descriptionPanel) then
+            self.descriptionPanel.Enable = true
+        end
+
+        -- TODO(SlotDescription): Populate the right-side panel with this slot's
+        -- profile, actor/job distribution, play time, and last scene once its
+        -- visual design and server response DTO are finalized.
+        log("[SelectSlotPanelCom] SelectSlot. slotIndex=" .. tostring(slotIndex))
+    end
+
+    method void ClearSelection()
+        self.selectedSlotIndex = 0
+        if self.descriptionPanel ~= nil and isvalid(self.descriptionPanel) then
+            self.descriptionPanel.Enable = false
+        end
+    end
+
+    method void OnCheckClicked()
+        if self.selectedSlotIndex == 0 then
+            log_warning("[SelectSlotPanelCom] Check ignored: no slot selected.")
+            return
+        end
+
+        log("[SelectSlotPanelCom] Check. slotIndex=" .. tostring(self.selectedSlotIndex))
+        _PlayerDataLogic:RequestContinueGame(self.selectedSlotIndex)
+    end
+
+    method void OnDeleteClicked()
+        if self.selectedSlotIndex == 0 then
+            log_warning("[SelectSlotPanelCom] Delete ignored: no slot selected.")
+            return
+        end
+
+        self:SetDoubleCheckVisible(true)
+        log("[SelectSlotPanelCom] Open delete confirmation. slotIndex=" .. tostring(self.selectedSlotIndex))
+    end
+
+    method void OnAllowDeleteClicked()
+        if self.selectedSlotIndex == 0 then
+            self:SetDoubleCheckVisible(false)
+            log_warning("[SelectSlotPanelCom] AllowDelete ignored: no slot selected.")
+            return
+        end
+
+        local deletingSlotIndex = self.selectedSlotIndex
+        self:SetDoubleCheckVisible(false)
+        self:ClearSelection()
+        _PlayerDataLogic:RequestDeleteSlot(deletingSlotIndex)
+        log("[SelectSlotPanelCom] Requested delete. slotIndex=" .. tostring(deletingSlotIndex))
+    end
+
+    method void OnCancelClicked()
+        self:SetDoubleCheckVisible(false)
+        log("[SelectSlotPanelCom] Delete confirmation cancelled.")
+    end
+
+    method void OnBackToMenuClicked()
+        self:SetDoubleCheckVisible(false)
+        self:ClearSelection()
+        if self.mainMenuBackground ~= nil and isvalid(self.mainMenuBackground) then
+            self.mainMenuBackground.Enable = true
+        end
+        if self.mainMenuContent ~= nil and isvalid(self.mainMenuContent) then
+            self.mainMenuContent.Enable = true
+        end
+        self.Entity.Enable = false
+        log("[SelectSlotPanelCom] Back to main menu.")
+    end
+
+    method void SetDoubleCheckVisible(boolean visible)
+        if self.doubleCheckPanel ~= nil and isvalid(self.doubleCheckPanel) then
+            self.doubleCheckPanel.Enable = visible
+        end
+    end
+
+end

@@ -17,15 +17,56 @@ script PartyUICom extends Component
     property Entity closeButton = nil
 
     @HideFromInspector
+    property Entity teamTag1 = "6580b25f-1517-44b2-936a-1fcccdbfc24b"
+
+    @HideFromInspector
+    property Entity teamTag2 = "de61d8c0-0b2a-43d5-8497-80f9d5f9dcd8"
+
+    @HideFromInspector
+    property Entity teamTag3 = "f02e71a2-7dcb-49c5-9759-14bd8c866221"
+
+    @HideFromInspector
+    property Entity checkButton = "734c4c78-bb99-4223-867c-4f62144bcc5a"
+
+    @HideFromInspector
     property any closeButtonHandler = nil
+
+    @HideFromInspector
+    property any teamTag1Handler = nil
+
+    @HideFromInspector
+    property any teamTag2Handler = nil
+
+    @HideFromInspector
+    property any teamTag3Handler = nil
+
+    @HideFromInspector
+    property any checkButtonHandler = nil
+
+    property integer focusedTeamIndex = 1
+    property string normalTagRuid = "bc1521e28905416a8955f7d695abeadd"
+    property string focusedTagRuid = "94019c4726ab4ae6b5241995e88cdf61"
 
     @ExecSpace("ClientOnly")
     method void OnBeginPlay()
         if isvalid(self.closeButton) then
             self.closeButtonHandler = self.closeButton:ConnectEvent(ButtonClickEvent, self.OnCloseClicked)
         end
+        if isvalid(self.teamTag1) then
+            self.teamTag1Handler = self.teamTag1:ConnectEvent(ButtonClickEvent, self.OnTeamTag1Clicked)
+        end
+        if isvalid(self.teamTag2) then
+            self.teamTag2Handler = self.teamTag2:ConnectEvent(ButtonClickEvent, self.OnTeamTag2Clicked)
+        end
+        if isvalid(self.teamTag3) then
+            self.teamTag3Handler = self.teamTag3:ConnectEvent(ButtonClickEvent, self.OnTeamTag3Clicked)
+        end
+        if isvalid(self.checkButton) then
+            self.checkButtonHandler = self.checkButton:ConnectEvent(ButtonClickEvent, self.OnCheckClicked)
+        end
+        self:SetFocusedTeam(1)
         self:RequestRosterRefresh()
-        log("[PartyUICom] Ready with four member slots.")
+        log("[PartyUICom] Ready. focusedTeamIndex=" .. tostring(self.focusedTeamIndex))
     end
 
     @ExecSpace("ClientOnly")
@@ -34,11 +75,75 @@ script PartyUICom extends Component
             self.closeButton:DisconnectEvent(ButtonClickEvent, self.closeButtonHandler)
             self.closeButtonHandler = nil
         end
+        if isvalid(self.teamTag1) and self.teamTag1Handler ~= nil then
+            self.teamTag1:DisconnectEvent(ButtonClickEvent, self.teamTag1Handler)
+            self.teamTag1Handler = nil
+        end
+        if isvalid(self.teamTag2) and self.teamTag2Handler ~= nil then
+            self.teamTag2:DisconnectEvent(ButtonClickEvent, self.teamTag2Handler)
+            self.teamTag2Handler = nil
+        end
+        if isvalid(self.teamTag3) and self.teamTag3Handler ~= nil then
+            self.teamTag3:DisconnectEvent(ButtonClickEvent, self.teamTag3Handler)
+            self.teamTag3Handler = nil
+        end
+        if isvalid(self.checkButton) and self.checkButtonHandler ~= nil then
+            self.checkButton:DisconnectEvent(ButtonClickEvent, self.checkButtonHandler)
+            self.checkButtonHandler = nil
+        end
     end
 
     @ExecSpace("ClientOnly")
     method void OnCloseClicked(ButtonClickEvent event)
         _UIManagerLogic:CloseUI("Party")
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnTeamTag1Clicked(ButtonClickEvent event)
+        self:SetFocusedTeam(1)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnTeamTag2Clicked(ButtonClickEvent event)
+        self:SetFocusedTeam(2)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnTeamTag3Clicked(ButtonClickEvent event)
+        self:SetFocusedTeam(3)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnCheckClicked(ButtonClickEvent event)
+        _PartyLogic:RequestConfirmTeam(self.focusedTeamIndex)
+        log("[PartyUICom] Requested sortie team confirmation. teamIndex=" .. tostring(self.focusedTeamIndex))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetFocusedTeam(integer teamIndex)
+        if teamIndex < 1 or teamIndex > 3 then
+            log_warning("[PartyUICom] Invalid team index=" .. tostring(teamIndex))
+            return
+        end
+
+        self.focusedTeamIndex = teamIndex
+        self:SetTagFocused(self.teamTag1, teamIndex == 1)
+        self:SetTagFocused(self.teamTag2, teamIndex == 2)
+        self:SetTagFocused(self.teamTag3, teamIndex == 3)
+        log("[PartyUICom] Focused team changed. teamIndex=" .. tostring(teamIndex))
+    end
+
+    @ExecSpace("ClientOnly")
+    method void SetTagFocused(Entity tagEntity, boolean isFocused)
+        if isvalid(tagEntity) == false or isvalid(tagEntity.SpriteGUIRendererComponent) == false then
+            return
+        end
+
+        if isFocused then
+            tagEntity.SpriteGUIRendererComponent.ImageRUID = self.focusedTagRuid
+        else
+            tagEntity.SpriteGUIRendererComponent.ImageRUID = self.normalTagRuid
+        end
     end
 
     @ExecSpace("ClientOnly")

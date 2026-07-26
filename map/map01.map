@@ -13713,6 +13713,84 @@
           ],
           "@version": 1
         }
+      },
+      {
+        "id": "8ec4b155-ec8f-484a-92d4-d327ad0e8c18",
+        "path": "/maps/map01/Avatar",
+        "componentNames": "MOD.Core.TransformComponent,MOD.Core.AvatarRendererComponent,MOD.Core.CostumeManagerComponent,script.BattleActorCom,script.NPCActorCom,script.ActorCenterCom,MOD.Core.TouchReceiveComponent",
+        "jsonString": {
+          "name": "Avatar",
+          "path": "/maps/map01/Avatar",
+          "nameEditable": true,
+          "enable": true,
+          "visible": true,
+          "localize": false,
+          "displayOrder": 9,
+          "pathConstraints": "///",
+          "revision": 1,
+          "origin": {
+            "type": "Model",
+            "entry_id": "avatarrenderer",
+            "sub_entity_id": null,
+            "root_entity_id": "8ec4b155-ec8f-484a-92d4-d327ad0e8c18",
+            "replaced_model_id": null
+          },
+          "modelId": "avatarrenderer",
+          "@components": [
+            {
+              "@type": "MOD.Core.TransformComponent",
+              "Position": {
+                "x": -14.349762,
+                "y": 1.21318471,
+                "z": 999.999
+              },
+              "QuaternionRotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "w": 1.0
+              },
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.AvatarRendererComponent",
+              "Enable": true
+            },
+            {
+              "@type": "MOD.Core.CostumeManagerComponent",
+              "CustomBodyEquip": "04e82396b2ba40ab9d860f993447f3eb",
+              "CustomCapEquip": "17187132e3a74b248f1fcf8e442a8d99",
+              "CustomCapeEquip": "04458a90640c424bbbe3921952dda263",
+              "CustomCoatEquip": "04690e85a79d422a8fa2ff5dbef31504",
+              "CustomFaceEquip": "005b1222ceb14e0082d6ee10887310e7",
+              "CustomHairEquip": "003d1f18986842538fcd2cced4df92dd",
+              "CustomOneHandedWeaponEquip": "290e391c116c4f7db9827e01b45d446a",
+              "CustomPantsEquip": "1c3732a7f57a455ab7f95ea5b5e6311c",
+              "CustomSubWeaponEquip": "3581886f5c3144c39133c5e8f35ce4bc",
+              "DefaultEquipUserId": "",
+              "Enable": true
+            },
+            {
+              "@type": "script.BattleActorCom",
+              "Enable": true
+            },
+            {
+              "@type": "script.NPCActorCom",
+              "Enable": true,
+              "actorId": ""
+            },
+            {
+              "@type": "script.ActorCenterCom",
+              "Enable": true,
+              "actorId": "npcGuard"
+            },
+            {
+              "@type": "MOD.Core.TouchReceiveComponent",
+              "Enable": true
+            }
+          ],
+          "@version": 1
+        }
       }
     ]
   }

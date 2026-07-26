@@ -1,3 +1,4 @@
 ﻿keyName,entityId,entityPath,description
 MainMenu,3dbdaa5c-37c4-4835-8ffe-5f269848382e,/ui/MainMenu,Main menu UI root
 ControlCharacterUI,c86e684e-cb5a-441d-844b-d507d6e71ef9,/ui/ControlCharacterUI,Persistent character control UI root
+Dialog,d35a8c0d-570c-497c-8470-a314aef637c0,/ui/Dialog,Dialog presentation overlay

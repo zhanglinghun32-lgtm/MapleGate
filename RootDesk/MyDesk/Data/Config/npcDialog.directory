@@ -1,0 +1,23 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "directory://2d02d9e7d1d841e9831ef5012934aa8f",
+  "ContentType": "x-mod/directory",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "entry_id": "directory://2d02d9e7d1d841e9831ef5012934aa8f",
+      "name": "npcDialog",
+      "lock": false,
+      "folding": false,
+      "nameEditable": true
+    }
+  }
+}

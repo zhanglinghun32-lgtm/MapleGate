@@ -1,0 +1,5 @@
+﻿npcKey,entryKey,priority,conditionKey,entryDialogKey,enabled,notes
+npcGuard,guardMissionCompleted,10,conditionMissionWelcomeCompleted,npcGuard_MissionCompleted_01,true,已完成任務優先
+npcGuard,guardMissionAccepted,20,conditionMissionWelcomeAccepted,npcGuard_MissionAccepted_01,true,已接受任務次優先
+npcGuard,guardHasSapphire,30,conditionHasSapphire,npcGuard_HasSapphire_01,true,持有藍寶石時的特殊開場
+npcGuard,guardDefault,1000,,npcGuard_Option_01,true,無條件預設入口

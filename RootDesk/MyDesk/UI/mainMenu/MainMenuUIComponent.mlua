@@ -10,11 +10,16 @@ script MainMenuUIComponent extends Component
 
     property ButtonComponent newGameButton = "738eebb5-f560-4f94-8652-90def53b0b53"
     property ButtonComponent continueGameButton = "d058b7df-a419-4d6a-92dc-ad780d7d9542"
+    property ButtonComponent selectSlotButton = "378be7a6-887a-46bb-990a-027aaf854ec8"
     property ButtonComponent settingButton = "029c072e-64d3-4685-b43a-1443644e0105"
     property ButtonComponent exitButton = "dfacedf0-7695-4733-8817-678e153243eb"
+    property Entity mainMenuBackground = "9c94b1bc-b84d-4c95-a673-97be1f4bd3fc"
+    property Entity mainMenuContent = "55fbe9d8-8ad4-427a-a38e-dbb9c4826dd5"
+    property Entity selectSlotPanel = "e44c122b-fc97-441e-bded-55e52b33fde1"
 
     property any newGameClickHandler = nil
     property any continueGameClickHandler = nil
+    property any selectSlotClickHandler = nil
     property any settingClickHandler = nil
     property any exitClickHandler = nil
 
@@ -22,6 +27,7 @@ script MainMenuUIComponent extends Component
         -- Initializes button event wiring for the main menu UI root.
         log("[MainMenuUIComponent] OnBeginPlay.")
         self:BindButtons()
+        self:SetSelectSlotPanelVisible(false)
         self:ShowPanel(self.defaultPanel)
         self.isOpen = true
     end
@@ -46,6 +52,12 @@ script MainMenuUIComponent extends Component
             self.continueGameClickHandler = self.continueGameButton.Entity:ConnectEvent(ButtonClickEvent, self.OnContinueGameClicked)
         else
             log_warning("[MainMenuUIComponent] continueGameButton is nil.")
+        end
+
+        if self.selectSlotButton ~= nil then
+            self.selectSlotClickHandler = self.selectSlotButton.Entity:ConnectEvent(ButtonClickEvent, self.OnSelectSlotClicked)
+        else
+            log_warning("[MainMenuUIComponent] selectSlotButton is nil.")
         end
 
         if self.settingButton ~= nil then
@@ -73,6 +85,11 @@ script MainMenuUIComponent extends Component
         if self.continueGameClickHandler ~= nil and self.continueGameButton ~= nil then
             self.continueGameButton.Entity:DisconnectEvent(ButtonClickEvent, self.continueGameClickHandler)
             self.continueGameClickHandler = nil
+        end
+
+        if self.selectSlotClickHandler ~= nil and self.selectSlotButton ~= nil then
+            self.selectSlotButton.Entity:DisconnectEvent(ButtonClickEvent, self.selectSlotClickHandler)
+            self.selectSlotClickHandler = nil
         end
 
         if self.settingClickHandler ~= nil and self.settingButton ~= nil then
@@ -124,6 +141,23 @@ script MainMenuUIComponent extends Component
         -- Handles the Continue Game button.
         log("[MainMenuUIComponent] OnContinueGameClicked.")
         self:RequestContinueGame()
+    end
+
+    method void OnSelectSlotClicked(ButtonClickEvent event)
+        self:SetSelectSlotPanelVisible(true)
+        log("[MainMenuUIComponent] OnSelectSlotClicked.")
+    end
+
+    method void SetSelectSlotPanelVisible(boolean visible)
+        if self.selectSlotPanel ~= nil and isvalid(self.selectSlotPanel) then
+            self.selectSlotPanel.Enable = visible
+        end
+        if self.mainMenuBackground ~= nil and isvalid(self.mainMenuBackground) then
+            self.mainMenuBackground.Enable = not visible
+        end
+        if self.mainMenuContent ~= nil and isvalid(self.mainMenuContent) then
+            self.mainMenuContent.Enable = not visible
+        end
     end
 
     method void OnSettingClicked(ButtonClickEvent event)

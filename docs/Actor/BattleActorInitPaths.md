@@ -13,7 +13,8 @@ startup. One component serves every combatant; the branch is
 `playerWarrior`, `slime`). It is not “always reload grown stats from CSV”.
 Combat field names are **lowerCamelCase** across Config / Actors[] / Com.
 
-Player Save is **slim** (five attrs + jobType/level only). Current
+Player Save is **slim** (five attrs + `jobs[]` / `activeJobIndex`). The live
+`BattleActorCom.jobType` / `level` pair is only the selected active job. Current
 `hp`/`mp`/`stamina` are **not** persisted; `BuildRuntimeActorState` fills them
 to full max for `ImportSaveData` / battle entry. `maxHp` / def / speed are
 computed in `PlayerDataLogic` at load. Monster/NPC stay full Config literals
@@ -102,7 +103,7 @@ PlayerDataLogic:CollectPlayerActors
 
 | Data | Config (`actorConfig`) | Save (`Actors[]`) | Runtime (`BattleActorCom`) |
 |---|---|---|---|
-| Archetype / job / level | yes | yes (slim) | yes |
+| Archetype / job / level | one initial job | all jobs + active index | active job only |
 | Five attributes | Monster literals; player template | yes (allocation) | yes |
 | Current `hp` / `mp` / `stamina` | seed = max | **no** (fill full on import) | yes (session) |
 | Derived (`maxHp`, `defense`, `speed`, …) | Monster literals in Config | **no** | yes (PlayerDataLogic → Import) |

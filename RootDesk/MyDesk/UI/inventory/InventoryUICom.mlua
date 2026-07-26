@@ -1,0 +1,204 @@
+
+@Component
+@ExecSpace("ClientOnly")
+script InventoryUICom extends Component
+
+    property ButtonComponent materialTagButton = "e430ad03-5e71-45e1-a172-980bcb30b2f9"
+    property ButtonComponent consumableTagButton = "a86d5396-8731-492d-bb5f-96b3af79276f"
+    property ButtonComponent equipmentTagButton = "3cdf026b-897e-470f-9b46-fafe1a0f4ac9"
+    property ButtonComponent closeButton = "9f500e43-7566-482c-acd7-3916cf1de72b"
+    property Entity itemGrid = "eb739d49-8ad7-4748-b210-24b873456de9"
+    property Entity descriptionEntity = "828794ec-e9e6-451b-9e08-b99abbe15a4a"
+    property string itemSlotModelId = "66e60681-cc52-490e-b572-ee5679405c31"
+    property string inventoryConfigDataSetName = "inventoryConfig"
+
+    property any allItems = nil
+    property any slotEntities = nil
+    property integer selectedTagIndex = 2
+    property any materialTagHandler = nil
+    property any consumableTagHandler = nil
+    property any equipmentTagHandler = nil
+    property any closeHandler = nil
+
+    method void OnBeginPlay()
+        self.allItems = {}
+        self.slotEntities = {}
+        self:BindButtons()
+        _InventoryLogic:RequestInventorySnapshot()
+        log("[InventoryUICom] OnBeginPlay.")
+    end
+
+    method void OnEndPlay()
+        self:UnbindButtons()
+        self:ClearSlots()
+        log("[InventoryUICom] OnEndPlay.")
+    end
+
+    method void BindButtons()
+        self:UnbindButtons()
+        if self.materialTagButton ~= nil then
+            self.materialTagHandler = self.materialTagButton.Entity:ConnectEvent(ButtonClickEvent, self.OnMaterialTagClicked)
+        end
+        if self.consumableTagButton ~= nil then
+            self.consumableTagHandler = self.consumableTagButton.Entity:ConnectEvent(ButtonClickEvent, self.OnConsumableTagClicked)
+        end
+        if self.equipmentTagButton ~= nil then
+            self.equipmentTagHandler = self.equipmentTagButton.Entity:ConnectEvent(ButtonClickEvent, self.OnEquipmentTagClicked)
+        end
+        if self.closeButton ~= nil then
+            self.closeHandler = self.closeButton.Entity:ConnectEvent(ButtonClickEvent, self.OnCloseClicked)
+        end
+    end
+
+    method void UnbindButtons()
+        if self.materialTagHandler ~= nil and self.materialTagButton ~= nil then
+            self.materialTagButton.Entity:DisconnectEvent(ButtonClickEvent, self.materialTagHandler)
+            self.materialTagHandler = nil
+        end
+        if self.consumableTagHandler ~= nil and self.consumableTagButton ~= nil then
+            self.consumableTagButton.Entity:DisconnectEvent(ButtonClickEvent, self.consumableTagHandler)
+            self.consumableTagHandler = nil
+        end
+        if self.equipmentTagHandler ~= nil and self.equipmentTagButton ~= nil then
+            self.equipmentTagButton.Entity:DisconnectEvent(ButtonClickEvent, self.equipmentTagHandler)
+            self.equipmentTagHandler = nil
+        end
+        if self.closeHandler ~= nil and self.closeButton ~= nil then
+            self.closeButton.Entity:DisconnectEvent(ButtonClickEvent, self.closeHandler)
+            self.closeHandler = nil
+        end
+    end
+
+    method void RefreshInventory(table items)
+        -- Rebuilds the client presentation only when InventoryLogic publishes a change.
+        self.allItems = {}
+        local configDataSet = _DataService:GetTable(self.inventoryConfigDataSetName)
+        for _, itemStack in ipairs(items or {}) do
+            local itemData = {
+                ActorIndex = math.floor(tonumber(itemStack.ActorIndex) or 1),
+                ActorKey = tostring(itemStack.ActorKey or ""),
+                SlotIndex = math.floor(tonumber(itemStack.SlotIndex) or 0),
+                ItemKey = tostring(itemStack.ItemKey or ""),
+                Count = math.floor(tonumber(itemStack.Count) or 0),
+                DisplayName = tostring(itemStack.ItemKey or ""),
+                Description = "",
+                ItemType = "",
+                IconRuid = "",
+                Usable = false
+            }
+            if configDataSet ~= nil then
+                local row = configDataSet:FindRow("itemKey", itemData.ItemKey)
+                if row ~= nil then
+                    itemData.DisplayName = _DataUtil:GetRowString(row, "displayName", itemData.DisplayName)
+                    itemData.Description = _DataUtil:GetRowString(row, "description", "")
+                    itemData.ItemType = _DataUtil:GetRowString(row, "itemType", "")
+                    itemData.IconRuid = _DataUtil:GetRowString(row, "iconRuid", "")
+                    local usableValue = _DataUtil:GetRowString(row, "usable", "false")
+                    itemData.Usable = usableValue == "true" or usableValue == "True" or usableValue == "1"
+                end
+            end
+            table.insert(self.allItems, itemData)
+        end
+
+        self:RenderCurrentTag()
+        log("[InventoryUICom] RefreshInventory itemCount=" .. tostring(#self.allItems))
+    end
+
+    method void OpenInventory()
+        -- Public entry point: opening does not force a data refresh.
+        _UIManagerLogic:OpenUI("Inventory")
+        log("[InventoryUICom] OpenInventory.")
+    end
+
+    method void OnClickItemGrid(table itemData)
+        local description = self:GetDescription()
+        if description ~= nil then
+            description:ShowItem(itemData)
+        end
+        log("[InventoryUICom] Item selected. itemKey=" .. tostring(itemData.ItemKey))
+    end
+
+    method void SwitchTag(integer index)
+        self.selectedTagIndex = index
+        self:RenderCurrentTag()
+        log("[InventoryUICom] SwitchTag index=" .. tostring(index))
+    end
+
+    method void RenderCurrentTag()
+        self:ClearSlots()
+        if isvalid(self.itemGrid) == false then
+            log_warning("[InventoryUICom] RenderCurrentTag failed: itemGrid is invalid.")
+            return
+        end
+
+        local shownCount = 0
+        for _, itemData in ipairs(self.allItems or {}) do
+            if self:IsVisibleInCurrentTag(itemData) then
+                shownCount = shownCount + 1
+                local slotEntity = _SpawnService:SpawnByModelId(
+                    self.itemSlotModelId,
+                    "InventorySlot_" .. tostring(itemData.ActorIndex) .. "_" .. tostring(itemData.SlotIndex),
+                    Vector3(0, 0, 0),
+                    self.itemGrid
+                )
+                if isvalid(slotEntity) then
+                    local itemModel = slotEntity:GetComponent("script.InventoryItemModel")
+                    if itemModel ~= nil then
+                        itemModel:SetOwner(self)
+                        itemModel:SetItem(itemData)
+                    else
+                        log_warning("[InventoryUICom] InventoryItemModel missing on spawned slot.")
+                    end
+                    table.insert(self.slotEntities, slotEntity)
+                end
+            end
+        end
+        log("[InventoryUICom] RenderCurrentTag shownCount=" .. tostring(shownCount))
+    end
+
+    method void ClearSlots()
+        for _, slotEntity in ipairs(self.slotEntities or {}) do
+            if isvalid(slotEntity) then
+                _EntityService:Destroy(slotEntity)
+            end
+        end
+        self.slotEntities = {}
+    end
+
+    method boolean IsVisibleInCurrentTag(table itemData)
+        if self.selectedTagIndex == 1 then
+            return itemData.ItemType == "Material"
+        end
+        if self.selectedTagIndex == 2 then
+            return itemData.ItemType == "Consumable"
+        end
+        if self.selectedTagIndex == 3 then
+            return itemData.ItemType == "Equipment"
+        end
+        return true
+    end
+
+    method any GetDescription()
+        if isvalid(self.descriptionEntity) == false then
+            return nil
+        end
+        return self.descriptionEntity:GetComponent("script.InventoryDescription")
+    end
+
+    method void OnMaterialTagClicked(ButtonClickEvent event)
+        self:SwitchTag(1)
+    end
+
+    method void OnConsumableTagClicked(ButtonClickEvent event)
+        self:SwitchTag(2)
+    end
+
+    method void OnEquipmentTagClicked(ButtonClickEvent event)
+        self:SwitchTag(3)
+    end
+
+    method void OnCloseClicked(ButtonClickEvent event)
+        _UIManagerLogic:CloseUI("Inventory")
+    end
+
+end

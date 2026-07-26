@@ -1,13 +1,10 @@
 @Component
 script SingleMemberUICom extends Component
 
-    @HideFromInspector
     property Entity iconEntity = nil
 
-    @HideFromInspector
     property Entity nameTextEntity = nil
 
-    @HideFromInspector
     property Entity statusTextEntity = nil
 
     property string entityId = ""

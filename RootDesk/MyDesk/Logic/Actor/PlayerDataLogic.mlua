@@ -5,12 +5,15 @@ script PlayerDataLogic extends Logic
     --   docs/PlayerData/SaveSlotSchema.md  ← canonical field registry
     -- Actor slim fields also summarized in docs/Actor/ActorVariableExplain.md
     -- CollectSlotData() assembles the table; SaveSlotData() JSONEncodes it.
+    --
+    -- actorConfig supplies one initial job for a template.
+    -- Player saves persist every acquired job under actor.jobs.
 
     property string worldSceneKey = "World"
     property string mainMenuSceneKey = "MainMenu"
     property string slotKeyPrefix = "Slot"
-    property integer maxSlotIndex = 3
-    property integer currentSchemaVersion = 4
+    property integer maxSlotIndex = 6
+    property integer currentSchemaVersion = 6
     property any loadedSlotIndexes = nil
     property any slotDataCache = nil
     property any dirtyUsers = nil
@@ -50,6 +53,49 @@ script PlayerDataLogic extends Logic
         end
 
         self:StartNewGame(senderUserId, slotIndex)
+    end
+
+    @ExecSpace("Server")
+    method void RequestDeleteSlot(integer slotIndex)
+        -- Deletes only the requesting user's selected save slot.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[PlayerDataLogic] RequestDeleteSlot ignored: senderUserId is empty.")
+            return
+        end
+
+        self:DeleteSlot(senderUserId, slotIndex)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean DeleteSlot(string userId, integer slotIndex)
+        if self:IsValidSlotIndex(slotIndex) == false then
+            log_warning("[PlayerDataLogic] DeleteSlot failed: invalid slotIndex=" .. tostring(slotIndex))
+            return false
+        end
+
+        local storage = _DataStorageService:GetUserDataStorage(userId)
+        if storage == nil then
+            log_warning("[PlayerDataLogic] DeleteSlot failed: storage is nil. userId=" .. tostring(userId))
+            return false
+        end
+
+        local slotKey = self:GetSlotStorageKey(slotIndex)
+        local errorCode = storage:DeleteAndWait(slotKey)
+        if errorCode ~= 0 then
+            log_warning("[PlayerDataLogic] DeleteSlot failed. userId=" .. userId
+                .. ", slotKey=" .. slotKey
+                .. ", errorCode=" .. tostring(errorCode))
+            return false
+        end
+
+        if self.loadedSlotIndexes[userId] == slotIndex then
+            self.loadedSlotIndexes[userId] = nil
+            self.slotDataCache[userId] = nil
+            self.dirtyUsers[userId] = nil
+        end
+
+        log("[PlayerDataLogic] DeleteSlot complete. userId=" .. userId .. ", slotKey=" .. slotKey)
+        return true
     end
 
     @ExecSpace("Server")
@@ -136,16 +182,22 @@ script PlayerDataLogic extends Logic
         end
 
         local createdVirtualActors = false
+        local migratedActorJobs = false
         if slotData.Actors == nil or #slotData.Actors == 0 then
             slotData.Actors = self:CreateDefaultActorList()
             createdVirtualActors = true
+        end
+        for _, actorData in ipairs(slotData.Actors) do
+            if self:NormalizeActorJobs(actorData) then
+                migratedActorJobs = true
+            end
         end
 
         if slotData.Party == nil then
             slotData.Party = _PartyLogic:CreateDefaultData()
         end
         if slotData.Inventory == nil then
-            slotData.Inventory = _InventoryLogic:CreateDefaultData()
+            slotData.Inventory = _InventoryLogic:CreateEmptyData()
         end
         if slotData.Skill == nil then
             slotData.Skill = _SkillLogic:CreateDefaultData()
@@ -162,23 +214,21 @@ script PlayerDataLogic extends Logic
         self.dirtyUsers[userId] = nil
 
         _PartyLogic:LoadUserData(userId, slotData.Party)
-        _InventoryLogic:LoadUserData(userId, slotData.Inventory)
+        _InventoryLogic:LoadActorInventories(userId, slotData.Actors, slotData.Inventory)
+        slotData.Inventory = _InventoryLogic:CreateEmptyData()
         _SkillLogic:LoadUserData(userId, slotData.Skill)
         _MissionLogic:LoadUserData(userId, slotData.Mission)
         _LootDropLogic:LoadUserMapState(userId, slotData.MapState)
         self:ApplyPrimaryActorToPlayer(userId, slotData.Actors)
 
-        if createdVirtualActors == true then
+        if createdVirtualActors == true or migratedActorJobs == true then
             self:MarkDirty(userId)
         end
         local formationCount = 0
         if slotData.Party.Formation ~= nil then
             formationCount = #slotData.Party.Formation
         end
-        local itemCount = 0
-        if slotData.Inventory.Items ~= nil then
-            itemCount = #slotData.Inventory.Items
-        end
+        local itemCount = _InventoryLogic:GetAllActorItemStackCount(userId)
         log("[PlayerDataLogic] ApplyLoadedSlotData. userId=" .. userId
             .. ", slotIndex=" .. tostring(slotIndex)
             .. ", actorCount=" .. tostring(#slotData.Actors)
@@ -219,13 +269,28 @@ script PlayerDataLogic extends Logic
         end
 
         local loadedActor = nil
+        local loadedActiveJob = nil
         if slotData.Actors ~= nil then
             loadedActor = slotData.Actors[1]
+            if loadedActor ~= nil then
+                local loadedJobs = loadedActor.jobs or loadedActor.Jobs or {}
+                local loadedActiveIndex = math.floor(tonumber(
+                    loadedActor.activeJobIndex or loadedActor.ActiveJobIndex
+                ) or 1)
+                loadedActiveJob = loadedJobs[loadedActiveIndex] or loadedJobs[1]
+                if loadedActiveJob == nil and (loadedActor.jobType ~= nil or loadedActor.JobType ~= nil) then
+                    loadedActiveJob = {
+                        jobType = loadedActor.jobType or loadedActor.JobType,
+                        level = loadedActor.level or loadedActor.Level
+                    }
+                end
+            end
         end
         log("[PlayerDataLogic] LoadSlotData. userId=" .. userId
             .. ", slotKey=" .. slotKey
             .. ", configId=" .. tostring(loadedActor ~= nil and (loadedActor.configId or loadedActor.ConfigId) or nil)
-            .. ", level=" .. tostring(loadedActor ~= nil and (loadedActor.level or loadedActor.Level) or nil))
+            .. ", activeJob=" .. tostring(loadedActiveJob ~= nil and loadedActiveJob.jobType or nil)
+            .. ", jobLevel=" .. tostring(loadedActiveJob ~= nil and loadedActiveJob.level or nil))
         return slotData
     end
 
@@ -250,13 +315,18 @@ script PlayerDataLogic extends Logic
         self.dirtyUsers[userId] = nil
         self.slotDataCache[userId] = slotData
         local savedActor = nil
+        local savedActiveJob = nil
         if slotData.Actors ~= nil then
             savedActor = slotData.Actors[1]
+            if savedActor ~= nil then
+                savedActiveJob = self:GetActiveActorJob(savedActor)
+            end
         end
         log("[PlayerDataLogic] SaveSlotData. userId=" .. userId
             .. ", slotKey=" .. slotKey
             .. ", configId=" .. tostring(savedActor ~= nil and (savedActor.configId or savedActor.ConfigId) or nil)
-            .. ", level=" .. tostring(savedActor ~= nil and (savedActor.level or savedActor.Level) or nil))
+            .. ", activeJob=" .. tostring(savedActiveJob ~= nil and savedActiveJob.jobType or nil)
+            .. ", jobLevel=" .. tostring(savedActiveJob ~= nil and savedActiveJob.level or nil))
         return true
     end
 
@@ -274,10 +344,12 @@ script PlayerDataLogic extends Logic
         end
 
         slotData.Party = _PartyLogic:ExportUserData(userId)
-        slotData.Inventory = _InventoryLogic:ExportUserData(userId)
+        -- Root Inventory remains an empty compatibility shell in schema v5.
+        slotData.Inventory = _InventoryLogic:CreateEmptyData()
         slotData.Skill = _SkillLogic:ExportUserData(userId)
         slotData.Mission = _MissionLogic:ExportUserData(userId)
         slotData.Actors = self:CollectPlayerActors(userId, slotData.Actors)
+        slotData.Actors = _InventoryLogic:ExportActorInventories(userId, slotData.Actors)
         slotData.PlayerPosition = self:CollectPlayerPosition(userId, slotData.PlayerPosition)
         slotData.MapState = _LootDropLogic:ExportUserMapState(userId)
 
@@ -292,7 +364,7 @@ script PlayerDataLogic extends Logic
         slotData.Profile = self:CreateDefaultProfileData()
         slotData.PlayerPosition = self:CreateDefaultPlayerPositionData()
         slotData.Party = _PartyLogic:CreateDefaultData()
-        slotData.Inventory = _InventoryLogic:CreateDefaultData()
+        slotData.Inventory = _InventoryLogic:CreateEmptyData()
         slotData.Skill = _SkillLogic:CreateDefaultData()
         slotData.Mission = _MissionLogic:CreateDefaultData()
         slotData.Actors = self:CreateDefaultActorList()
@@ -306,15 +378,102 @@ script PlayerDataLogic extends Logic
         local actors = {}
         local actorData = {}
         actorData.configId = "playerWarrior"
-        actorData.jobType = "Warrior"
-        actorData.level = 1
-        actorData.constitution = 10
-        actorData.dexterity = 6
-        actorData.intelligence = 4
-        actorData.will = 6
-        actorData.perception = 5
+        local actorRow = nil
+        local actorConfig = _DataService:GetTable("actorConfig")
+        if actorConfig ~= nil then
+            actorRow = actorConfig:FindRow("configId", actorData.configId)
+        end
+        local initialJobType = "Warrior"
+        local initialJobLevel = 1
+        if actorRow ~= nil then
+            initialJobType = _DataUtil:GetRowString(actorRow, "jobType", initialJobType)
+            initialJobLevel = _DataUtil:GetRowInteger(actorRow, "level", initialJobLevel)
+        end
+        actorData.jobs = {
+            {
+                jobType = initialJobType,
+                level = math.max(1, initialJobLevel)
+            }
+        }
+        actorData.activeJobIndex = 1
+        actorData.constitution = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "constitution", 10) or 10
+        actorData.dexterity = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "dexterity", 6) or 6
+        actorData.intelligence = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "intelligence", 4) or 4
+        actorData.will = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "will", 6) or 6
+        actorData.perception = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "perception", 5) or 5
+        actorData.inventory = _InventoryLogic:CreateDefaultData()
         actors[1] = actorData
         return actors
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean NormalizeActorJobs(table actorData)
+        if actorData == nil then
+            return false
+        end
+
+        local migrated = false
+        local normalizedJobs = {}
+        for _, savedJob in ipairs(actorData.jobs or actorData.Jobs or {}) do
+            local jobType = tostring(savedJob.jobType or savedJob.JobType or savedJob.job or "")
+            if jobType ~= "" then
+                table.insert(normalizedJobs, {
+                    jobType = jobType,
+                    level = math.max(1, math.floor(tonumber(savedJob.level or savedJob.Level) or 1))
+                })
+            end
+        end
+
+        if #normalizedJobs == 0 then
+            local legacyJobType = tostring(actorData.jobType or actorData.JobType or "")
+            local legacyLevel = math.max(1, math.floor(tonumber(actorData.level or actorData.Level) or 1))
+            if legacyJobType == "" then
+                local actorConfig = _DataService:GetTable("actorConfig")
+                local actorRow = actorConfig ~= nil and actorConfig:FindRow(
+                    "configId",
+                    tostring(actorData.configId or actorData.ConfigId or "")
+                ) or nil
+                if actorRow ~= nil then
+                    legacyJobType = _DataUtil:GetRowString(actorRow, "jobType", "")
+                    legacyLevel = _DataUtil:GetRowInteger(actorRow, "level", legacyLevel)
+                end
+            end
+            if legacyJobType ~= "" then
+                table.insert(normalizedJobs, {
+                    jobType = legacyJobType,
+                    level = math.max(1, legacyLevel)
+                })
+            end
+            migrated = true
+        end
+
+        local activeJobIndex = math.floor(tonumber(actorData.activeJobIndex or actorData.ActiveJobIndex) or 1)
+        if activeJobIndex < 1 or activeJobIndex > #normalizedJobs then
+            activeJobIndex = 1
+            migrated = true
+        end
+
+        actorData.jobs = normalizedJobs
+        actorData.activeJobIndex = activeJobIndex
+        if actorData.jobType ~= nil or actorData.JobType ~= nil
+            or actorData.level ~= nil or actorData.Level ~= nil
+            or actorData.Jobs ~= nil or actorData.ActiveJobIndex ~= nil then
+            migrated = true
+        end
+        actorData.jobType = nil
+        actorData.JobType = nil
+        actorData.level = nil
+        actorData.Level = nil
+        actorData.Jobs = nil
+        actorData.ActiveJobIndex = nil
+        return migrated
+    end
+
+    @ExecSpace("ServerOnly")
+    method table GetActiveActorJob(table actorData)
+        self:NormalizeActorJobs(actorData)
+        local activeJobIndex = math.floor(tonumber(actorData.activeJobIndex) or 1)
+        return actorData.jobs[activeJobIndex] or actorData.jobs[1]
     end
 
     @ExecSpace("ServerOnly")
@@ -327,8 +486,9 @@ script PlayerDataLogic extends Logic
         end
 
         runtime.configId = tostring(saveActor.configId or saveActor.ConfigId or "")
-        runtime.jobType = tostring(saveActor.jobType or saveActor.JobType or "")
-        runtime.level = math.max(1, math.floor(tonumber(saveActor.level or saveActor.Level) or 1))
+        local activeJob = self:GetActiveActorJob(saveActor)
+        runtime.jobType = tostring(activeJob ~= nil and activeJob.jobType or "")
+        runtime.level = math.max(1, math.floor(tonumber(activeJob ~= nil and activeJob.level or 1) or 1))
         runtime.constitution = math.max(0, math.floor(tonumber(saveActor.constitution or saveActor.Constitution) or 0))
         runtime.dexterity = math.max(0, math.floor(tonumber(saveActor.dexterity or saveActor.Dexterity) or 0))
         runtime.intelligence = math.max(0, math.floor(tonumber(saveActor.intelligence or saveActor.Intelligence) or 0))
@@ -585,7 +745,33 @@ script PlayerDataLogic extends Logic
         end
 
         local actors = fallbackActors or {}
-        actors[1] = battleActor:ExportSaveData()
+        local previousInventory = nil
+        local previousJobs = nil
+        local previousActiveJobIndex = 1
+        if actors[1] ~= nil then
+            self:NormalizeActorJobs(actors[1])
+            previousInventory = actors[1].inventory
+            previousJobs = actors[1].jobs
+            previousActiveJobIndex = actors[1].activeJobIndex
+        end
+        local exportedActor = battleActor:ExportSaveData()
+        exportedActor.jobs = previousJobs or {}
+        exportedActor.activeJobIndex = previousActiveJobIndex
+        if #exportedActor.jobs == 0 then
+            exportedActor.jobs[1] = {
+                jobType = tostring(exportedActor.jobType or ""),
+                level = math.max(1, math.floor(tonumber(exportedActor.level) or 1))
+            }
+            exportedActor.activeJobIndex = 1
+        else
+            local activeJob = exportedActor.jobs[exportedActor.activeJobIndex] or exportedActor.jobs[1]
+            activeJob.jobType = tostring(exportedActor.jobType or activeJob.jobType or "")
+            activeJob.level = math.max(1, math.floor(tonumber(exportedActor.level or activeJob.level) or 1))
+        end
+        exportedActor.jobType = nil
+        exportedActor.level = nil
+        actors[1] = exportedActor
+        actors[1].inventory = previousInventory or _InventoryLogic:CreateEmptyData()
         return actors
     end
 
@@ -671,10 +857,7 @@ script PlayerDataLogic extends Logic
         if slotData.Actors ~= nil then
             actorCount = #slotData.Actors
         end
-        local itemCount = 0
-        if slotData.Inventory ~= nil and slotData.Inventory.Items ~= nil then
-            itemCount = #slotData.Inventory.Items
-        end
+        local itemCount = _InventoryLogic:GetAllActorItemStackCount(userId)
 
         log("[PlayerDataLogic] ForceFlushUser collected. userId=" .. userId
             .. ", partyCount=" .. tostring(partyCount)

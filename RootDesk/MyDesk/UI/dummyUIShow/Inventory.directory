@@ -1,20 +1,20 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "directory://2f9509a21f394ca48069f7b2678acf82",
+  "EntryKey": "directory://135b63e995c24a12a891d3c20819c129",
   "ContentType": "x-mod/directory",
   "Content": "",
   "Usage": 0,
   "UsePublish": 1,
   "UseService": 0,
   "CoreVersion": "26.5.0.0",
-  "StudioVersion": "",
+  "StudioVersion": "0.1.0.0",
   "DynamicLoading": 0,
   "ContentProto": {
     "Use": "Json",
     "Json": {
-      "entry_id": "directory://2f9509a21f394ca48069f7b2678acf82",
-      "name": "shortcutIcon",
+      "entry_id": "directory://135b63e995c24a12a891d3c20819c129",
+      "name": "Inventory",
       "lock": false,
       "folding": false,
       "nameEditable": true

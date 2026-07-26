@@ -4,17 +4,65 @@ script InventoryLogic extends Logic
     property string inventoryConfigDataSetName = "inventoryConfig"
     property string consumableConfigDataSetName = "consumableConfig"
     property any userInventories = nil
+    property any userActorInventories = nil
 
     @ExecSpace("ServerOnly")
     method void OnBeginPlay()
         -- Initializes the per-user inventory cache.
         self.userInventories = {}
+        self.userActorInventories = {}
         log("[InventoryLogic] OnBeginPlay.")
     end
 
     @ExecSpace("ServerOnly")
+    method void LoadActorInventories(string userId, table actors, table legacyInventory)
+        -- Loads every saved actor inventory; legacy root Inventory migrates to Actors[1].
+        if userId == nil or userId == "" then
+            return
+        end
+        if actors == nil then
+            actors = {}
+        end
+
+        local actorInventories = {}
+        for actorIndex, actorData in ipairs(actors) do
+            local inventoryData = actorData.inventory
+            if inventoryData == nil and actorIndex == 1 and legacyInventory ~= nil then
+                inventoryData = legacyInventory
+                log("[InventoryLogic] Migrated legacy root Inventory to Actors[1]. userId=" .. userId)
+            end
+            if inventoryData == nil then
+                inventoryData = self:CreateEmptyData()
+            end
+            self:NormalizeInventoryData(inventoryData)
+            actorData.inventory = inventoryData
+            actorInventories[actorIndex] = {
+                ActorIndex = actorIndex,
+                ActorKey = tostring(actorData.configId or actorData.ConfigId or ("Actor" .. tostring(actorIndex))),
+                Inventory = inventoryData
+            }
+        end
+
+        if #actorInventories == 0 then
+            actorInventories[1] = {
+                ActorIndex = 1,
+                ActorKey = "playerWarrior",
+                Inventory = legacyInventory or self:CreateDefaultData()
+            }
+            self:NormalizeInventoryData(actorInventories[1].Inventory)
+        end
+
+        self.userActorInventories[userId] = actorInventories
+        self.userInventories[userId] = actorInventories[1].Inventory
+        self:PublishInventorySnapshot(userId)
+        log("[InventoryLogic] LoadActorInventories. userId=" .. userId
+            .. ", actorCount=" .. tostring(#actorInventories)
+            .. ", itemCount=" .. tostring(self:GetAllActorItemStackCount(userId)))
+    end
+
+    @ExecSpace("ServerOnly")
     method void LoadUserData(string userId, table inventoryData)
-        -- Loads one user's inventory data into the runtime cache.
+        -- Legacy compatibility entry point for slots without actor inventories.
         if userId == nil or userId == "" then
             log_warning("[InventoryLogic] LoadUserData ignored: userId is empty.")
             return
@@ -24,21 +72,13 @@ script InventoryLogic extends Logic
             inventoryData = self:CreateDefaultData()
         end
 
-        if inventoryData.Items == nil then
-            inventoryData.Items = {}
-        end
-
-        if inventoryData.Equipped == nil then
-            inventoryData.Equipped = {}
-        end
-
-        self.userInventories[userId] = inventoryData
-        log("[InventoryLogic] LoadUserData. userId=" .. userId .. ", itemCount=" .. tostring(#inventoryData.Items))
+        self:NormalizeInventoryData(inventoryData)
+        self:LoadActorInventories(userId, {}, inventoryData)
     end
 
     @ExecSpace("ServerOnly")
     method table ExportUserData(string userId)
-        -- Returns the user's current inventory payload for saving.
+        -- Legacy root Inventory export. Actor inventories are authoritative in schema v5.
         if self.userInventories == nil then
             self.userInventories = {}
         end
@@ -53,6 +93,21 @@ script InventoryLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
+    method table ExportActorInventories(string userId, table actors)
+        -- Writes every runtime actor inventory back into its matching Actors[] entry.
+        if actors == nil then
+            actors = {}
+        end
+        local actorInventories = self:GetActorInventories(userId)
+        for actorIndex, actorEntry in ipairs(actorInventories) do
+            if actors[actorIndex] ~= nil then
+                actors[actorIndex].inventory = actorEntry.Inventory
+            end
+        end
+        return actors
+    end
+
+    @ExecSpace("ServerOnly")
     method table CreateDefaultData()
         -- Creates the default inventory for a new slot.
         local inventoryData = {}
@@ -64,6 +119,60 @@ script InventoryLogic extends Logic
         inventoryData.Items[3] = self:CreateItemStack("sealedLetter", 1)
 
         return inventoryData
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateEmptyData()
+        local inventoryData = {}
+        inventoryData.Items = {}
+        inventoryData.Equipped = {}
+        return inventoryData
+    end
+
+    @ExecSpace("ServerOnly")
+    method void NormalizeInventoryData(table inventoryData)
+        if inventoryData.Items == nil then
+            inventoryData.Items = {}
+        end
+        if inventoryData.Equipped == nil then
+            inventoryData.Equipped = {}
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method table GetActorInventories(string userId)
+        if self.userActorInventories == nil then
+            self.userActorInventories = {}
+        end
+        local actorInventories = self.userActorInventories[userId]
+        if actorInventories == nil then
+            local primaryInventory = self:ExportUserData(userId)
+            actorInventories = {{
+                ActorIndex = 1,
+                ActorKey = "playerWarrior",
+                Inventory = primaryInventory
+            }}
+            self.userActorInventories[userId] = actorInventories
+        end
+        return actorInventories
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetActiveActorIndex(string userId)
+        -- Formation selects pickup ownership only; it never limits aggregate display.
+        local actorInventories = self:GetActorInventories(userId)
+        local partyData = _PartyLogic:ExportUserData(userId)
+        local activeFieldSlot = math.floor(tonumber(partyData.ActiveFieldSlot) or 1)
+        local activeActorKey = ""
+        if partyData.Formation ~= nil then
+            activeActorKey = tostring(partyData.Formation[activeFieldSlot] or "")
+        end
+        for actorIndex, actorEntry in ipairs(actorInventories) do
+            if activeActorKey ~= "" and actorEntry.ActorKey == activeActorKey then
+                return actorIndex
+            end
+        end
+        return 1
     end
 
     @ExecSpace("ServerOnly")
@@ -94,7 +203,9 @@ script InventoryLogic extends Logic
             maxStack = 1
         end
 
-        local inventoryData = self:ExportUserData(userId)
+        local actorInventories = self:GetActorInventories(userId)
+        local actorIndex = self:GetActiveActorIndex(userId)
+        local inventoryData = actorInventories[actorIndex].Inventory
         local remaining = count
         local highestIndex = 0
         for slotIndex, itemStack in pairs(inventoryData.Items) do
@@ -120,8 +231,10 @@ script InventoryLogic extends Logic
         end
 
         _PlayerDataLogic:MarkDirty(userId)
+        self:PublishInventorySnapshot(userId)
         log("[InventoryLogic] AddItem. userId=" .. userId
             .. ", itemKey=" .. itemKey
+            .. ", actorIndex=" .. tostring(actorIndex)
             .. ", count=" .. tostring(count)
             .. ", totalCount=" .. tostring(self:GetItemCount(userId, itemKey)))
         return true
@@ -129,32 +242,63 @@ script InventoryLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method integer GetItemCount(string userId, string itemKey)
-        -- Returns the total quantity of one item across every inventory stack.
-        local inventoryData = self:ExportUserData(userId)
+        -- Returns the total quantity across all owned actors, including reserves.
         local totalCount = 0
-        for _, itemStack in pairs(inventoryData.Items) do
-            if itemStack ~= nil and itemStack.ItemKey == itemKey then
-                totalCount = totalCount + (tonumber(itemStack.Count) or 0)
+        for _, actorEntry in ipairs(self:GetActorInventories(userId)) do
+            for _, itemStack in pairs(actorEntry.Inventory.Items) do
+                if itemStack ~= nil and itemStack.ItemKey == itemKey then
+                    totalCount = totalCount + (tonumber(itemStack.Count) or 0)
+                end
             end
         end
         return math.floor(totalCount)
     end
 
+    @ExecSpace("ServerOnly")
+    method integer GetAllActorItemStackCount(string userId)
+        local count = 0
+        for _, actorEntry in ipairs(self:GetActorInventories(userId)) do
+            for _, itemStack in pairs(actorEntry.Inventory.Items) do
+                if itemStack ~= nil then
+                    count = count + 1
+                end
+            end
+        end
+        return count
+    end
+
     @ExecSpace("Server")
-    method void RequestUseItem(integer slotIndex)
+    method void RequestUseItem(integer actorIndex, integer slotIndex)
         -- Lets the owning client request item usage by inventory slot index.
         if senderUserId == nil or senderUserId == "" then
             log_warning("[InventoryLogic] RequestUseItem ignored: senderUserId is empty.")
             return
         end
 
-        self:UseItem(senderUserId, slotIndex)
+        self:UseItem(senderUserId, actorIndex, slotIndex)
+    end
+
+    @ExecSpace("Server")
+    method void RequestInventorySnapshot()
+        -- Returns the authoritative inventory view to the requesting client.
+        if senderUserId == nil or senderUserId == "" then
+            log_warning("[InventoryLogic] RequestInventorySnapshot ignored: senderUserId is empty.")
+            return
+        end
+
+        self:PublishInventorySnapshot(senderUserId)
     end
 
     @ExecSpace("ServerOnly")
-    method boolean UseItem(string userId, integer slotIndex)
+    method boolean UseItem(string userId, integer actorIndex, integer slotIndex)
         -- Applies a consumable item from one cached inventory slot.
-        local inventoryData = self:ExportUserData(userId)
+        local actorInventories = self:GetActorInventories(userId)
+        if actorIndex <= 0 or actorInventories[actorIndex] == nil then
+            log_warning("[InventoryLogic] UseItem failed: invalid actor. userId=" .. tostring(userId)
+                .. ", actorIndex=" .. tostring(actorIndex))
+            return false
+        end
+        local inventoryData = actorInventories[actorIndex].Inventory
         if slotIndex <= 0 or inventoryData.Items == nil or inventoryData.Items[slotIndex] == nil then
             log_warning("[InventoryLogic] UseItem failed: invalid slot. userId=" .. tostring(userId) .. ", slotIndex=" .. tostring(slotIndex))
             return false
@@ -194,8 +338,59 @@ script InventoryLogic extends Logic
         end
 
         _PlayerDataLogic:MarkDirty(userId)
+        self:PublishInventorySnapshot(userId)
         log("[InventoryLogic] UseItem. userId=" .. userId .. ", itemKey=" .. tostring(itemStack.ItemKey) .. ", effectType=" .. effectType .. ", value=" .. tostring(value))
         return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method void PublishInventorySnapshot(string userId)
+        -- Converts sparse save slots into a dense RPC-safe presentation payload.
+        if userId == nil or userId == "" then
+            return
+        end
+
+        local snapshot = {}
+        for actorIndex, actorEntry in ipairs(self:GetActorInventories(userId)) do
+            for slotIndex, itemStack in pairs(actorEntry.Inventory.Items or {}) do
+                if type(slotIndex) == "number" and itemStack ~= nil then
+                    table.insert(snapshot, {
+                        ActorIndex = actorIndex,
+                        ActorKey = actorEntry.ActorKey,
+                        SlotIndex = math.floor(slotIndex),
+                        ItemKey = tostring(itemStack.ItemKey or ""),
+                        Count = math.floor(tonumber(itemStack.Count) or 0)
+                    })
+                end
+            end
+        end
+
+        table.sort(snapshot, function(left, right)
+            if left.ActorIndex ~= right.ActorIndex then
+                return left.ActorIndex < right.ActorIndex
+            end
+            return left.SlotIndex < right.SlotIndex
+        end)
+        self:NotifyInventoryChangedClient(snapshot, userId)
+        log("[InventoryLogic] PublishInventorySnapshot. userId=" .. userId .. ", itemCount=" .. tostring(#snapshot))
+    end
+
+    @ExecSpace("Client")
+    method void NotifyInventoryChangedClient(table items)
+        -- Forwards the server snapshot to the registered inventory UI on this client.
+        local inventoryUIEntity = _UIManagerLogic:GetUIEntity("Inventory")
+        if isvalid(inventoryUIEntity) == false then
+            log_warning("[InventoryLogic] NotifyInventoryChangedClient failed: Inventory UI missing.")
+            return
+        end
+
+        local inventoryUI = inventoryUIEntity:GetComponent("script.InventoryUICom")
+        if inventoryUI == nil then
+            log_warning("[InventoryLogic] NotifyInventoryChangedClient failed: InventoryUICom missing.")
+            return
+        end
+
+        inventoryUI:RefreshInventory(items)
     end
 
     @ExecSpace("ServerOnly")

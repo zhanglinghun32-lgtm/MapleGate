@@ -1,0 +1,6 @@
+﻿dialogKey,speakerKey,nodeType,textKey,nextDialogKey,actionKey,conditionKey,enabled,notes
+npcGuard_Option_01,npcGuard,Options,dialog_npcGuard_option_01,,,,true,守衛預設選項節點
+npcGuard_Normal_01,npcGuard,Text,dialog_npcGuard_normal_01,,Close,,true,選擇詢問近況後的回覆
+npcGuard_HasSapphire_01,npcGuard,Text,dialog_npcGuard_hasSapphire_01,npcGuard_Option_01,,conditionHasSapphire,true,玩家持有藍寶石時的特殊開場
+npcGuard_MissionAccepted_01,npcGuard,Text,dialog_npcGuard_missionAccepted_01,npcGuard_Option_01,,conditionMissionWelcomeAccepted,true,玩家已接受初次差事時的特殊開場
+npcGuard_MissionCompleted_01,npcGuard,Text,dialog_npcGuard_missionCompleted_01,,Close,conditionMissionWelcomeCompleted,true,玩家已完成初次差事時的特殊開場

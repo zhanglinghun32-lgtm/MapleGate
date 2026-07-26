@@ -24,7 +24,7 @@
           "enable": true,
           "visible": true,
           "localize": true,
-          "displayOrder": 3,
+          "displayOrder": 2,
           "pathConstraints": "//",
           "revision": 0,
           "origin": {
@@ -5178,14 +5178,14 @@
               },
               "Loop": true,
               "NeedMigration": false,
-              "ParticleCount": 3.0,
+              "ParticleCount": 2.0,
               "ParticleLifeTime": 2.0,
               "ParticleSize": 2.0,
               "ParticleSpeed": 1.0,
               "PlayOnEnable": true,
               "PlaySpeed": 1.0,
               "Prewarm": false,
-              "RandomSeed": 1653368548,
+              "RandomSeed": 1533903862,
               "Enable": true
             }
           ],

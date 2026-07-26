@@ -1,0 +1,322 @@
+@Component
+@ExecSpace("ClientOnly")
+script npcDialogUICom extends Component
+
+    property ButtonComponent closeBtn = "2cbc384d-de63-4df2-9a09-85279afb520a"
+    property ButtonComponent nextStepBtn = "707f9e7a-1126-4da9-90ab-22bd0841985a"
+    property ButtonComponent acceptBtn = "7bf8cf9c-7768-4d1d-bcb4-da67a404be9e"
+    property ButtonComponent rejectBtn = "c15a5893-7bfc-4207-8dc6-98cf49c418ce"
+    property ButtonComponent option1Btn = "44f1e376-ce7a-4ed7-abb8-5494b292f2f3"
+    property ButtonComponent option2Btn = "a8b3bd97-2939-4edb-b362-60b309d3b0bd"
+    property ButtonComponent option3Btn = "8cae13d4-2993-4ef2-acc9-9c4e9411ef34"
+    property ButtonComponent option4Btn = "54e7ef3a-b515-47f9-aa1a-4e0554579574"
+    property ButtonComponent option5Btn = "51af09a4-439f-48b7-b2f5-e051a0a05178"
+
+    property TextGUIRendererComponent nameText = "1190c5bf-846b-4c5b-864e-0e59d9a73bc7"
+    property TextGUIRendererComponent normalText = "ea534bd4-45b5-4981-81ad-fb0ac444b96a"
+    property AvatarGUIRendererComponent avatarRenderer = "b9738520-f7b2-44ec-9c42-d1ff4b936737"
+    property CostumeManagerComponent avatarCostumeManager = "b9738520-f7b2-44ec-9c42-d1ff4b936737"
+    property Entity avatarEntity = "b9738520-f7b2-44ec-9c42-d1ff4b936737"
+    property SpriteGUIRendererComponent spriteRenderer = "8628c0cd-b686-4f3b-bda2-208bc837cac2"
+    property Entity spriteEntity = "8628c0cd-b686-4f3b-bda2-208bc837cac2"
+    property Entity nextStepEntity = "707f9e7a-1126-4da9-90ab-22bd0841985a"
+    property Entity acceptEntity = "7bf8cf9c-7768-4d1d-bcb4-da67a404be9e"
+    property Entity rejectEntity = "c15a5893-7bfc-4207-8dc6-98cf49c418ce"
+    property Entity option1Entity = "44f1e376-ce7a-4ed7-abb8-5494b292f2f3"
+    property Entity option2Entity = "a8b3bd97-2939-4edb-b362-60b309d3b0bd"
+    property Entity option3Entity = "8cae13d4-2993-4ef2-acc9-9c4e9411ef34"
+    property Entity option4Entity = "54e7ef3a-b515-47f9-aa1a-4e0554579574"
+    property Entity option5Entity = "51af09a4-439f-48b7-b2f5-e051a0a05178"
+    property TextGUIRendererComponent option1Text = "40a41873-0044-4304-b6c4-5216f11f445f"
+    property TextGUIRendererComponent option2Text = "bc26683d-2ac5-4a0d-91e8-c0236b8235e7"
+    property TextGUIRendererComponent option3Text = "0ff0d828-aab5-4dc1-8161-19f8c84e14f1"
+    property TextGUIRendererComponent option4Text = "096a9a79-45d1-479d-8a93-8f7aec0d19ba"
+    property TextGUIRendererComponent option5Text = "57ba136c-39a0-4092-b2d2-80602b5b14bc"
+
+    property table dialogContext = nil
+    property any closeHandler = nil
+    property any nextHandler = nil
+    property any acceptHandler = nil
+    property any rejectHandler = nil
+    property any optionHandlers = nil
+
+    method void OnBeginPlay()
+        self:BindButtons()
+        self:ResetDisplay()
+        log("[npcDialogUICom] OnBeginPlay.")
+    end
+
+    method void OnEndPlay()
+        self:UnbindButtons()
+    end
+
+    method void OpenDialog(table dialogContext)
+        self.dialogContext = dialogContext or {}
+        if self.nameText ~= nil then
+            self.nameText.Text = self:ResolveLocalizedText(tostring(self.dialogContext.nameKey or ""))
+        end
+        if self.normalText ~= nil then
+            self.normalText.Text = self:ResolveLocalizedText(tostring(self.dialogContext.text or ""))
+        end
+
+        self:ApplyTalkerAppearance(tostring(self.dialogContext.entityId or ""))
+
+        local dialogType = tostring(self.dialogContext.type or "Text")
+        self:SetEntityVisible(self.nextStepEntity, dialogType == "Text")
+        self:SetEntityVisible(self.acceptEntity, dialogType == "Confirm")
+        self:SetEntityVisible(self.rejectEntity, dialogType == "Confirm")
+        self:ShowOptions(dialogType == "Options" and self.dialogContext.option or nil)
+        self.Entity.Enable = true
+        log("[npcDialogUICom] OpenDialog type=" .. dialogType)
+    end
+
+    method void CloseDialog()
+        self.dialogContext = nil
+        self:ResetDisplay()
+        _UIManagerLogic:SetOverlayUIVisible("Dialog", false)
+        log("[npcDialogUICom] CloseDialog.")
+    end
+
+    method void ResetDisplay()
+        if self.nameText ~= nil then
+            self.nameText.Text = ""
+        end
+        if self.normalText ~= nil then
+            self.normalText.Text = ""
+        end
+        self:SetEntityVisible(self.nextStepEntity, false)
+        self:SetEntityVisible(self.acceptEntity, false)
+        self:SetEntityVisible(self.rejectEntity, false)
+        self:ShowOptions(nil)
+        self:HideTalkerAppearance()
+    end
+
+    method void ShowOptions(table options)
+        local optionEntities = {
+            self.option1Entity,
+            self.option2Entity,
+            self.option3Entity,
+            self.option4Entity,
+            self.option5Entity
+        }
+        local optionTexts = {
+            self.option1Text,
+            self.option2Text,
+            self.option3Text,
+            self.option4Text,
+            self.option5Text
+        }
+        for optionIndex = 1, 5 do
+            local optionKey = options ~= nil and options[optionIndex] or nil
+            local visible = optionKey ~= nil and tostring(optionKey) ~= ""
+            self:SetEntityVisible(optionEntities[optionIndex], visible)
+            if optionTexts[optionIndex] ~= nil then
+                optionTexts[optionIndex].Text = visible
+                    and self:ResolveLocalizedText(tostring(optionKey))
+                    or ""
+            end
+        end
+    end
+
+    method void ApplyTalkerAppearance(string entityId)
+        self:HideTalkerAppearance()
+        if entityId == nil or entityId == "" then
+            log_warning("[npcDialogUICom] ApplyTalkerAppearance failed: entityId is empty.")
+            return
+        end
+
+        local talkerEntity = _EntityService:GetEntity(entityId)
+        if isvalid(talkerEntity) == false then
+            log_warning("[npcDialogUICom] ApplyTalkerAppearance failed: entity missing. entityId=" .. entityId)
+            return
+        end
+
+        local sourceCostumeManager = talkerEntity.CostumeManagerComponent
+        if sourceCostumeManager ~= nil then
+            self:CopyAvatarCostume(sourceCostumeManager)
+            self:SetEntityVisible(self.avatarEntity, true)
+            log("[npcDialogUICom] Talker appearance=Avatar, entityId=" .. entityId)
+            return
+        end
+
+        local sourceSpriteRenderer = talkerEntity.SpriteRendererComponent
+        if sourceSpriteRenderer ~= nil and tostring(sourceSpriteRenderer.SpriteRUID or "") ~= "" then
+            self:CopySpriteAppearance(sourceSpriteRenderer)
+            self:SetEntityVisible(self.spriteEntity, true)
+            log("[npcDialogUICom] Talker appearance=Sprite, entityId=" .. entityId
+                .. ", spriteRuid=" .. tostring(sourceSpriteRenderer.SpriteRUID))
+            return
+        end
+
+        log_warning("[npcDialogUICom] ApplyTalkerAppearance failed: no supported renderer. entityId="
+            .. entityId)
+    end
+
+    method void CopyAvatarCostume(CostumeManagerComponent sourceCostumeManager)
+        if self.avatarCostumeManager == nil then
+            log_warning("[npcDialogUICom] CopyAvatarCostume failed: UI CostumeManagerComponent missing.")
+            return
+        end
+
+        local categories = {
+            MapleAvatarItemCategory.Body,
+            MapleAvatarItemCategory.Hair,
+            MapleAvatarItemCategory.Face,
+            MapleAvatarItemCategory.Cap,
+            MapleAvatarItemCategory.Cape,
+            MapleAvatarItemCategory.Coat,
+            MapleAvatarItemCategory.Glove,
+            MapleAvatarItemCategory.Longcoat,
+            MapleAvatarItemCategory.Pants,
+            MapleAvatarItemCategory.Shield,
+            MapleAvatarItemCategory.Shoes,
+            MapleAvatarItemCategory.OneHandedWeapon,
+            MapleAvatarItemCategory.TwoHandedWeapon,
+            MapleAvatarItemCategory.SubWeapon,
+            MapleAvatarItemCategory.FaceAccessory,
+            MapleAvatarItemCategory.EyeAccessory,
+            MapleAvatarItemCategory.EarAccessory,
+            MapleAvatarItemCategory.Ear
+        }
+        self.avatarCostumeManager.UseCustomEquipOnly = true
+        self.avatarCostumeManager.DefaultEquipUserId = ""
+        for _, category in ipairs(categories) do
+            self.avatarCostumeManager:SetEquip(category, sourceCostumeManager:GetEquip(category) or "")
+        end
+    end
+
+    method void CopySpriteAppearance(SpriteRendererComponent sourceSpriteRenderer)
+        if self.spriteRenderer == nil then
+            log_warning("[npcDialogUICom] CopySpriteAppearance failed: UI SpriteGUIRendererComponent missing.")
+            return
+        end
+        self.spriteRenderer.ImageRUID = sourceSpriteRenderer.SpriteRUID
+        self.spriteRenderer.FlipX = sourceSpriteRenderer.FlipX
+        self.spriteRenderer.FlipY = sourceSpriteRenderer.FlipY
+        self.spriteRenderer.PlayRate = sourceSpriteRenderer.PlayRate
+        self.spriteRenderer.Color = sourceSpriteRenderer.Color
+    end
+
+    method void HideTalkerAppearance()
+        self:SetEntityVisible(self.avatarEntity, false)
+        self:SetEntityVisible(self.spriteEntity, false)
+    end
+
+    method string ResolveLocalizedText(string localizationKey)
+        if localizationKey == nil or localizationKey == "" then
+            return ""
+        end
+        local localizedText = _LocalizationService:GetText(localizationKey)
+        if localizedText == nil or localizedText == "" then
+            return localizationKey
+        end
+        return localizedText
+    end
+
+    method void ResolveDialog(string action, integer optionIndex)
+        local context = self.dialogContext
+        if context == nil then
+            return
+        end
+        _DialogLogic:RequestResolveDialog(action, optionIndex)
+        log("[npcDialogUICom] ResolveDialog action=" .. action
+            .. ", optionIndex=" .. tostring(optionIndex))
+    end
+
+    method void SetEntityVisible(Entity targetEntity, boolean visible)
+        if isvalid(targetEntity) then
+            targetEntity.Enable = visible
+        end
+    end
+
+    method void BindButtons()
+        self:UnbindButtons()
+        if self.closeBtn ~= nil then
+            self.closeHandler = self.closeBtn.Entity:ConnectEvent(ButtonClickEvent, self.OnCloseClicked)
+        end
+        if self.nextStepBtn ~= nil then
+            self.nextHandler = self.nextStepBtn.Entity:ConnectEvent(ButtonClickEvent, self.OnNextClicked)
+        end
+        if self.acceptBtn ~= nil then
+            self.acceptHandler = self.acceptBtn.Entity:ConnectEvent(ButtonClickEvent, self.OnAcceptClicked)
+        end
+        if self.rejectBtn ~= nil then
+            self.rejectHandler = self.rejectBtn.Entity:ConnectEvent(ButtonClickEvent, self.OnRejectClicked)
+        end
+
+        self.optionHandlers = {}
+        local optionButtons = {
+            self.option1Btn,
+            self.option2Btn,
+            self.option3Btn,
+            self.option4Btn,
+            self.option5Btn
+        }
+        for optionIndex, optionButton in ipairs(optionButtons) do
+            if optionButton ~= nil then
+                self.optionHandlers[optionIndex] = optionButton.Entity:ConnectEvent(
+                    ButtonClickEvent,
+                    function(event)
+                        self:OnOptionClicked(optionIndex)
+                    end
+                )
+            end
+        end
+    end
+
+    method void UnbindButtons()
+        if self.closeHandler ~= nil and self.closeBtn ~= nil then
+            self.closeBtn.Entity:DisconnectEvent(ButtonClickEvent, self.closeHandler)
+            self.closeHandler = nil
+        end
+        if self.nextHandler ~= nil and self.nextStepBtn ~= nil then
+            self.nextStepBtn.Entity:DisconnectEvent(ButtonClickEvent, self.nextHandler)
+            self.nextHandler = nil
+        end
+        if self.acceptHandler ~= nil and self.acceptBtn ~= nil then
+            self.acceptBtn.Entity:DisconnectEvent(ButtonClickEvent, self.acceptHandler)
+            self.acceptHandler = nil
+        end
+        if self.rejectHandler ~= nil and self.rejectBtn ~= nil then
+            self.rejectBtn.Entity:DisconnectEvent(ButtonClickEvent, self.rejectHandler)
+            self.rejectHandler = nil
+        end
+
+        local optionButtons = {
+            self.option1Btn,
+            self.option2Btn,
+            self.option3Btn,
+            self.option4Btn,
+            self.option5Btn
+        }
+        for optionIndex, eventHandler in pairs(self.optionHandlers or {}) do
+            local optionButton = optionButtons[optionIndex]
+            if eventHandler ~= nil and optionButton ~= nil then
+                optionButton.Entity:DisconnectEvent(ButtonClickEvent, eventHandler)
+            end
+        end
+        self.optionHandlers = {}
+    end
+
+    method void OnCloseClicked(ButtonClickEvent event)
+        self:ResolveDialog("Close", 0)
+        self:CloseDialog()
+    end
+
+    method void OnNextClicked(ButtonClickEvent event)
+        self:ResolveDialog("Next", 0)
+    end
+
+    method void OnAcceptClicked(ButtonClickEvent event)
+        self:ResolveDialog("Accept", 0)
+    end
+
+    method void OnRejectClicked(ButtonClickEvent event)
+        self:ResolveDialog("Reject", 0)
+    end
+
+    method void OnOptionClicked(integer optionIndex)
+        self:ResolveDialog("Option", optionIndex)
+    end
+
+end

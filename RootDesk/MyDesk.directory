@@ -17,10 +17,7 @@
       "name": "MyDesk",
       "lock": false,
       "folding": false,
-      "nameEditable": false,
-      "worldCoreVersion": "26.5.0.0",
-      "worldStudioVersion": "0.1.0.0",
-      "useService": 0
+      "nameEditable": false
     }
   }
 }

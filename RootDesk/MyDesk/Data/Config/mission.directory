@@ -1,0 +1,23 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "directory://18a64d25f68e438384e063e41fd95e37",
+  "ContentType": "x-mod/directory",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "entry_id": "directory://18a64d25f68e438384e063e41fd95e37",
+      "name": "mission",
+      "lock": false,
+      "folding": false,
+      "nameEditable": true
+    }
+  }
+}

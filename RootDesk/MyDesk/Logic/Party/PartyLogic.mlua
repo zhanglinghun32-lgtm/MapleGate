@@ -30,6 +30,7 @@ script PartyLogic extends Logic
         if partyData.Formation == nil then
             partyData.Formation = {}
         end
+        self:EnsureTeams(partyData)
 
         -- Legacy saves may contain Party.Members but an empty Formation.
         if self:GetFormationCount(partyData.Formation) == 0 then
@@ -64,7 +65,8 @@ script PartyLogic extends Logic
         log("[PartyLogic] LoadUserData. userId=" .. userId
             .. ", memberCount=" .. tostring(#partyData.Members)
             .. ", formationCount=" .. tostring(self:GetFormationCount(partyData.Formation))
-            .. ", activeFieldSlot=" .. tostring(partyData.ActiveFieldSlot))
+            .. ", activeFieldSlot=" .. tostring(partyData.ActiveFieldSlot)
+            .. ", activeTeamIndex=" .. tostring(partyData.ActiveTeamIndex))
     end
 
     @ExecSpace("Server")
@@ -114,6 +116,73 @@ script PartyLogic extends Logic
         partyUIEntity.PartyUICom:ApplyRoster(roster)
     end
 
+    @ExecSpace("Server")
+    method void RequestConfirmTeam(integer teamIndex)
+        local userId = senderUserId
+        if userId == nil or userId == "" then
+            log_warning("[PartyLogic] RequestConfirmTeam ignored: senderUserId is empty.")
+            return
+        end
+
+        if teamIndex < 1 or teamIndex > 3 then
+            log_warning("[PartyLogic] RequestConfirmTeam rejected: invalid teamIndex=" .. tostring(teamIndex))
+            return
+        end
+
+        local partyData = self:ExportUserData(userId)
+        self:EnsureTeams(partyData)
+        local selectedFormation = partyData.Teams[teamIndex]
+        if self:GetFormationCount(selectedFormation) == 0 then
+            log_warning("[PartyLogic] RequestConfirmTeam rejected: selected team is empty. teamIndex=" .. tostring(teamIndex))
+            return
+        end
+
+        partyData.Formation = self:CopyFormation(selectedFormation)
+        partyData.ActiveTeamIndex = teamIndex
+        if partyData.Formation[partyData.ActiveFieldSlot] == nil then
+            partyData.ActiveFieldSlot = 1
+        end
+        log("[PartyLogic] Sortie team confirmed. userId=" .. userId
+            .. ", teamIndex=" .. tostring(teamIndex)
+            .. ", formationCount=" .. tostring(self:GetFormationCount(partyData.Formation)))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void EnsureTeams(table partyData)
+        if partyData.Teams == nil then
+            partyData.Teams = {}
+        end
+        if partyData.Teams[1] == nil then
+            partyData.Teams[1] = self:CopyFormation(partyData.Formation)
+        end
+        if partyData.Teams[2] == nil then
+            partyData.Teams[2] = {}
+        end
+        if partyData.Teams[3] == nil then
+            partyData.Teams[3] = {}
+        end
+
+        local activeTeamIndex = math.floor(tonumber(partyData.ActiveTeamIndex) or 1)
+        if activeTeamIndex < 1 or activeTeamIndex > 3 then
+            activeTeamIndex = 1
+        end
+        partyData.ActiveTeamIndex = activeTeamIndex
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CopyFormation(table sourceFormation)
+        local copiedFormation = {}
+        if sourceFormation == nil then
+            return copiedFormation
+        end
+        for slotIndex = 1, 4 do
+            if sourceFormation[slotIndex] ~= nil and tostring(sourceFormation[slotIndex]) ~= "" then
+                copiedFormation[slotIndex] = tostring(sourceFormation[slotIndex])
+            end
+        end
+        return copiedFormation
+    end
+
     @ExecSpace("ServerOnly")
     method integer GetFormationCount(table formation)
         if formation == nil then
@@ -152,10 +221,15 @@ script PartyLogic extends Logic
         local partyData = {}
         partyData.Members = {}
         partyData.Formation = {}
+        partyData.Teams = {}
+        partyData.ActiveTeamIndex = 1
         partyData.ActiveFieldSlot = 1
 
         partyData.Members[1] = self:CreateActorState("playerWarrior", 1)
         partyData.Formation[1] = "playerWarrior"
+        partyData.Teams[1] = self:CopyFormation(partyData.Formation)
+        partyData.Teams[2] = {}
+        partyData.Teams[3] = {}
 
         return partyData
     end

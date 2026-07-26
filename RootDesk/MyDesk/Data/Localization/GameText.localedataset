@@ -1,0 +1,23 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "localedataset://5b36d341-f068-45b7-8bac-647ae364b1b8",
+  "ContentType": "x-mod/localedataset",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "name": "GameText",
+      "id": "5b36d341-f068-45b7-8bac-647ae364b1b8",
+      "serveronly": false,
+      "syncDataSetWebUrl": "",
+      "iswebsync": false
+    }
+  }
+}

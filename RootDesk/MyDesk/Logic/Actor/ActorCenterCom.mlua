@@ -1,0 +1,12 @@
+@Component
+script ActorCenterCom extends Component
+	property string actorId = nil
+
+	-- 目前先寫在OnBeginPlay聚合所有Actor接口，之後再看要怎麼要統一初始化
+	    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+		-- 查actorConfig.csv，如果是NPC，看avatarsource是entity自帶還是靠config生成
+		-- 若有BattleActorCom.mlua，則呼叫裡面的initBattleActor()
+		-- 若有NPCActyorCom.mlua，呼叫裡面的initActor()
+    end
+end

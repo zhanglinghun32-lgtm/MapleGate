@@ -1,0 +1,62 @@
+@Component
+script NPCActorCom extends Component
+
+    property boolean useConfigEquipment = false
+    property string actorId = ""
+    property any touchHandler = nil
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        self:ResolveActorId()
+        self.touchHandler = self.Entity:ConnectEvent(TouchEvent, self.OnActorTouched)
+        log("[NPCActorCom] OnBeginPlay. actorId=" .. self.actorId
+            .. ", entityId=" .. self.Entity.Id)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnEndPlay()
+        if self.touchHandler ~= nil then
+            self.Entity:DisconnectEvent(TouchEvent, self.touchHandler)
+            self.touchHandler = nil
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ResolveActorId()
+        if self.actorId ~= nil and self.actorId ~= "" then
+            return
+        end
+        local actorCenter = self.Entity:GetComponent("script.ActorCenterCom")
+        if actorCenter ~= nil then
+            self.actorId = tostring(actorCenter.actorId or "")
+        end
+    end
+
+    @ExecSpace("ClientOnly")
+    method void InitActor(string inputActorId)
+        self.actorId = inputActorId or ""
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnActorTouched(TouchEvent event)
+        self:OnActorClick()
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnActorClick()
+        self:ResolveActorId()
+        if self.actorId == nil or self.actorId == "" then
+            log_warning("[NPCActorCom] OnActorClick ignored: actorId is empty.")
+            return
+        end
+        _DialogLogic:RequestStartDialog(self.actorId, self.Entity.Id)
+        log("[NPCActorCom] Requested dialog. actorId=" .. self.actorId
+            .. ", entityId=" .. self.Entity.Id)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void OnActorRightClick()
+        log("[NPCActorCom] OnActorRightClick is reserved. actorId=" .. tostring(self.actorId))
+    end
+
+end

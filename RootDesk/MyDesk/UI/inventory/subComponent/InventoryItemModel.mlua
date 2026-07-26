@@ -1,0 +1,88 @@
+@Component
+@ExecSpace("ClientOnly")
+script InventoryItemModel extends Component
+
+    property TextComponent countText = ""
+    property SpriteGUIRendererComponent itemIcon = ""
+    property any ownerInventoryUI = nil
+    property any itemData = nil
+    property any clickHandler = nil
+
+    method void OnBeginPlay()
+        self:ResolveChildren()
+        if self.Entity.ButtonComponent ~= nil then
+            self.clickHandler = self.Entity:ConnectEvent(ButtonClickEvent, self.OnClickItemGrid)
+        end
+    end
+
+    method void OnEndPlay()
+        if self.clickHandler ~= nil then
+            self.Entity:DisconnectEvent(ButtonClickEvent, self.clickHandler)
+            self.clickHandler = nil
+        end
+    end
+
+    method void SetOwner(any inventoryUI)
+        self.ownerInventoryUI = inventoryUI
+    end
+
+    method void SetItem(table itemTable)
+        self.itemData = itemTable
+        self:SetItemIcon(tostring(itemTable.IconRuid or ""))
+        self:SetItemNumber(math.floor(tonumber(itemTable.Count) or 0))
+    end
+
+    method void ClearItem()
+        self.itemData = nil
+        self:SetItemNumber(0)
+        if self.itemIcon ~= nil then
+            self.itemIcon.Enable = false
+        end
+    end
+
+    method void SetItemIcon(string ruid)
+        self:ResolveChildren()
+        if self.itemIcon == nil then
+            return
+        end
+        self.itemIcon.Enable = true
+        if ruid ~= nil and ruid ~= "" then
+            self.itemIcon.ImageRUID = ruid
+        end
+    end
+
+    method void SetItemNumber(integer count)
+        self:ResolveChildren()
+        if self.countText == nil then
+            return
+        end
+        if count <= 1 then
+            self.countText.Text = ""
+        else
+            self.countText.Text = tostring(count)
+        end
+    end
+
+    method void ResolveChildren()
+        if self.countText == nil then
+            local countEntity = self.Entity:GetChildByName("Count", false)
+            if isvalid(countEntity) then
+                self.countText = countEntity.TextComponent
+            end
+        end
+        if self.itemIcon == nil then
+            local iconEntity = self.Entity:GetChildByName("ItemIcon", false)
+            if isvalid(iconEntity) then
+                self.itemIcon = iconEntity.SpriteGUIRendererComponent
+            end
+        end
+    end
+
+    method void OnClickItemGrid(ButtonClickEvent event)
+        if self.itemData == nil or self.ownerInventoryUI == nil then
+            return
+        end
+        self.ownerInventoryUI:OnClickItemGrid(self.itemData)
+    end
+
+end

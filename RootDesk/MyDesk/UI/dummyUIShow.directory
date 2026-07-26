@@ -1,7 +1,7 @@
 {
   "Id": "",
   "GameId": "",
-  "EntryKey": "directory://56215be63f374f9ea0898bbf2dabbcd7",
+  "EntryKey": "directory://02aa3ed429f74ed78024360043ba3974",
   "ContentType": "x-mod/directory",
   "Content": "",
   "Usage": 0,
@@ -13,8 +13,8 @@
   "ContentProto": {
     "Use": "Json",
     "Json": {
-      "entry_id": "directory://56215be63f374f9ea0898bbf2dabbcd7",
-      "name": "skillAnimation",
+      "entry_id": "directory://02aa3ed429f74ed78024360043ba3974",
+      "name": "dummyUIShow",
       "lock": false,
       "folding": false,
       "nameEditable": true

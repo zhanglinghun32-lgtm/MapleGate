@@ -30,12 +30,12 @@ table is a JSON array or object. The sentinel is removed immediately after decod
 
 | Exact key | Type | Required | Owner | Notes |
 |---|---|---:|---|---|
-| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `4`. v2 added `PlayerPosition` + JSON; v3 Actors slim lowerCamelCase; **v4 drops persisted current `hp`/`mp`/`stamina`** (fill full on Com import / battle entry). |
+| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `6`. v2 added `PlayerPosition` + JSON; v3 Actors slim lowerCamelCase; v4 drops persisted current `hp`/`mp`/`stamina`; v5 moves inventory ownership into each `Actors[].inventory`; **v6 replaces the saved actor-level `jobType` / `level` pair with `jobs[]` + `activeJobIndex`**. |
 | `Profile` | table | Yes | `PlayerDataLogic` | Slot metadata. |
 | `PlayerPosition` | table | Yes | `PlayerDataLogic` | Last world position captured when the slot is saved. |
 | `Actors` | array<table> | Yes | `PlayerDataLogic` / `BattleActorCom` | `Actors[1]` is currently applied to DefaultPlayer. |
 | `Party` | table | Yes | `PartyLogic` | Party membership and formation. |
-| `Inventory` | table | Yes | `InventoryLogic` | Item stacks and equipment keys. |
+| `Inventory` | table | Yes | `InventoryLogic` | Legacy compatibility shell. On v4/older load, its contents migrate once into `Actors[1].inventory`; v5 saves it empty. |
 | `Skill` | table | Yes | `SkillLogic` | Learned skills and hotkeys. |
 | `Mission` | table | Yes | `MissionLogic` | Active and completed missions. |
 
@@ -74,13 +74,59 @@ columns; Save does not copy them. See `docs/Actor/ActorVariableExplain.md`.
 | Exact key | Type | Default for `Actors[1]` | Source / meaning |
 |---|---|---|---|
 | `configId` | string | `"playerWarrior"` | Archetype link to `actorConfig.configId`. |
-| `jobType` | string | `"Warrior"` | Job. |
-| `level` | integer | `1` | Level. |
+| `jobs` | array<table> | `{ { jobType = "Warrior", level = 1 } }` | Every job acquired by this saved actor. The template's initial entry is seeded from the single `actorConfig.jobType` / `actorConfig.level` pair. |
+| `activeJobIndex` | integer | `1` | One-based index into `jobs`; selects the job imported into the live `BattleActorCom`. |
 | `constitution` | integer | `10` | 體質 — allocatable. |
 | `dexterity` | integer | `6` | 靈巧 — allocatable. |
 | `intelligence` | integer | `4` | 智力 — allocatable. |
 | `will` | integer | `6` | 意志 — allocatable. |
 | `perception` | integer | `5` | 感知 — allocatable. |
+| `inventory` | table | See Inventory | Per-character inventory. Every owned actor has one, whether or not it appears in `Party.Formation`. |
+
+### Multi-Job Shape
+
+`actorConfig.csv` remains a design-template table and therefore contains only
+one `jobType` and one `level` per row. When a new player actor is created,
+`PlayerDataLogic:CreateDefaultActorList()` converts those two columns into the
+first saved `jobs[]` entry. Additional jobs exist only in PlayerData.
+
+```lua
+jobs = {
+    { jobType = "Warrior", level = 12 },
+    { jobType = "Thief", level = 5 }
+},
+activeJobIndex = 1
+```
+
+Path: `slotData.Actors[actorIndex].jobs[jobIndex]`
+
+| Exact key | Type | Notes |
+|---|---|---|
+| `jobType` | string | Canonical job key. Its spelling follows the job keys used by gameplay/config. |
+| `level` | integer | Level owned by this specific job; minimum `1`. |
+
+- Array order is stable presentation order. `activeJobIndex` explicitly selects
+  the currently equipped job; callers must not assume index `1` is always active.
+- The runtime `BattleActorCom.jobType` / `BattleActorCom.level` pair represents
+  only the active job. It is not the authoritative collection.
+- On save, `CollectPlayerActors()` updates the active `jobs[]` entry from the
+  runtime pair while preserving every inactive job.
+
+### v5 and older migration
+
+When an actor has no valid `jobs[]`, `NormalizeActorJobs()` migrates:
+
+```text
+actor.jobType + actor.level
+        ↓
+actor.jobs[1].jobType + actor.jobs[1].level
+actor.activeJobIndex = 1
+```
+
+If the legacy pair is also missing, the initial job is recovered from the
+actor's `actorConfig` row. Legacy top-level `jobType`, `JobType`, `level`, and
+`Level` keys are removed from the in-memory save and are not written by the next
+explicit save.
 
 **Do not persist** (filled or recomputed at runtime):
 
@@ -94,8 +140,9 @@ columns; Save does not copy them. See `docs/Actor/ActorVariableExplain.md`.
 
 Load: slim `Actors[]` → `BuildRuntimeActorState` (currents = full) →
 `BattleActorCom:ImportSaveData(runtime)`.  
-Export: `ExportSaveData()` writes slim keys only (no currents; legacy current
-keys drop on next save).
+Export: `BattleActorCom:ExportSaveData()` exposes the active runtime pair;
+`PlayerDataLogic:CollectPlayerActors()` merges it into `jobs[activeJobIndex]`,
+preserves inactive jobs, and writes the slim v6 actor shape.
 
 ## Party
 
@@ -137,14 +184,14 @@ See `docs/Party/PartySystem.md` for the full party responsibility split.
 
 ## Inventory
 
-Path: `slotData.Inventory`
+Authoritative path in schema v5: `slotData.Actors[index].inventory`
 
 | Exact key | Type | Notes |
 |---|---|---|
 | `Items` | array<table> | Item stacks by slot index. |
 | `Equipped` | table | Equipment slot key to item key; currently empty by default. |
 
-Path: `slotData.Inventory.Items[index]`
+Path: `slotData.Actors[actorIndex].inventory.Items[index]`
 
 | Exact key | Type | Notes |
 |---|---|---|
@@ -158,6 +205,22 @@ Default stacks:
 | 1 | `hpPotionSmall` | 5 |
 | 2 | `mpPotionSmall` | 3 |
 | 3 | `sealedLetter` | 1 |
+
+Only the default primary actor receives these starter stacks. Newly acquired
+reserve actors start with an empty inventory unless their acquisition flow
+explicitly supplies items.
+
+### Legacy root Inventory migration
+
+For slots written before schema v5:
+
+1. If `Actors[1].inventory` is absent and root `Inventory` exists, the entire
+   root payload is assigned to `Actors[1].inventory`.
+2. This preserves previously collected items such as `sapphire`.
+3. The next explicit save writes every actor inventory under `Actors[]` and
+   leaves root `Inventory` empty.
+4. Inventory UI snapshots enumerate all `Actors[]`; `Party.Formation` only
+   selects which actor receives a newly picked-up field item.
 
 ## Skill
 
@@ -199,7 +262,7 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
 
 ```lua
 {
-    Version = 4,
+    Version = 6,
     Profile = {
         DisplayName = "Player",
         PlayTimeSeconds = 0,
@@ -213,13 +276,23 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
     Actors = {
         {
             configId = "playerWarrior",
-            jobType = "Warrior",
-            level = 1,
+            jobs = {
+                { jobType = "Warrior", level = 1 }
+            },
+            activeJobIndex = 1,
             constitution = 10,
             dexterity = 6,
             intelligence = 4,
             will = 6,
-            perception = 5
+            perception = 5,
+            inventory = {
+                Items = {
+                    { ItemKey = "hpPotionSmall", Count = 5 },
+                    { ItemKey = "mpPotionSmall", Count = 3 },
+                    { ItemKey = "sealedLetter", Count = 1 }
+                },
+                Equipped = {}
+            }
         }
     },
     Party = {
@@ -234,14 +307,7 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
         },
         Formation = { "playerWarrior" }
     },
-    Inventory = {
-        Items = {
-            { ItemKey = "hpPotionSmall", Count = 5 },
-            { ItemKey = "mpPotionSmall", Count = 3 },
-            { ItemKey = "sealedLetter", Count = 1 }
-        },
-        Equipped = {}
-    },
+    Inventory = { Items = {}, Equipped = {} },
     Skill = {
         Learned = {
             { SkillKey = "normalAttack", Level = 1 }

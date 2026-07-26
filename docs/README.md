@@ -26,6 +26,7 @@ Read **`ScriptRules.md`** first. It defines:
 | [Calculator/BattleCalculator.md](Calculator/BattleCalculator.md) | Numeric-only combat formula pipeline; accepts fully converged scalar values |
 | [Party/PartySystem.md](Party/PartySystem.md) | Party membership, field control, formation, whole-party battle entry |
 | [PlayerData/SaveSlotSchema.md](PlayerData/SaveSlotSchema.md) | Canonical SaveSlot keys, types, casing, and ownership |
+| [Localization/Localization.md](Localization/Localization.md) | LocaleDataSet location, CSV editing workflow, and runtime boundary |
 | [UI/SystemMenuUI.md](UI/SystemMenuUI.md) | Persistent gameplay system menu and save actions |
 | [GameplayFlow/GameplayFlowLogic.md](GameplayFlow/GameplayFlowLogic.md) | Playable world entry/exit coordination |
 | [PlayerControl/PlayerControlLogic.md](PlayerControl/PlayerControlLogic.md) | Local player operation lock ownership |

@@ -1,0 +1,548 @@
+@Logic
+script DialogLogic extends Logic
+
+    property string dialogUIKey = "Dialog"
+    property string nodeDataSetName = "npcDialogNode"
+    property string choiceDataSetName = "npcDialogChoice"
+    property string entryDataSetName = "npcDialogEntry"
+    property string conditionDataSetName = "dialogCondition"
+
+    property table nodeCache = nil
+    property table choiceCache = nil
+    property table entryCache = nil
+    property table conditionCache = nil
+    property table userSessions = nil
+
+    @ExecSpace("ServerOnly")
+    method void OnBeginPlay()
+        self.userSessions = {}
+        self:LoadDialogCaches()
+        log("[DialogLogic] OnBeginPlay. Dialog caches ready.")
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadDialogCaches()
+        self.nodeCache = {}
+        self.choiceCache = {}
+        self.entryCache = {}
+        self.conditionCache = {}
+
+        self:LoadNodeCache()
+        self:LoadChoiceCache()
+        self:LoadEntryCache()
+        self:LoadConditionCache()
+
+        log("[DialogLogic] LoadDialogCaches. nodes=" .. tostring(self:CountKeys(self.nodeCache))
+            .. ", choiceGroups=" .. tostring(self:CountKeys(self.choiceCache))
+            .. ", npcEntries=" .. tostring(self:CountKeys(self.entryCache))
+            .. ", conditions=" .. tostring(self:CountKeys(self.conditionCache)))
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadNodeCache()
+        local dataSet = _DataService:GetTable(self.nodeDataSetName)
+        if dataSet == nil then
+            log_warning("[DialogLogic] Node DataSet missing. table=" .. self.nodeDataSetName)
+            return
+        end
+
+        for rowIndex = 1, dataSet:GetRowCount() do
+            if self:GetCellBoolean(dataSet, rowIndex, "enabled", true) then
+                local dialogKey = self:GetCellString(dataSet, rowIndex, "dialogKey")
+                if dialogKey ~= "" then
+                    self.nodeCache[dialogKey] = {
+                        DialogKey = dialogKey,
+                        SpeakerKey = self:GetCellString(dataSet, rowIndex, "speakerKey"),
+                        NodeType = self:GetCellString(dataSet, rowIndex, "nodeType"),
+                        TextKey = self:GetCellString(dataSet, rowIndex, "textKey"),
+                        NextDialogKey = self:GetCellString(dataSet, rowIndex, "nextDialogKey"),
+                        ActionKey = self:GetCellString(dataSet, rowIndex, "actionKey"),
+                        ConditionKey = self:GetCellString(dataSet, rowIndex, "conditionKey")
+                    }
+                end
+            end
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadChoiceCache()
+        local dataSet = _DataService:GetTable(self.choiceDataSetName)
+        if dataSet == nil then
+            log_warning("[DialogLogic] Choice DataSet missing. table=" .. self.choiceDataSetName)
+            return
+        end
+
+        for rowIndex = 1, dataSet:GetRowCount() do
+            if self:GetCellBoolean(dataSet, rowIndex, "enabled", true) then
+                local dialogKey = self:GetCellString(dataSet, rowIndex, "dialogKey")
+                local choiceKey = self:GetCellString(dataSet, rowIndex, "choiceKey")
+                if dialogKey ~= "" and choiceKey ~= "" then
+                    if self.choiceCache[dialogKey] == nil then
+                        self.choiceCache[dialogKey] = {}
+                    end
+                    table.insert(self.choiceCache[dialogKey], {
+                        ChoiceKey = choiceKey,
+                        DisplayOrder = self:GetCellInteger(dataSet, rowIndex, "displayOrder", rowIndex),
+                        TextKey = self:GetCellString(dataSet, rowIndex, "textKey"),
+                        NextDialogKey = self:GetCellString(dataSet, rowIndex, "nextDialogKey"),
+                        ActionKey = self:GetCellString(dataSet, rowIndex, "actionKey"),
+                        ConditionKey = self:GetCellString(dataSet, rowIndex, "conditionKey")
+                    })
+                end
+            end
+        end
+
+        for _, choices in pairs(self.choiceCache) do
+            table.sort(choices, function(left, right)
+                return left.DisplayOrder < right.DisplayOrder
+            end)
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadEntryCache()
+        local dataSet = _DataService:GetTable(self.entryDataSetName)
+        if dataSet == nil then
+            log_warning("[DialogLogic] Entry DataSet missing. table=" .. self.entryDataSetName)
+            return
+        end
+
+        for rowIndex = 1, dataSet:GetRowCount() do
+            if self:GetCellBoolean(dataSet, rowIndex, "enabled", true) then
+                local npcKey = self:GetCellString(dataSet, rowIndex, "npcKey")
+                local entryDialogKey = self:GetCellString(dataSet, rowIndex, "entryDialogKey")
+                if npcKey ~= "" and entryDialogKey ~= "" then
+                    if self.entryCache[npcKey] == nil then
+                        self.entryCache[npcKey] = {}
+                    end
+                    table.insert(self.entryCache[npcKey], {
+                        EntryKey = self:GetCellString(dataSet, rowIndex, "entryKey"),
+                        Priority = self:GetCellInteger(dataSet, rowIndex, "priority", 1000),
+                        ConditionKey = self:GetCellString(dataSet, rowIndex, "conditionKey"),
+                        EntryDialogKey = entryDialogKey
+                    })
+                end
+            end
+        end
+
+        for _, entries in pairs(self.entryCache) do
+            table.sort(entries, function(left, right)
+                return left.Priority < right.Priority
+            end)
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method void LoadConditionCache()
+        local dataSet = _DataService:GetTable(self.conditionDataSetName)
+        if dataSet == nil then
+            log_warning("[DialogLogic] Condition DataSet missing. table=" .. self.conditionDataSetName)
+            return
+        end
+
+        for rowIndex = 1, dataSet:GetRowCount() do
+            if self:GetCellBoolean(dataSet, rowIndex, "enabled", true) then
+                local conditionKey = self:GetCellString(dataSet, rowIndex, "conditionKey")
+                local groupKey = self:GetCellString(dataSet, rowIndex, "groupKey")
+                if conditionKey ~= "" then
+                    if groupKey == "" then
+                        groupKey = "main"
+                    end
+                    if self.conditionCache[conditionKey] == nil then
+                        self.conditionCache[conditionKey] = {}
+                    end
+                    if self.conditionCache[conditionKey][groupKey] == nil then
+                        self.conditionCache[conditionKey][groupKey] = {}
+                    end
+                    table.insert(self.conditionCache[conditionKey][groupKey], {
+                        DisplayOrder = self:GetCellInteger(dataSet, rowIndex, "displayOrder", rowIndex),
+                        ConditionType = self:GetCellString(dataSet, rowIndex, "conditionType"),
+                        TargetKey = self:GetCellString(dataSet, rowIndex, "targetKey"),
+                        Comparison = self:GetCellString(dataSet, rowIndex, "comparison"),
+                        RequiredValue = self:GetCellString(dataSet, rowIndex, "requiredValue")
+                    })
+                end
+            end
+        end
+    end
+
+    @ExecSpace("Server")
+    method void RequestStartDialog(string actorId, string entityId)
+        local userId = senderUserId
+        if userId == nil or userId == "" then
+            log_warning("[DialogLogic] RequestStartDialog rejected: senderUserId is empty.")
+            return
+        end
+        if self:ValidateTalkerRequest(actorId, entityId) == false then
+            return
+        end
+
+        local dialogKey = self:ResolveEntryDialogKey(userId, actorId)
+        if dialogKey == "" then
+            log_warning("[DialogLogic] No eligible dialog entry. actorId=" .. actorId
+                .. ", userId=" .. userId)
+            return
+        end
+
+        self.userSessions[userId] = {
+            ActorId = actorId,
+            EntityId = entityId,
+            DialogKey = "",
+            VisibleChoices = {}
+        }
+        self:ShowNode(userId, dialogKey)
+        log("[DialogLogic] RequestStartDialog. userId=" .. userId
+            .. ", actorId=" .. actorId
+            .. ", entityId=" .. entityId
+            .. ", dialogKey=" .. dialogKey)
+    end
+
+    @ExecSpace("Server")
+    method void RequestResolveDialog(string action, integer optionIndex)
+        local userId = senderUserId
+        if userId == nil or userId == "" then
+            return
+        end
+
+        local session = self.userSessions[userId]
+        if session == nil then
+            log_warning("[DialogLogic] Resolve ignored: session missing. userId=" .. userId)
+            self:CloseDialogForUser(userId)
+            return
+        end
+
+        if action == "Close" then
+            self:CloseDialogForUser(userId)
+            return
+        end
+
+        local node = self.nodeCache[session.DialogKey]
+        if node == nil then
+            self:CloseDialogForUser(userId)
+            return
+        end
+
+        if action == "Option" or action == "Accept" or action == "Reject" then
+            local resolvedIndex = optionIndex
+            if action == "Accept" then
+                resolvedIndex = 1
+            elseif action == "Reject" then
+                resolvedIndex = 2
+            end
+            local choice = session.VisibleChoices[resolvedIndex]
+            if choice == nil then
+                log_warning("[DialogLogic] Resolve rejected invalid choice. userId=" .. userId
+                    .. ", dialogKey=" .. session.DialogKey
+                    .. ", optionIndex=" .. tostring(resolvedIndex))
+                return
+            end
+            self:ExecuteAction(userId, choice.ActionKey)
+            if choice.NextDialogKey ~= "" then
+                self:ShowNode(userId, choice.NextDialogKey)
+            else
+                self:CloseDialogForUser(userId)
+            end
+            return
+        end
+
+        if action == "Next" then
+            self:ExecuteAction(userId, node.ActionKey)
+            if node.NextDialogKey ~= "" then
+                self:ShowNode(userId, node.NextDialogKey)
+            else
+                self:CloseDialogForUser(userId)
+            end
+        end
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean ValidateTalkerRequest(string actorId, string entityId)
+        if actorId == nil or actorId == "" or entityId == nil or entityId == "" then
+            log_warning("[DialogLogic] Talker request rejected: actorId or entityId is empty.")
+            return false
+        end
+
+        local talkerEntity = _EntityService:GetEntity(entityId)
+        if isvalid(talkerEntity) == false then
+            log_warning("[DialogLogic] Talker request rejected: entity missing. entityId=" .. entityId)
+            return false
+        end
+
+        local configuredActorId = ""
+        local npcComponent = talkerEntity:GetComponent("script.NPCActorCom")
+        if npcComponent ~= nil then
+            configuredActorId = tostring(npcComponent.actorId or "")
+        end
+        if configuredActorId == "" then
+            local actorCenter = talkerEntity:GetComponent("script.ActorCenterCom")
+            if actorCenter ~= nil then
+                configuredActorId = tostring(actorCenter.actorId or "")
+            end
+        end
+        if configuredActorId == "" then
+            local battleActor = talkerEntity:GetComponent("script.BattleActorCom")
+            if battleActor ~= nil then
+                configuredActorId = tostring(battleActor.configId or "")
+            end
+        end
+        if configuredActorId ~= actorId then
+            log_warning("[DialogLogic] Talker request rejected: actor mismatch. requested=" .. actorId
+                .. ", configured=" .. configuredActorId)
+            return false
+        end
+
+        if talkerEntity.CostumeManagerComponent == nil
+            and talkerEntity.SpriteRendererComponent == nil then
+            log_warning("[DialogLogic] Talker request rejected: no supported appearance component. entityId="
+                .. entityId)
+            return false
+        end
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method string ResolveEntryDialogKey(string userId, string actorId)
+        local entries = self.entryCache[actorId] or {}
+        for _, entry in ipairs(entries) do
+            local node = self.nodeCache[entry.EntryDialogKey]
+            if node ~= nil
+                and self:EvaluateCondition(userId, entry.ConditionKey)
+                and self:EvaluateCondition(userId, node.ConditionKey) then
+                return entry.EntryDialogKey
+            end
+        end
+        return ""
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ShowNode(string userId, string dialogKey)
+        local session = self.userSessions[userId]
+        local node = self.nodeCache[dialogKey]
+        if session == nil or node == nil then
+            log_warning("[DialogLogic] ShowNode failed. userId=" .. userId
+                .. ", dialogKey=" .. dialogKey)
+            self:CloseDialogForUser(userId)
+            return
+        end
+        if self:EvaluateCondition(userId, node.ConditionKey) == false then
+            log_warning("[DialogLogic] ShowNode blocked by condition. dialogKey=" .. dialogKey)
+            self:CloseDialogForUser(userId)
+            return
+        end
+
+        local visibleChoices = {}
+        local optionTextKeys = {}
+        for _, choice in ipairs(self.choiceCache[dialogKey] or {}) do
+            local targetNode = self.nodeCache[choice.NextDialogKey]
+            local targetAllowed = choice.NextDialogKey == ""
+                or (targetNode ~= nil and self:EvaluateCondition(userId, targetNode.ConditionKey))
+            if #visibleChoices < 5
+                and self:EvaluateCondition(userId, choice.ConditionKey)
+                and targetAllowed then
+                table.insert(visibleChoices, choice)
+                table.insert(optionTextKeys, choice.TextKey)
+            end
+        end
+
+        session.DialogKey = dialogKey
+        session.VisibleChoices = visibleChoices
+        local dialogContext = {
+            dialogKey = dialogKey,
+            nameKey = node.SpeakerKey,
+            text = node.TextKey,
+            type = node.NodeType,
+            option = optionTextKeys,
+            entityId = session.EntityId
+        }
+        self:OpenDialogClient(dialogContext, userId)
+        log("[DialogLogic] ShowNode. userId=" .. userId
+            .. ", dialogKey=" .. dialogKey
+            .. ", optionCount=" .. tostring(#visibleChoices))
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean EvaluateCondition(string userId, string conditionKey)
+        if conditionKey == nil or conditionKey == "" then
+            return true
+        end
+        local groups = self.conditionCache[conditionKey]
+        if groups == nil then
+            log_warning("[DialogLogic] Condition missing. conditionKey=" .. conditionKey)
+            return false
+        end
+
+        for _, clauses in pairs(groups) do
+            local groupPassed = true
+            for _, clause in ipairs(clauses) do
+                if self:EvaluateConditionClause(userId, clause) == false then
+                    groupPassed = false
+                    break
+                end
+            end
+            if groupPassed then
+                return true
+            end
+        end
+        return false
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean EvaluateConditionClause(string userId, table clause)
+        local conditionType = clause.ConditionType
+        if conditionType == "ItemCount" then
+            local actualCount = _InventoryLogic:GetItemCount(userId, clause.TargetKey)
+            local requiredCount = tonumber(clause.RequiredValue) or 0
+            return self:CompareNumbers(actualCount, requiredCount, clause.Comparison)
+        end
+        if conditionType == "MissionAccepted" then
+            local actualValue = _MissionLogic:FindActiveMission(userId, clause.TargetKey) ~= nil
+            return self:CompareBooleans(actualValue, self:ParseBoolean(clause.RequiredValue), clause.Comparison)
+        end
+        if conditionType == "MissionCompleted" then
+            local actualValue = _MissionLogic:IsCompleted(userId, clause.TargetKey)
+            return self:CompareBooleans(actualValue, self:ParseBoolean(clause.RequiredValue), clause.Comparison)
+        end
+
+        log_warning("[DialogLogic] Unsupported condition type=" .. tostring(conditionType))
+        return false
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean CompareNumbers(number actualValue, number requiredValue, string comparison)
+        if comparison == "Equal" then
+            return actualValue == requiredValue
+        elseif comparison == "NotEqual" then
+            return actualValue ~= requiredValue
+        elseif comparison == "Greater" then
+            return actualValue > requiredValue
+        elseif comparison == "GreaterOrEqual" then
+            return actualValue >= requiredValue
+        elseif comparison == "Less" then
+            return actualValue < requiredValue
+        elseif comparison == "LessOrEqual" then
+            return actualValue <= requiredValue
+        end
+        return false
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean CompareBooleans(boolean actualValue, boolean requiredValue, string comparison)
+        if comparison == "NotEqual" then
+            return actualValue ~= requiredValue
+        end
+        return actualValue == requiredValue
+    end
+
+    @ExecSpace("ServerOnly")
+    method void ExecuteAction(string userId, string actionKey)
+        if actionKey == nil or actionKey == "" or actionKey == "Close" then
+            return
+        end
+
+        local actionType = actionKey
+        local actionValue = ""
+        if string.sub(actionKey, 1, 14) == "AcceptMission:" then
+            actionType = "AcceptMission"
+            actionValue = string.sub(actionKey, 15)
+        elseif string.sub(actionKey, 1, 16) == "CompleteMission:" then
+            actionType = "CompleteMission"
+            actionValue = string.sub(actionKey, 17)
+        end
+
+        if actionType == "AcceptMission" and actionValue ~= "" then
+            _MissionLogic:StartMission(userId, actionValue)
+            return
+        end
+        if actionType == "CompleteMission" and actionValue ~= "" then
+            _MissionLogic:CompleteMission(userId, actionValue)
+            return
+        end
+
+        log_warning("[DialogLogic] Unsupported actionKey=" .. actionKey)
+    end
+
+    @ExecSpace("ServerOnly")
+    method void CloseDialogForUser(string userId)
+        self.userSessions[userId] = nil
+        self:CloseDialogClient(userId)
+        log("[DialogLogic] CloseDialogForUser. userId=" .. userId)
+    end
+
+    @ExecSpace("Client")
+    method void OpenDialogClient(table dialogContext)
+        local dialogEntity = _UIManagerLogic:GetUIEntity(self.dialogUIKey)
+        if isvalid(dialogEntity) == false then
+            log_warning("[DialogLogic] OpenDialogClient failed: Dialog UI missing.")
+            return
+        end
+
+        _UIManagerLogic:SetOverlayUIVisible(self.dialogUIKey, true)
+        local dialogUI = dialogEntity:GetComponent("script.npcDialogUICom")
+        if dialogUI == nil then
+            log_warning("[DialogLogic] OpenDialogClient failed: npcDialogUICom missing.")
+            return
+        end
+        dialogUI:OpenDialog(dialogContext or {})
+    end
+
+    @ExecSpace("Client")
+    method void CloseDialogClient()
+        local dialogEntity = _UIManagerLogic:GetUIEntity(self.dialogUIKey)
+        if isvalid(dialogEntity) then
+            local dialogUI = dialogEntity:GetComponent("script.npcDialogUICom")
+            if dialogUI ~= nil then
+                dialogUI:CloseDialog()
+                return
+            end
+        end
+        _UIManagerLogic:SetOverlayUIVisible(self.dialogUIKey, false)
+    end
+
+    @ExecSpace("ClientOnly")
+    method void ShowDialogPreview(table dialogContext)
+        self:OpenDialogClient(dialogContext)
+    end
+
+    @ExecSpace("ServerOnly")
+    method string GetCellString(any dataSet, integer rowIndex, string columnName)
+        local value = dataSet:GetCell(rowIndex, columnName)
+        if value == nil or tostring(value) == "nil" then
+            return ""
+        end
+        return tostring(value)
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetCellInteger(any dataSet, integer rowIndex, string columnName, integer fallback)
+        local value = tonumber(dataSet:GetCell(rowIndex, columnName))
+        if value == nil then
+            return fallback
+        end
+        return math.floor(value)
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean GetCellBoolean(any dataSet, integer rowIndex, string columnName, boolean fallback)
+        local value = dataSet:GetCell(rowIndex, columnName)
+        if value == nil or value == "" then
+            return fallback
+        end
+        return self:ParseBoolean(tostring(value))
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean ParseBoolean(string value)
+        local normalized = string.lower(tostring(value or ""))
+        return normalized == "true" or normalized == "1"
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer CountKeys(table target)
+        local count = 0
+        for _, _ in pairs(target or {}) do
+            count = count + 1
+        end
+        return count
+    end
+
+end

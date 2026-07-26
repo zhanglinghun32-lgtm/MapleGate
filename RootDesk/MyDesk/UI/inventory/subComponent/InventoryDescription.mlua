@@ -1,0 +1,111 @@
+@Component
+@ExecSpace("ClientOnly")
+script InventoryDescription extends Component
+
+    property Entity itemSlotEntity = "8307a589-7027-47f0-b503-f2df9a7c8116"
+    property TextGUIRendererComponent titleText = ""
+    property TextComponent descriptionText = "6b9d3abe-c028-4950-b46b-99a236b95195"
+    property ButtonComponent useButton = "3b9b2b59-2075-43b8-b53f-24c2a55c2aeb"
+    property ButtonComponent castButton = "bde11c84-25cd-4f7d-be8f-bae885fc8c42"
+    property ButtonComponent deleteButton = "58c9c62d-2148-4d25-aa8a-2b75ab22f4e0"
+    property any selectedItem = nil
+    property any useHandler = nil
+    property any castHandler = nil
+    property any deleteHandler = nil
+
+    method void OnBeginPlay()
+        if self.useButton ~= nil then
+            self.useHandler = self.useButton.Entity:ConnectEvent(ButtonClickEvent, self.OnUseClick)
+        end
+        if self.castButton ~= nil then
+            self.castHandler = self.castButton.Entity:ConnectEvent(ButtonClickEvent, self.OnCastClick)
+        end
+        if self.deleteButton ~= nil then
+            self.deleteHandler = self.deleteButton.Entity:ConnectEvent(ButtonClickEvent, self.OnDeleteClick)
+        end
+        self:ClearItem()
+        log("[InventoryDescription] OnBeginPlay.")
+    end
+
+    method void OnEndPlay()
+        if self.useHandler ~= nil and self.useButton ~= nil then
+            self.useButton.Entity:DisconnectEvent(ButtonClickEvent, self.useHandler)
+        end
+        if self.castHandler ~= nil and self.castButton ~= nil then
+            self.castButton.Entity:DisconnectEvent(ButtonClickEvent, self.castHandler)
+        end
+        if self.deleteHandler ~= nil and self.deleteButton ~= nil then
+            self.deleteButton.Entity:DisconnectEvent(ButtonClickEvent, self.deleteHandler)
+        end
+    end
+
+    method void ShowItem(table itemTable)
+        self.selectedItem = itemTable
+        self:ResolveTitleText()
+        local itemModel = self:GetDisplayItemModel()
+        if itemModel ~= nil then
+            itemModel:SetOwner(nil)
+            itemModel:SetItem(itemTable)
+        end
+
+        if self.titleText ~= nil then
+            self.titleText.Text = tostring(itemTable.DisplayName or "")
+        end
+        if self.descriptionText ~= nil then
+            self.descriptionText.Text = tostring(itemTable.Description or "")
+        end
+        log("[InventoryDescription] ShowItem itemKey=" .. tostring(itemTable.ItemKey))
+    end
+
+    method void ClearItem()
+        self.selectedItem = nil
+        self:ResolveTitleText()
+        if self.titleText ~= nil then
+            self.titleText.Text = ""
+        end
+        if self.descriptionText ~= nil then
+            self.descriptionText.Text = ""
+        end
+        local itemModel = self:GetDisplayItemModel()
+        if itemModel ~= nil then
+            itemModel:ClearItem()
+        end
+    end
+
+    method any GetDisplayItemModel()
+        if isvalid(self.itemSlotEntity) == false then
+            return nil
+        end
+        return self.itemSlotEntity:GetComponent("script.InventoryItemModel")
+    end
+
+    method void ResolveTitleText()
+        if self.titleText ~= nil then
+            return
+        end
+        local titleEntity = self.Entity:GetChildByName("Title", false)
+        if isvalid(titleEntity) then
+            self.titleText = titleEntity.TextGUIRendererComponent
+        end
+    end
+
+    method void OnUseClick(ButtonClickEvent event)
+        log("[InventoryDescription] TODO Use item. itemKey=" .. self:GetSelectedItemKey())
+    end
+
+    method void OnCastClick(ButtonClickEvent event)
+        log("[InventoryDescription] TODO Cast item. itemKey=" .. self:GetSelectedItemKey())
+    end
+
+    method void OnDeleteClick(ButtonClickEvent event)
+        log("[InventoryDescription] TODO Delete item. itemKey=" .. self:GetSelectedItemKey())
+    end
+
+    method string GetSelectedItemKey()
+        if self.selectedItem == nil then
+            return ""
+        end
+        return tostring(self.selectedItem.ItemKey or "")
+    end
+
+end
