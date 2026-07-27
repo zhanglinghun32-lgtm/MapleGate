@@ -99,6 +99,9 @@ actual choice from its session.
   action list grows.
 - [ ] Handle action failure explicitly. Mission or shop failure should be able to
   keep the dialog open and route to an error node instead of continuing blindly.
+- [ ] Support mission choose-one rewards. Dialog resolves the authoritative
+  choice row, passes only `rewardGroupKey` / `optionKey` to `MissionLogic`, and
+  advances only after turn-in succeeds; see `docs/Mission/MissionSystem.md`.
 - [ ] Decide whether any one-time dialog decisions or conversation progress belong
   in `PlayerDataLogic`; current dialog sessions and traversal progress are not saved.
 - [ ] Replace fixed UI entity/component UUID defaults in `npcDialogUICom` with Maker
@@ -221,6 +224,19 @@ Supported action forms:
 | `AcceptMission:missionWelcome` | Calls `MissionLogic:StartMission`. |
 | `CompleteMission:missionWelcome` | Calls `MissionLogic:CompleteMission`. |
 | `OpenShop:generalStore01` | Calls `ShopLogic:OpenShopForUser`. |
+
+Planned choose-one reward action forms:
+
+| Value | Target behavior |
+|---|---|
+| `CompleteMission:missionWelcome:StarterWeapon:Sword` | Complete the mission with `StarterWeapon = Sword`. |
+| `SelectMissionReward:missionWelcome:StarterWeapon:Sword` | Store an authoritative selection in the server Dialog session for a later completion action. |
+
+The client still submits only a visible choice index. `DialogLogic` resolves the
+configured group and option from its session; it never accepts reward item keys,
+amounts, or reward types from the client. The complete transaction and
+`missionRewardConfig` schema are defined in
+`docs/Mission/MissionSystem.md`.
 
 ### 4. `dialogCondition`
 

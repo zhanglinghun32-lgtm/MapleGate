@@ -1,4 +1,3 @@
-missionKey,displayName,description,prerequisiteMissionKeys,triggerActorKey,reportActorKey,completionType,targetKey,targetCount,requiredItemKey,rewardExp,rewardGold,rewardItemKeys,nextMissionKey,repeatable,autoComplete,enabled
-missionWelcome,First Errand,和村長對話後，把密封信交給守衛。,,npcElder,npcGuard,Deliver,npcGuard,1,sealedLetter,20,10,,missionSlimeHunt,false,false,true
-missionSlimeHunt,Slime Cleanup,幫村莊清理附近的史萊姆。,missionWelcome,npcGuard,npcGuard,Hunt,slime,5,,35,20,slimeGel:3,missionSlimeGel,false,false,true
-missionSlimeGel,Collect Slime Gel,收集史萊姆凝膠並回報給村長。,missionSlimeHunt,npcElder,npcElder,Collect,slimeGel,3,slimeGel,40,25,hpPotionSmall:2,,false,false,true
+missionKey,nameKey,descriptionKey,categoryKey,acceptActorKey,reportActorKey,acceptConditionKey,completionMode,autoAccept,canAbandon,enabled,notes
+missionWelcome,mission_welcome_name,mission_welcome_desc,Main,npcElder,npcGuard,,Report,false,true,true,村長委託玩家把密封信交給守衛
+missionSlimeHunt,mission_slime_hunt_name,mission_slime_hunt_desc,Main,npcGuard,npcGuard,conditionMissionWelcomeCompleted,Report,false,true,true,完成送信後由守衛委託清理史萊姆

@@ -261,7 +261,8 @@ Canonical save schema lives in `docs/PlayerData/SaveSlotSchema.md`.
 
 | Information | Owner |
 |-------------|-------|
-| Persistent actor identity, level, five attrs (not current HP/MP/stamina) | `slotData.Actors` via `BattleActorCom` / `PlayerDataLogic` |
+| Shared total level/experience | `slotData.Progression` via `PlayerDataLogic` |
+| Persistent actor identity, job-level distribution, and custom attribute allocations | `slotData.Actors` via `BattleActorCom` / `PlayerDataLogic` |
 | Party membership references | `slotData.Party.Formation` via `PartyLogic` |
 | Active field slot | `slotData.Party.ActiveFieldSlot` via `PartyLogic` |
 | Derived battle totals | runtime only on `BattleActorCom` |

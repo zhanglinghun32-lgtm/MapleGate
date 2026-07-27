@@ -19,7 +19,7 @@ script PlayerDataLogic extends Logic
     property string mainMenuSceneKey = "MainMenu"
     property string slotKeyPrefix = "Slot"
     property integer maxSlotIndex = 6
-    property integer currentSchemaVersion = 6
+    property integer currentSchemaVersion = 7
     property any loadedSlotIndexes = nil
     property any slotDataCache = nil
     property any dirtyUsers = nil
@@ -188,7 +188,9 @@ script PlayerDataLogic extends Logic
         end
 
         local createdVirtualActors = false
+        local migratedProgression = self:NormalizeSharedProgression(slotData)
         local migratedActorJobs = false
+        local migratedActorAllocations = false
         if slotData.Actors == nil or #slotData.Actors == 0 then
             slotData.Actors = self:CreateDefaultActorList()
             createdVirtualActors = true
@@ -196,6 +198,9 @@ script PlayerDataLogic extends Logic
         for _, actorData in ipairs(slotData.Actors) do
             if self:NormalizeActorJobs(actorData) then
                 migratedActorJobs = true
+            end
+            if self:NormalizeActorAttributeAllocations(actorData) then
+                migratedActorAllocations = true
             end
         end
 
@@ -227,7 +232,8 @@ script PlayerDataLogic extends Logic
         _LootDropLogic:LoadUserMapState(userId, slotData.MapState)
         self:ApplyPrimaryActorToPlayer(userId, slotData.Actors)
 
-        if createdVirtualActors == true or migratedActorJobs == true then
+        if createdVirtualActors == true or migratedProgression == true
+            or migratedActorJobs == true or migratedActorAllocations == true then
             self:MarkDirty(userId)
         end
         local formationCount = 0
@@ -238,6 +244,8 @@ script PlayerDataLogic extends Logic
         log("[PlayerDataLogic] ApplyLoadedSlotData. userId=" .. userId
             .. ", slotIndex=" .. tostring(slotIndex)
             .. ", actorCount=" .. tostring(#slotData.Actors)
+            .. ", sharedLevel=" .. tostring(slotData.Progression.Level)
+            .. ", sharedExperience=" .. tostring(slotData.Progression.Experience)
             .. ", formationCount=" .. tostring(formationCount)
             .. ", itemCount=" .. tostring(itemCount))
     end
@@ -286,17 +294,18 @@ script PlayerDataLogic extends Logic
                 loadedActiveJob = loadedJobs[loadedActiveIndex] or loadedJobs[1]
                 if loadedActiveJob == nil and (loadedActor.jobType ~= nil or loadedActor.JobType ~= nil) then
                     loadedActiveJob = {
-                        jobType = loadedActor.jobType or loadedActor.JobType,
-                        level = loadedActor.level or loadedActor.Level
+                        jobType = loadedActor.jobType or loadedActor.JobType
                     }
                 end
             end
         end
+        local loadedProgression = slotData.Progression or {}
         log("[PlayerDataLogic] LoadSlotData. userId=" .. userId
             .. ", slotKey=" .. slotKey
             .. ", configId=" .. tostring(loadedActor ~= nil and (loadedActor.configId or loadedActor.ConfigId) or nil)
             .. ", activeJob=" .. tostring(loadedActiveJob ~= nil and loadedActiveJob.jobType or nil)
-            .. ", jobLevel=" .. tostring(loadedActiveJob ~= nil and loadedActiveJob.level or nil))
+            .. ", sharedLevel=" .. tostring(loadedProgression.Level)
+            .. ", sharedExperience=" .. tostring(loadedProgression.Experience))
         return slotData
     end
 
@@ -328,11 +337,13 @@ script PlayerDataLogic extends Logic
                 savedActiveJob = self:GetActiveActorJob(savedActor)
             end
         end
+        local savedProgression = slotData.Progression or {}
         log("[PlayerDataLogic] SaveSlotData. userId=" .. userId
             .. ", slotKey=" .. slotKey
             .. ", configId=" .. tostring(savedActor ~= nil and (savedActor.configId or savedActor.ConfigId) or nil)
             .. ", activeJob=" .. tostring(savedActiveJob ~= nil and savedActiveJob.jobType or nil)
-            .. ", jobLevel=" .. tostring(savedActiveJob ~= nil and savedActiveJob.level or nil))
+            .. ", sharedLevel=" .. tostring(savedProgression.Level)
+            .. ", sharedExperience=" .. tostring(savedProgression.Experience))
         return true
     end
 
@@ -348,6 +359,7 @@ script PlayerDataLogic extends Logic
         if slotData.Profile == nil then
             slotData.Profile = self:CreateDefaultProfileData()
         end
+        self:NormalizeSharedProgression(slotData)
 
         slotData.Party = _PartyLogic:ExportUserData(userId)
         -- Root Inventory remains an empty compatibility shell in schema v5.
@@ -356,6 +368,7 @@ script PlayerDataLogic extends Logic
         slotData.Mission = _MissionLogic:ExportUserData(userId)
         slotData.Actors = self:CollectPlayerActors(userId, slotData.Actors)
         slotData.Actors = _InventoryLogic:ExportActorInventories(userId, slotData.Actors)
+        self:NormalizeSharedProgression(slotData)
         slotData.PlayerPosition = self:CollectPlayerPosition(userId, slotData.PlayerPosition)
         slotData.MapState = _LootDropLogic:ExportUserMapState(userId)
 
@@ -368,6 +381,7 @@ script PlayerDataLogic extends Logic
         local slotData = {}
         slotData.Version = self.currentSchemaVersion
         slotData.Profile = self:CreateDefaultProfileData()
+        slotData.Progression = self:CreateDefaultProgressionData()
         slotData.PlayerPosition = self:CreateDefaultPlayerPositionData()
         slotData.Party = _PartyLogic:CreateDefaultData()
         slotData.Inventory = _InventoryLogic:CreateEmptyData()
@@ -375,12 +389,237 @@ script PlayerDataLogic extends Logic
         slotData.Mission = _MissionLogic:CreateDefaultData()
         slotData.Actors = self:CreateDefaultActorList()
         slotData.MapState = _LootDropLogic:CreateDefaultMapState()
+        self:NormalizeSharedProgression(slotData)
         return slotData
     end
 
     @ExecSpace("ServerOnly")
+    method table CreateDefaultProgressionData()
+        -- Creates the shared total level budget and experience bar.
+        local progression = {}
+        progression.Level = 1
+        progression.Experience = 0
+        return progression
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean NormalizeSharedProgression(table slotData)
+        -- Migrates shared totals while preserving each job's allocated level.
+        if slotData == nil then
+            return false
+        end
+
+        local migrated = false
+        local allocatedJobLevelTotal = 0
+        local hasActorJobLevels = false
+        local legacyExperience = 0
+        for _, actorData in ipairs(slotData.Actors or {}) do
+            local savedJobs = actorData.jobs or actorData.Jobs or {}
+            if #savedJobs > 0 then
+                for _, jobData in ipairs(savedJobs) do
+                    allocatedJobLevelTotal = allocatedJobLevelTotal + math.max(1, math.floor(tonumber(
+                        jobData.level or jobData.Level
+                    ) or 1))
+                    hasActorJobLevels = true
+                end
+            elseif actorData.level ~= nil or actorData.Level ~= nil then
+                allocatedJobLevelTotal = allocatedJobLevelTotal + math.max(1, math.floor(tonumber(
+                    actorData.level or actorData.Level
+                ) or 1))
+                hasActorJobLevels = true
+            end
+        end
+
+        local partyMembers = slotData.Party ~= nil and slotData.Party.Members or {}
+        local legacyPartyLevelTotal = 0
+        for _, memberData in ipairs(partyMembers or {}) do
+            legacyPartyLevelTotal = legacyPartyLevelTotal + math.max(1, math.floor(tonumber(
+                memberData.Level or memberData.level
+            ) or 1))
+            legacyExperience = math.max(legacyExperience, math.floor(tonumber(
+                memberData.Exp or memberData.exp
+            ) or 0))
+            if memberData.Level ~= nil or memberData.level ~= nil
+                or memberData.Exp ~= nil or memberData.exp ~= nil then
+                memberData.Level = nil
+                memberData.level = nil
+                memberData.Exp = nil
+                memberData.exp = nil
+                migrated = true
+            end
+        end
+
+        local legacyLevel = allocatedJobLevelTotal
+        if hasActorJobLevels == false then
+            legacyLevel = legacyPartyLevelTotal
+        end
+        legacyLevel = math.max(1, legacyLevel)
+
+        if slotData.Progression == nil then
+            slotData.Progression = self:CreateDefaultProgressionData()
+            slotData.Progression.Level = legacyLevel
+            slotData.Progression.Experience = legacyExperience
+            migrated = true
+        end
+
+        local normalizedLevel = math.max(
+            legacyLevel,
+            math.floor(tonumber(slotData.Progression.Level) or legacyLevel)
+        )
+        local normalizedExperience = math.max(0, math.floor(tonumber(
+            slotData.Progression.Experience
+        ) or legacyExperience))
+        if slotData.Progression.Level ~= normalizedLevel
+            or slotData.Progression.Experience ~= normalizedExperience then
+            migrated = true
+        end
+        slotData.Progression.Level = normalizedLevel
+        slotData.Progression.Experience = normalizedExperience
+        return migrated
+    end
+
+    @ExecSpace("ServerOnly")
+    method table GetSharedProgression(string userId)
+        -- Returns the loaded slot's shared progression cache without a storage read.
+        local slotData = self.slotDataCache[userId]
+        if slotData == nil then
+            return nil
+        end
+        self:NormalizeSharedProgression(slotData)
+        return slotData.Progression
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean AddSharedExperience(string userId, integer amount)
+        -- Credits experience once to the save slot, independent of party membership.
+        if amount <= 0 then
+            return false
+        end
+        local progression = self:GetSharedProgression(userId)
+        if progression == nil then
+            log_warning("[PlayerDataLogic] AddSharedExperience ignored: no loaded slot. userId="
+                .. tostring(userId))
+            return false
+        end
+        progression.Experience = progression.Experience + amount
+        self:MarkDirty(userId)
+        log("[PlayerDataLogic] AddSharedExperience. userId=" .. userId
+            .. ", amount=" .. tostring(amount)
+            .. ", sharedLevel=" .. tostring(progression.Level)
+            .. ", sharedExperience=" .. tostring(progression.Experience))
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean SetSharedLevelAndExperience(string userId, integer level, integer experience)
+        -- Applies a level-up result calculated by the future progression formula owner.
+        local progression = self:GetSharedProgression(userId)
+        if progression == nil then
+            log_warning("[PlayerDataLogic] SetSharedLevelAndExperience ignored: no loaded slot. userId="
+                .. tostring(userId))
+            return false
+        end
+
+        local slotData = self.slotDataCache[userId]
+        local allocatedLevelTotal = self:GetAllocatedJobLevelTotal(
+            slotData ~= nil and slotData.Actors or {}
+        )
+        local normalizedLevel = math.max(1, allocatedLevelTotal, level)
+        local normalizedExperience = math.max(0, experience)
+        if progression.Level == normalizedLevel and progression.Experience == normalizedExperience then
+            return true
+        end
+
+        progression.Level = normalizedLevel
+        progression.Experience = normalizedExperience
+        self:MarkDirty(userId)
+        log("[PlayerDataLogic] SetSharedLevelAndExperience. userId=" .. userId
+            .. ", sharedLevel=" .. tostring(progression.Level)
+            .. ", sharedExperience=" .. tostring(progression.Experience))
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetAllocatedJobLevelTotal(table actors)
+        -- Sums the saved job-level distribution across every owned actor.
+        local total = 0
+        for _, actorData in ipairs(actors or {}) do
+            self:NormalizeActorJobs(actorData)
+            for _, jobData in ipairs(actorData.jobs or {}) do
+                total = total + math.max(1, math.floor(tonumber(jobData.level) or 1))
+            end
+        end
+        return total
+    end
+
+    @ExecSpace("ServerOnly")
+    method integer GetUnallocatedJobLevelCount(string userId)
+        -- Returns shared total levels not yet assigned to any actor job.
+        local slotData = self.slotDataCache[userId]
+        if slotData == nil then
+            return 0
+        end
+        self:NormalizeSharedProgression(slotData)
+        return math.max(0, slotData.Progression.Level - self:GetAllocatedJobLevelTotal(slotData.Actors))
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean SetActorJobLevel(string userId, integer actorIndex, integer jobIndex, integer jobLevel)
+        -- Changes one job's allocation without exceeding the shared total level.
+        local slotData = self.slotDataCache[userId]
+        if slotData == nil or slotData.Actors == nil or slotData.Actors[actorIndex] == nil then
+            log_warning("[PlayerDataLogic] SetActorJobLevel rejected: actor is missing. userId="
+                .. tostring(userId) .. ", actorIndex=" .. tostring(actorIndex))
+            return false
+        end
+
+        local actorData = slotData.Actors[actorIndex]
+        self:NormalizeActorJobs(actorData)
+        local jobData = actorData.jobs[jobIndex]
+        if jobData == nil then
+            log_warning("[PlayerDataLogic] SetActorJobLevel rejected: job is missing. userId="
+                .. tostring(userId) .. ", actorIndex=" .. tostring(actorIndex)
+                .. ", jobIndex=" .. tostring(jobIndex))
+            return false
+        end
+
+        self:NormalizeSharedProgression(slotData)
+        local normalizedJobLevel = math.max(1, jobLevel)
+        local currentAllocatedTotal = self:GetAllocatedJobLevelTotal(slotData.Actors)
+        local nextAllocatedTotal = currentAllocatedTotal - jobData.level + normalizedJobLevel
+        if nextAllocatedTotal > slotData.Progression.Level then
+            log_warning("[PlayerDataLogic] SetActorJobLevel rejected: allocation exceeds shared level. userId="
+                .. userId .. ", sharedLevel=" .. tostring(slotData.Progression.Level)
+                .. ", requestedAllocatedTotal=" .. tostring(nextAllocatedTotal))
+            return false
+        end
+
+        if jobData.level == normalizedJobLevel then
+            return true
+        end
+        jobData.level = normalizedJobLevel
+        self:MarkDirty(userId)
+
+        if actorIndex == 1 and actorData.activeJobIndex == jobIndex then
+            local userEntity = _UserService:GetUserEntityByUserId(userId)
+            local battleActor = isvalid(userEntity) and userEntity:GetComponent("BattleActorCom") or nil
+            if isvalid(battleActor) then
+                battleActor.level = normalizedJobLevel
+            end
+        end
+
+        log("[PlayerDataLogic] SetActorJobLevel. userId=" .. userId
+            .. ", actorIndex=" .. tostring(actorIndex)
+            .. ", jobIndex=" .. tostring(jobIndex)
+            .. ", jobLevel=" .. tostring(normalizedJobLevel)
+            .. ", sharedLevel=" .. tostring(slotData.Progression.Level)
+            .. ", unallocated=" .. tostring(slotData.Progression.Level - nextAllocatedTotal))
+        return true
+    end
+
+    @ExecSpace("ServerOnly")
     method table CreateDefaultActorList()
-        -- Slim Actors[] seed only. No current hp/mp/stamina (not persisted).
+        -- Seeds actor identity, jobs, per-actor allocations, and inventory only.
         local actors = {}
         local actorData = {}
         actorData.configId = "playerWarrior"
@@ -402,18 +641,124 @@ script PlayerDataLogic extends Logic
             }
         }
         actorData.activeJobIndex = 1
-        actorData.constitution = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "constitution", 10) or 10
-        actorData.dexterity = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "dexterity", 6) or 6
-        actorData.intelligence = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "intelligence", 4) or 4
-        actorData.will = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "will", 6) or 6
-        actorData.perception = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "perception", 5) or 5
+        actorData.attributeAllocations = self:CreateDefaultAttributeAllocations()
         actorData.inventory = _InventoryLogic:CreateDefaultData()
         actors[1] = actorData
         return actors
     end
 
     @ExecSpace("ServerOnly")
+    method table CreateDefaultAttributeAllocations()
+        -- Creates zero custom points for one actor's five allocatable attributes.
+        local allocations = {}
+        allocations.constitution = 0
+        allocations.dexterity = 0
+        allocations.intelligence = 0
+        allocations.will = 0
+        allocations.perception = 0
+        return allocations
+    end
+
+    @ExecSpace("ServerOnly")
+    method table GetActorBaseAttributes(string configId)
+        -- Reads immutable actor-template attributes used beneath saved custom points.
+        local baseAttributes = {}
+        local actorConfig = _DataService:GetTable("actorConfig")
+        local actorRow = actorConfig ~= nil and actorConfig:FindRow("configId", configId) or nil
+        baseAttributes.constitution = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "constitution", 0) or 0
+        baseAttributes.dexterity = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "dexterity", 0) or 0
+        baseAttributes.intelligence = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "intelligence", 0) or 0
+        baseAttributes.will = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "will", 0) or 0
+        baseAttributes.perception = actorRow ~= nil and _DataUtil:GetRowInteger(actorRow, "perception", 0) or 0
+        return baseAttributes
+    end
+
+    @ExecSpace("ServerOnly")
+    method boolean NormalizeActorAttributeAllocations(table actorData)
+        -- Migrates legacy saved attribute totals into actor-specific custom points.
+        if actorData == nil then
+            return false
+        end
+
+        local migrated = false
+        local configId = tostring(actorData.configId or actorData.ConfigId or "")
+        local baseAttributes = self:GetActorBaseAttributes(configId)
+        if actorData.attributeAllocations == nil then
+            actorData.attributeAllocations = self:CreateDefaultAttributeAllocations()
+            actorData.attributeAllocations.constitution = math.max(0, math.floor(tonumber(
+                actorData.constitution or actorData.Constitution
+            ) or baseAttributes.constitution) - baseAttributes.constitution)
+            actorData.attributeAllocations.dexterity = math.max(0, math.floor(tonumber(
+                actorData.dexterity or actorData.Dexterity
+            ) or baseAttributes.dexterity) - baseAttributes.dexterity)
+            actorData.attributeAllocations.intelligence = math.max(0, math.floor(tonumber(
+                actorData.intelligence or actorData.Intelligence
+            ) or baseAttributes.intelligence) - baseAttributes.intelligence)
+            actorData.attributeAllocations.will = math.max(0, math.floor(tonumber(
+                actorData.will or actorData.Will
+            ) or baseAttributes.will) - baseAttributes.will)
+            actorData.attributeAllocations.perception = math.max(0, math.floor(tonumber(
+                actorData.perception or actorData.Perception
+            ) or baseAttributes.perception) - baseAttributes.perception)
+            migrated = true
+        end
+
+        local allocations = actorData.attributeAllocations
+        for _, key in ipairs({ "constitution", "dexterity", "intelligence", "will", "perception" }) do
+            local normalizedValue = math.max(0, math.floor(tonumber(allocations[key]) or 0))
+            if allocations[key] ~= normalizedValue then
+                migrated = true
+            end
+            allocations[key] = normalizedValue
+        end
+
+        if actorData.constitution ~= nil or actorData.Constitution ~= nil
+            or actorData.dexterity ~= nil or actorData.Dexterity ~= nil
+            or actorData.intelligence ~= nil or actorData.Intelligence ~= nil
+            or actorData.will ~= nil or actorData.Will ~= nil
+            or actorData.perception ~= nil or actorData.Perception ~= nil then
+            migrated = true
+        end
+        actorData.constitution = nil
+        actorData.Constitution = nil
+        actorData.dexterity = nil
+        actorData.Dexterity = nil
+        actorData.intelligence = nil
+        actorData.Intelligence = nil
+        actorData.will = nil
+        actorData.Will = nil
+        actorData.perception = nil
+        actorData.Perception = nil
+        return migrated
+    end
+
+    @ExecSpace("ServerOnly")
+    method table CreateAttributeAllocationsFromRuntime(table runtimeActor)
+        -- Converts runtime total attributes back into saved actor-specific custom points.
+        local configId = tostring(runtimeActor.configId or runtimeActor.ConfigId or "")
+        local baseAttributes = self:GetActorBaseAttributes(configId)
+        local allocations = self:CreateDefaultAttributeAllocations()
+        allocations.constitution = math.max(0, math.floor(tonumber(
+            runtimeActor.constitution
+        ) or baseAttributes.constitution) - baseAttributes.constitution)
+        allocations.dexterity = math.max(0, math.floor(tonumber(
+            runtimeActor.dexterity
+        ) or baseAttributes.dexterity) - baseAttributes.dexterity)
+        allocations.intelligence = math.max(0, math.floor(tonumber(
+            runtimeActor.intelligence
+        ) or baseAttributes.intelligence) - baseAttributes.intelligence)
+        allocations.will = math.max(0, math.floor(tonumber(
+            runtimeActor.will
+        ) or baseAttributes.will) - baseAttributes.will)
+        allocations.perception = math.max(0, math.floor(tonumber(
+            runtimeActor.perception
+        ) or baseAttributes.perception) - baseAttributes.perception)
+        return allocations
+    end
+
+    @ExecSpace("ServerOnly")
     method boolean NormalizeActorJobs(table actorData)
+        -- Normalizes each saved job identity and its custom level allocation.
         if actorData == nil then
             return false
         end
@@ -423,16 +768,25 @@ script PlayerDataLogic extends Logic
         for _, savedJob in ipairs(actorData.jobs or actorData.Jobs or {}) do
             local jobType = tostring(savedJob.jobType or savedJob.JobType or savedJob.job or "")
             if jobType ~= "" then
+                local normalizedJobLevel = math.max(1, math.floor(tonumber(
+                    savedJob.level or savedJob.Level
+                ) or 1))
                 table.insert(normalizedJobs, {
                     jobType = jobType,
-                    level = math.max(1, math.floor(tonumber(savedJob.level or savedJob.Level) or 1))
+                    level = normalizedJobLevel
                 })
+                if savedJob.jobType ~= jobType or savedJob.level ~= normalizedJobLevel
+                    or savedJob.JobType ~= nil or savedJob.job ~= nil or savedJob.Level ~= nil then
+                    migrated = true
+                end
             end
         end
 
         if #normalizedJobs == 0 then
             local legacyJobType = tostring(actorData.jobType or actorData.JobType or "")
-            local legacyLevel = math.max(1, math.floor(tonumber(actorData.level or actorData.Level) or 1))
+            local legacyJobLevel = math.max(1, math.floor(tonumber(
+                actorData.level or actorData.Level
+            ) or 1))
             if legacyJobType == "" then
                 local actorConfig = _DataService:GetTable("actorConfig")
                 local actorRow = actorConfig ~= nil and actorConfig:FindRow(
@@ -441,13 +795,13 @@ script PlayerDataLogic extends Logic
                 ) or nil
                 if actorRow ~= nil then
                     legacyJobType = _DataUtil:GetRowString(actorRow, "jobType", "")
-                    legacyLevel = _DataUtil:GetRowInteger(actorRow, "level", legacyLevel)
+                    legacyJobLevel = _DataUtil:GetRowInteger(actorRow, "level", legacyJobLevel)
                 end
             end
             if legacyJobType ~= "" then
                 table.insert(normalizedJobs, {
                     jobType = legacyJobType,
-                    level = math.max(1, legacyLevel)
+                    level = math.max(1, legacyJobLevel)
                 })
             end
             migrated = true
@@ -477,6 +831,7 @@ script PlayerDataLogic extends Logic
 
     @ExecSpace("ServerOnly")
     method table GetActiveActorJob(table actorData)
+        -- Returns the selected job identity and its allocated job level.
         self:NormalizeActorJobs(actorData)
         local activeJobIndex = math.floor(tonumber(actorData.activeJobIndex) or 1)
         return actorData.jobs[activeJobIndex] or actorData.jobs[1]
@@ -494,12 +849,18 @@ script PlayerDataLogic extends Logic
         runtime.configId = tostring(saveActor.configId or saveActor.ConfigId or "")
         local activeJob = self:GetActiveActorJob(saveActor)
         runtime.jobType = tostring(activeJob ~= nil and activeJob.jobType or "")
-        runtime.level = math.max(1, math.floor(tonumber(activeJob ~= nil and activeJob.level or 1) or 1))
-        runtime.constitution = math.max(0, math.floor(tonumber(saveActor.constitution or saveActor.Constitution) or 0))
-        runtime.dexterity = math.max(0, math.floor(tonumber(saveActor.dexterity or saveActor.Dexterity) or 0))
-        runtime.intelligence = math.max(0, math.floor(tonumber(saveActor.intelligence or saveActor.Intelligence) or 0))
-        runtime.will = math.max(0, math.floor(tonumber(saveActor.will or saveActor.Will) or 0))
-        runtime.perception = math.max(0, math.floor(tonumber(saveActor.perception or saveActor.Perception) or 0))
+        runtime.level = math.max(1, math.floor(tonumber(
+            activeJob ~= nil and activeJob.level or 1
+        ) or 1))
+
+        self:NormalizeActorAttributeAllocations(saveActor)
+        local baseAttributes = self:GetActorBaseAttributes(runtime.configId)
+        local allocations = saveActor.attributeAllocations
+        runtime.constitution = baseAttributes.constitution + allocations.constitution
+        runtime.dexterity = baseAttributes.dexterity + allocations.dexterity
+        runtime.intelligence = baseAttributes.intelligence + allocations.intelligence
+        runtime.will = baseAttributes.will + allocations.will
+        runtime.perception = baseAttributes.perception + allocations.perception
 
         local derived = self:ComputeActorDerivedFromAttributes(runtime)
         runtime.maxHp = derived.maxHp
@@ -730,6 +1091,7 @@ script PlayerDataLogic extends Logic
         log("[PlayerDataLogic] ApplyPrimaryActorToPlayer complete. userId=" .. userId
             .. ", statsSource=" .. tostring(battleActor.statsSource)
             .. ", configId=" .. tostring(battleActor.configId)
+            .. ", sharedLevel=" .. tostring(battleActor.level)
             .. ", hp=" .. tostring(battleActor.hp)
             .. "/" .. tostring(battleActor.maxHp)
             .. ", mp=" .. tostring(battleActor.mp)
@@ -772,10 +1134,18 @@ script PlayerDataLogic extends Logic
         else
             local activeJob = exportedActor.jobs[exportedActor.activeJobIndex] or exportedActor.jobs[1]
             activeJob.jobType = tostring(exportedActor.jobType or activeJob.jobType or "")
-            activeJob.level = math.max(1, math.floor(tonumber(exportedActor.level or activeJob.level) or 1))
+            activeJob.level = math.max(1, math.floor(tonumber(
+                exportedActor.level or activeJob.level
+            ) or 1))
         end
+        exportedActor.attributeAllocations = self:CreateAttributeAllocationsFromRuntime(exportedActor)
         exportedActor.jobType = nil
         exportedActor.level = nil
+        exportedActor.constitution = nil
+        exportedActor.dexterity = nil
+        exportedActor.intelligence = nil
+        exportedActor.will = nil
+        exportedActor.perception = nil
         actors[1] = exportedActor
         actors[1].inventory = previousInventory or _InventoryLogic:CreateEmptyData()
         return actors

@@ -49,7 +49,7 @@ script PartyLogic extends Logic
         if self:GetFormationCount(partyData.Formation) == 0 then
             partyData.Formation[1] = "playerWarrior"
             if partyData.Members[1] == nil then
-                partyData.Members[1] = self:CreateActorState("playerWarrior", 1)
+                partyData.Members[1] = self:CreateActorState("playerWarrior")
             end
             log_warning("[PartyLogic] LoadUserData repaired empty formation. userId=" .. userId)
         end
@@ -225,7 +225,7 @@ script PartyLogic extends Logic
         partyData.ActiveTeamIndex = 1
         partyData.ActiveFieldSlot = 1
 
-        partyData.Members[1] = self:CreateActorState("playerWarrior", 1)
+        partyData.Members[1] = self:CreateActorState("playerWarrior")
         partyData.Formation[1] = "playerWarrior"
         partyData.Teams[1] = self:CopyFormation(partyData.Formation)
         partyData.Teams[2] = {}
@@ -235,12 +235,10 @@ script PartyLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
-    method table CreateActorState(string actorKey, integer level)
-        -- Creates one actor state from actorConfig plus runtime defaults.
+    method table CreateActorState(string actorKey)
+        -- Creates legacy party identity/resource data without progression duplicates.
         local actorState = {}
         actorState.ActorKey = actorKey
-        actorState.Level = level
-        actorState.Exp = 0
         actorState.Hp = self:GetActorInteger(actorKey, "maxHp", 1)
         actorState.Mp = self:GetActorInteger(actorKey, "maxMp", 0)
         return actorState

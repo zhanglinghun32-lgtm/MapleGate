@@ -13,8 +13,11 @@ startup. One component serves every combatant; the branch is
 `playerWarrior`, `slime`). It is not “always reload grown stats from CSV”.
 Combat field names are **lowerCamelCase** across Config / Actors[] / Com.
 
-Player Save is **slim** (five attrs + `jobs[]` / `activeJobIndex`). The live
-`BattleActorCom.jobType` / `level` pair is only the selected active job. Current
+Player Save is **slim** (per-actor custom attribute allocations + `jobs[]` /
+`activeJobIndex`), while root `Progression` owns one shared level/experience
+bar. The live `BattleActorCom.jobType` is the selected active job and its
+`level` comes from that job's saved `jobs[].level`; `Progression.Level` is the
+shared total allocation budget. Current
 `hp`/`mp`/`stamina` are **not** persisted; `BuildRuntimeActorState` fills them
 to full max for `ImportSaveData` / battle entry. `maxHp` / def / speed are
 computed in `PlayerDataLogic` at load. Monster/NPC stay full Config literals
@@ -72,7 +75,8 @@ Load / NewGame / Continue
   -> ApplyPrimaryActorToPlayer(userId, slotData.Actors)
        1. Ensure BattleActorCom on DefaultPlayer
        2. battleActor.statsSource = "Save"
-       3. runtime = BuildRuntimeActorState(Actors[1])  -- formula -> max*/def/speed; currents = full
+       3. runtime = BuildRuntimeActorState(Actors[1])
+          -- Config base + attribute allocations + active job level
        4. battleActor:ImportSaveData(runtime)
             a. ApplyConfig(configId)     -- archetype seed
             b. Overlay slim Save + computed runtime fields (incl. full currents)
@@ -85,15 +89,20 @@ Load / NewGame / Continue
 
 Rules:
 
-- Save stores only slim fields; capacities and currents are never authoritative in Save.
+- Save stores shared progression plus slim actor customization; capacities and
+  currents are never authoritative in Save.
 - New-game seed: `CreateDefaultActorList()` writes slim Actors only (no currents).
-- Flush: `ExportSaveData()` → slim `Actors[1]` only (no currents).
+- Flush: `ExportSaveData()` → `PlayerDataLogic` writes runtime level into the
+  active job, converts attribute totals to allocations, and writes slim
+  `Actors[1]`.
 
 Flush on save:
 
 ```text
 PlayerDataLogic:CollectPlayerActors
-  -> BattleActorCom:ExportSaveData()   -- slim only
+  -> BattleActorCom:ExportSaveData()   -- runtime identity/attribute totals
+  -> PlayerDataLogic converts totals to attributeAllocations
+  -> PlayerDataLogic updates jobs[activeJobIndex].level
   -> slotData.Actors[1]
 ```
 
@@ -103,8 +112,8 @@ PlayerDataLogic:CollectPlayerActors
 
 | Data | Config (`actorConfig`) | Save (`Actors[]`) | Runtime (`BattleActorCom`) |
 |---|---|---|---|
-| Archetype / job / level | one initial job | all jobs + active index | active job only |
-| Five attributes | Monster literals; player template | yes (allocation) | yes |
+| Archetype / job / level | one initial job/level | jobs with allocated levels + shared total at root | active job + its level |
+| Five attributes | Monster literals; player base template | custom allocations only | base + allocation |
 | Current `hp` / `mp` / `stamina` | seed = max | **no** (fill full on import) | yes (session) |
 | Derived (`maxHp`, `defense`, `speed`, …) | Monster literals in Config | **no** | yes (PlayerDataLogic → Import) |
 | `atk` / 攻擊力 | **not in Config** | **no** | **no** (Wrapper cast-time only) |

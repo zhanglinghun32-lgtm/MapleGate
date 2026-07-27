@@ -54,11 +54,12 @@ c:\github\
 
 ## Folder Rules
 
-### Config — flat by default; skill presentation under `skill/`
+### Config — flat by default; documented system tables may use a folder
 
 Most static game tables live directly in `Data/Config/` as `.csv` + `.userdataset`
-pairs. Skill presentation tables live under `Data/Config/skill/`. Do not invent
-other category subfolders unless documented here.
+pairs. Skill presentation tables live under `Data/Config/skill/`; the four
+Mission tables live under `Data/Config/mission/`. Do not invent other category
+subfolders unless documented here.
 
 | Table | Path | `GetTable` name | Purpose |
 |-------|------|-----------------|---------|
@@ -71,7 +72,10 @@ other category subfolders unless documented here.
 | `consumableConfig` | `Config/` | `"consumableConfig"` | Consumables |
 | `equipmentConfig` | `Config/` | `"equipmentConfig"` | Equipment |
 | `inventoryConfig` | `Config/` | `"inventoryConfig"` | Inventory items |
-| `missionConfig` | `Config/` | `"missionConfig"` | Quests / missions |
+| `missionConfig` | `Config/mission/` | `"missionConfig"` | One-time mission identity and lifecycle |
+| `missionObjectiveConfig` | `Config/mission/` | `"missionObjectiveConfig"` | Mission objective rows |
+| `missionRewardConfig` | `Config/mission/` | `"missionRewardConfig"` | Mission reward rows |
+| `missionActionConfig` | `Config/mission/` | `"missionActionConfig"` | Accept / complete side effects |
 | `UIRegistry` | `Config/` | `"UIRegistry"` | UI key → entity lookup |
 
 Runtime lookup uses the `name` field inside each `.userdataset`, not the file path.
@@ -179,7 +183,10 @@ they do not maintain a separate RUID registry.
 - Public scene/UI/data keys use PascalCase strings: `"MainMenu"`, `"World"`, `"CharacterStatus"`, `"Party"`.
 - Config row keys use camelCase or PascalCase consistently per table (`skillKey`, `encounterKey`).
 - Actor combat fields (`configId`, `maxHp`, five attrs, …) use **lowerCamelCase**
-  in `actorConfig`, `SaveSlot.Actors[]`, `BattleActorCom`, and snapshots — see
+  in `actorConfig`, `BattleActorCom`, and snapshots. SaveSlot uses root
+  `Progression` for shared total level/experience, `Actors[].jobs[].level` for
+  custom job-level distribution, and lowerCamelCase
+  `Actors[].attributeAllocations` for actor-specific points — see
   `docs/Actor/ActorVariableExplain.md`. Actors have no `atk` / 攻擊力.
 - Properties, local variables, and parameters use lowerCamelCase: `mainMenuSceneKey`, `userId`, `entryPosition`.
 - Methods use PascalCase: `ChangeScene`, `OpenUI`, `GetEntryPosition`.

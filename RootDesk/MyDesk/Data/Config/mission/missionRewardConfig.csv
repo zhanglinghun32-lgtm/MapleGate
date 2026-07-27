@@ -1,0 +1,6 @@
+missionKey,rewardGroupKey,selectionMode,optionKey,rewardOrder,rewardType,targetKey,amount,targetActor,enabled,notes
+missionWelcome,Guaranteed,All,,1,SharedExperience,,30,PrimaryActor,true,完成送信的共享經驗
+missionWelcome,Guaranteed,All,,2,Item,hpPotionSmall,2,ActiveActor,true,村長準備的治療藥水
+missionSlimeHunt,Guaranteed,All,,1,SharedExperience,,80,PrimaryActor,true,清理史萊姆的共享經驗
+missionSlimeHunt,PotionChoice,ChooseOne,Health,10,Item,hpPotionSmall,3,ActiveActor,true,獎勵擇一：生命藥水
+missionSlimeHunt,PotionChoice,ChooseOne,Mana,10,Item,mpPotionSmall,3,ActiveActor,true,獎勵擇一：魔力藥水

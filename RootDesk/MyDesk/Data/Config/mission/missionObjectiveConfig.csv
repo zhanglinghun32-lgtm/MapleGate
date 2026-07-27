@@ -1,0 +1,3 @@
+missionKey,objectiveKey,displayOrder,objectiveType,targetKey,requiredCount,progressMode,consumeOnTurnIn,textKey,enabled,notes
+missionWelcome,deliverSealedLetter,1,Deliver,sealedLetter,1,InventorySnapshot,true,mission_welcome_objective_deliver,true,把村長的密封信交給守衛
+missionSlimeHunt,defeatSlimes,1,Kill,slime,5,Accumulate,false,mission_slime_hunt_objective_kill,true,擊倒村外的五隻史萊姆

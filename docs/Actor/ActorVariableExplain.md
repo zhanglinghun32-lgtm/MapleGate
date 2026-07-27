@@ -33,14 +33,19 @@ templates). Player Save does **not** mirror the whole Config row.
 | Persist in `Actors[]` | Why |
 |---|---|
 | `configId` | Archetype / template link |
-| `jobs[]` | All jobs owned by the saved actor; each entry owns `jobType` and `level` |
+| `jobs[]` | All jobs owned by the saved actor; each entry owns `jobType` and its allocated `level` |
 | `activeJobIndex` | Selects which saved job becomes the runtime job |
-| `constitution` / `dexterity` / `intelligence` / `will` / `perception` | 五大屬性（升級加點） |
+| `attributeAllocations` | This actor's custom points for the five attributes |
+
+Root `SaveSlot.Progression` persists the shared total `Level` budget and
+`Experience`. Each job level is saved inside `Actors[].jobs[]` as the player's
+custom distribution of that total.
 
 ### What is NOT persisted
 
 | Not in Save | Why |
 |---|---|
+| Per-job `experience` | Only root `Progression.Experience` is authoritative |
 | `hp` / `mp` / `stamina` (**current**) | **Not remembered.** Each battle entry (and Create / fill into `BattleActorCom`) starts at full max (buffs may adjust). |
 | `maxHp` / `maxMp` / `maxStamina` | Derived from five attributes (+ level / job); exact curves TBD |
 | `baseDefense` / `speed` (and related) | Partly driven by attributes; full equations TBD |
@@ -49,8 +54,11 @@ templates). Player Save does **not** mirror the whole Config row.
 
 ```text
 Save (slim)                          Runtime / BattleActorCom
-configId, jobs[], activeJobIndex ->
-five attributes               ->  PlayerDataLogic:BuildRuntimeActorState
+Progression.Level              ->  total level allocation budget
+configId, jobs[level], activeJobIndex ->
+                                       | active jobs[].level -> runtime level
+attributeAllocations           ->  PlayerDataLogic:BuildRuntimeActorState
+                                       | actorConfig base + custom allocations
                                        | attribute-driven maxHp / maxMp / maxStamina / …
                                        v
                                  hp/mp/stamina = max (full fill; buff TBD)
@@ -104,7 +112,7 @@ skill base/coeff + attrs  --Wrapper-->  DamageRequest.atk
 
 ### Five primary attributes（五大屬性）— 簡介
 
-Player: 升級加點，存入 Save。  
+Player: 各角色升級加點只存自訂配置；等級／經驗由 SaveSlot 共用。
 Monster/NPC: 僅 Config 寫死，無加點 UI。
 
 | Key | 中文 | 影響（設計意圖） |
@@ -165,8 +173,9 @@ Same key spelling wherever a field appears. Do not mix `MaxHp` / `maxHp`.
 | Layer | Contents |
 |---|---|
 | `actorConfig.csv` | Meta + five attrs + **derived** columns (no attack) |
-| `Actors[]` Save | **Slim** only: identity + `jobs[]` / `activeJobIndex` + five attrs (**no** current hp/mp/stamina) |
-| `BuildRuntimeActorState` | Slim + derived + **current filled to full max** for Com import |
+| `Progression` Save | One shared `Level` / `Experience` for every actor |
+| `Actors[]` Save | **Slim** only: identity + jobs with allocated levels + custom attribute allocations |
+| `BuildRuntimeActorState` | Config base + allocations + active job level + derived + **current filled to full max** |
 | `BattleActorCom` | Live: five attrs + derived + **session current** hp/mp/stamina; **no atk** |
 | `ExportSaveData` | Slim only (drops current resources) |
 | `ExportSnapshot` | Runtime full including current (not Save) |
@@ -187,8 +196,8 @@ Same key spelling wherever a field appears. Do not mix `MaxHp` / `maxHp`.
 
 | Meaning | Key | Player Save | Player load compute | Monster Config | On Com |
 |---|---|---|---|---|---|
-| Archetype / jobs / level | Save: `configId` / `jobs[]` / `activeJobIndex`; Config/runtime: `jobType` / `level` | yes | selects active job | one initial job | active job only |
-| Five attrs | `constitution`…`perception` | yes | — | yes | yes |
+| Archetype / jobs / level | Save: total `Progression.Level`, actor `configId` / `jobs[].level` / `activeJobIndex` | total budget + job distribution | selects active job and its level | one initial job/level | active job level |
+| Five attrs | `constitution`…`perception` | custom allocations only | Config base + allocation | yes | total |
 | Current resources | `hp` / `mp` / `stamina` | **no** | fill **full** (= max, buff TBD) | seed = max | yes (session) |
 | Derived capacities / combat helpers | `maxHp`, `defense`, `speed`, … | **no** | **yes** (`PlayerDataLogic`) | hardcoded | yes |
 | Cast-time atk | `atk` on `DamageRequest` only | **no** | **no** (Wrapper on cast) | **no** | **no** |
@@ -242,7 +251,7 @@ Placeholder capacity curves live in `PlayerDataLogic`; replace when balance lock
 
 ## Quick examples
 
-| `configId` | Role | Persist five attrs? | Persist current hp? | Persist maxHp? |
+| `configId` | Role | Persist custom allocations? | Persist current hp? | Persist maxHp? |
 |---|---|---|---|---|
 | `playerWarrior` | Player template + Save seed | yes (Save) | **no** | no (compute) |
 | `slime` | Monster Config only | in Config only | **no** (seed full on ApplyConfig) | in Config only |

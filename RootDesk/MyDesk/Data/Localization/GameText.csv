@@ -8,3 +8,12 @@ sell,販賣,,販賣,sell
 sure_buy,真的要買嗎?,,確定購買?,Sure Buy?
 sure_sell,,,確定販賣?,Sure Sell?
 dialog_NPC_vendor_common,來買東C8,come and buy,來買東西,Open Store
+mission_welcome_name,村長的密封信,Mission title,村長的密封信,The Elder's Sealed Letter
+mission_welcome_desc,村長請你把一封密封信安全交給村口守衛。,Mission description,村長請你把一封密封信安全交給村口守衛。,Deliver the elder's sealed letter safely to the gate guard.
+mission_welcome_objective_deliver,把密封信交給村口守衛。,Mission objective,把密封信交給村口守衛。,Deliver the sealed letter to the gate guard.
+mission_slime_hunt_name,村外的史萊姆,Mission title,村外的史萊姆,Slimes Outside the Village
+mission_slime_hunt_desc,守衛要求你擊倒在村外聚集的五隻史萊姆。,Mission description,守衛要求你擊倒在村外聚集的五隻史萊姆。,The guard asks you to defeat five slimes gathering outside the village.
+mission_slime_hunt_objective_kill,擊倒五隻史萊姆。,Mission objective,擊倒五隻史萊姆。,Defeat five slimes.
+mission_slime_hunt_reward_prompt,選擇一項額外獎勵。,Mission reward prompt,選擇一項額外獎勵。,Choose one bonus reward.
+mission_slime_hunt_reward_health,三瓶小型生命藥水,Mission reward choice,三瓶小型生命藥水,Three Small HP Potions
+mission_slime_hunt_reward_mana,三瓶小型魔力藥水,Mission reward choice,三瓶小型魔力藥水,Three Small MP Potions

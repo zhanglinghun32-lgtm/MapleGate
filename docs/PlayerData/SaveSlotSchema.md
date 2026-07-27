@@ -30,8 +30,9 @@ table is a JSON array or object. The sentinel is removed immediately after decod
 
 | Exact key | Type | Required | Owner | Notes |
 |---|---|---:|---|---|
-| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `6`. v2 added `PlayerPosition` + JSON; v3 Actors slim lowerCamelCase; v4 drops persisted current `hp`/`mp`/`stamina`; v5 moves inventory ownership into each `Actors[].inventory`; **v6 replaces the saved actor-level `jobType` / `level` pair with `jobs[]` + `activeJobIndex`**. |
+| `Version` | integer | Yes | `PlayerDataLogic` | Current schema version is `7`. v2 added `PlayerPosition` + JSON; v3 Actors slim lowerCamelCase; v4 drops persisted current `hp`/`mp`/`stamina`; v5 moves inventory ownership into each `Actors[].inventory`; v6 added `jobs[]` + `activeJobIndex`; **v7 adds shared total `Progression`, retains distributed `jobs[].level`, and stores actor-specific `attributeAllocations` instead of attribute totals**. |
 | `Profile` | table | Yes | `PlayerDataLogic` | Slot metadata. |
+| `Progression` | table | Yes | `PlayerDataLogic` | Shared total level budget and experience bar; job-level distribution remains in `Actors[].jobs[]`. |
 | `PlayerPosition` | table | Yes | `PlayerDataLogic` | Last world position captured when the slot is saved. |
 | `Actors` | array<table> | Yes | `PlayerDataLogic` / `BattleActorCom` | `Actors[1]` is currently applied to DefaultPlayer. |
 | `Party` | table | Yes | `PartyLogic` | Party membership and formation. |
@@ -67,6 +68,21 @@ Path: `slotData.Profile`
 | `PlayTimeSeconds` | integer | `0` | Accumulated play time; update logic is not implemented yet. |
 | `LastSceneKey` | string | `"World"` | Public scene key, not a map name. |
 
+## Progression
+
+Path: `slotData.Progression`
+
+| Exact key | Type | Default | Notes |
+|---|---|---:|---|
+| `Level` | integer | `1` | SaveSlot-wide total earned level budget. |
+| `Experience` | integer | `0` | Shared experience; rewards never fan out per actor or party member. |
+
+Any actor's monster reward calls
+`PlayerDataLogic:AddSharedExperience(userId, amount)` exactly once. Party
+membership and battle participation do not affect receipt. The future level
+curve calls `SetSharedLevelAndExperience` after calculating the new level and
+remaining experience. See `docs/Progression/SharedProgression.md`.
+
 ## PlayerPosition
 
 Path: `slotData.PlayerPosition`
@@ -92,26 +108,23 @@ columns; Save does not copy them. See `docs/Actor/ActorVariableExplain.md`.
 | Exact key | Type | Default for `Actors[1]` | Source / meaning |
 |---|---|---|---|
 | `configId` | string | `"playerWarrior"` | Archetype link to `actorConfig.configId`. |
-| `jobs` | array<table> | `{ { jobType = "Warrior", level = 1 } }` | Every job acquired by this saved actor. The template's initial entry is seeded from the single `actorConfig.jobType` / `actorConfig.level` pair. |
+| `jobs` | array<table> | `{ { jobType = "Warrior", level = 1 } }` | Every acquired job and its custom allocation from the shared total level. |
 | `activeJobIndex` | integer | `1` | One-based index into `jobs`; selects the job imported into the live `BattleActorCom`. |
-| `constitution` | integer | `10` | 體質 — allocatable. |
-| `dexterity` | integer | `6` | 靈巧 — allocatable. |
-| `intelligence` | integer | `4` | 智力 — allocatable. |
-| `will` | integer | `6` | 意志 — allocatable. |
-| `perception` | integer | `5` | 感知 — allocatable. |
+| `attributeAllocations` | table | Five zero values | Actor-specific custom points added above immutable `actorConfig` base attributes. |
 | `inventory` | table | See Inventory | Per-character inventory. Every owned actor has one, whether or not it appears in `Party.Formation`. |
 
 ### Multi-Job Shape
 
-`actorConfig.csv` remains a design-template table and therefore contains only
-one `jobType` and one `level` per row. When a new player actor is created,
-`PlayerDataLogic:CreateDefaultActorList()` converts those two columns into the
-first saved `jobs[]` entry. Additional jobs exist only in PlayerData.
+`actorConfig.csv` remains a design-template table and contains one initial
+`jobType`. When a new player actor is created,
+`PlayerDataLogic:CreateDefaultActorList()` converts it into the first saved
+`jobs[]` entry. Additional jobs and their allocated levels exist only in
+PlayerData.
 
 ```lua
 jobs = {
-    { jobType = "Warrior", level = 12 },
-    { jobType = "Thief", level = 5 }
+    { jobType = "Warrior", level = 6 },
+    { jobType = "Thief", level = 4 }
 },
 activeJobIndex = 1
 ```
@@ -121,30 +134,41 @@ Path: `slotData.Actors[actorIndex].jobs[jobIndex]`
 | Exact key | Type | Notes |
 |---|---|---|
 | `jobType` | string | Canonical job key. Its spelling follows the job keys used by gameplay/config. |
-| `level` | integer | Level owned by this specific job; minimum `1`. |
+| `level` | integer | Level allocated to this job; minimum `1`. |
 
 - Array order is stable presentation order. `activeJobIndex` explicitly selects
   the currently equipped job; callers must not assume index `1` is always active.
-- The runtime `BattleActorCom.jobType` / `BattleActorCom.level` pair represents
-  only the active job. It is not the authoritative collection.
-- On save, `CollectPlayerActors()` updates the active `jobs[]` entry from the
-  runtime pair while preserving every inactive job.
+- Runtime `BattleActorCom.jobType` / `level` are the active job pair.
+- `Progression.Level` is the total budget. The sum of every saved job level may
+  be lower (unallocated levels), but must not exceed it.
+- On save, `CollectPlayerActors()` updates the active job pair while preserving
+  every inactive job.
 
-### v5 and older migration
+### Attribute allocation shape
 
-When an actor has no valid `jobs[]`, `NormalizeActorJobs()` migrates:
+Path: `slotData.Actors[actorIndex].attributeAllocations`
 
-```text
-actor.jobType + actor.level
-        ↓
-actor.jobs[1].jobType + actor.jobs[1].level
-actor.activeJobIndex = 1
-```
+| Exact key | Type | Default | Meaning |
+|---|---|---:|---|
+| `constitution` | integer | `0` | Custom 體質 points above Config base. |
+| `dexterity` | integer | `0` | Custom 靈巧 points above Config base. |
+| `intelligence` | integer | `0` | Custom 智力 points above Config base. |
+| `will` | integer | `0` | Custom 意志 points above Config base. |
+| `perception` | integer | `0` | Custom 感知 points above Config base. |
 
-If the legacy pair is also missing, the initial job is recovered from the
-actor's `actorConfig` row. Legacy top-level `jobType`, `JobType`, `level`, and
-`Level` keys are removed from the in-memory save and are not written by the next
-explicit save.
+Runtime total = matching `actorConfig` base + saved custom allocation.
+
+### v6 and older migration
+
+- Shared `Progression.Level` takes the sum of saved actor job levels, with
+  legacy party-member levels used only when actor jobs are absent.
+- Shared `Progression.Experience` takes the highest legacy party-member Exp;
+  old values are not summed because member rows may duplicate the same reward.
+- `NormalizeActorJobs()` retains each `jobType` / `level`; legacy actor-level
+  values migrate into the first job.
+- `NormalizeActorAttributeAllocations()` subtracts Config base values from
+  legacy saved attribute totals and stores the non-negative differences.
+- Legacy `Party.Members[].Level/Exp` are removed.
 
 **Do not persist** (filled or recomputed at runtime):
 
@@ -158,9 +182,10 @@ explicit save.
 
 Load: slim `Actors[]` → `BuildRuntimeActorState` (currents = full) →
 `BattleActorCom:ImportSaveData(runtime)`.  
-Export: `BattleActorCom:ExportSaveData()` exposes the active runtime pair;
-`PlayerDataLogic:CollectPlayerActors()` merges it into `jobs[activeJobIndex]`,
-preserves inactive jobs, and writes the slim v6 actor shape.
+Export: `BattleActorCom:ExportSaveData()` exposes runtime totals;
+`PlayerDataLogic:CollectPlayerActors()` converts them back to custom
+allocations, preserves jobs/inventory, copies runtime level into the active job,
+and writes the slim v7 actor shape.
 
 ## Party
 
@@ -177,15 +202,14 @@ Path: `slotData.Party.Members[index]`
 | Exact key | Type | Default member |
 |---|---|---|
 | `ActorKey` | string | `"playerWarrior"` |
-| `Level` | integer | `1` |
-| `Exp` | integer | `0` |
 | `Hp` | integer | From `actorConfig.maxHp` |
 | `Mp` | integer | From `actorConfig.maxMp` |
 
 ### Deprecation Direction
 
-`slotData.Party.Members` currently duplicates actor stats from `Actors`. New work
-must **not** add more duplicate writes.
+`slotData.Party.Members` currently duplicates identity/resources from `Actors`.
+It must not contain `Level` or `Exp`; progression belongs only to root
+`Progression`.
 
 Recommended migration:
 
@@ -280,11 +304,15 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
 
 ```lua
 {
-    Version = 6,
+    Version = 7,
     Profile = {
         DisplayName = "Player",
         PlayTimeSeconds = 0,
         LastSceneKey = "World"
+    },
+    Progression = {
+        Level = 1,
+        Experience = 0
     },
     PlayerPosition = {
         X = 0,
@@ -298,11 +326,13 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
                 { jobType = "Warrior", level = 1 }
             },
             activeJobIndex = 1,
-            constitution = 10,
-            dexterity = 6,
-            intelligence = 4,
-            will = 6,
-            perception = 5,
+            attributeAllocations = {
+                constitution = 0,
+                dexterity = 0,
+                intelligence = 0,
+                will = 0,
+                perception = 0
+            },
             inventory = {
                 Items = {
                     { ItemKey = "hpPotionSmall", Count = 5 },
@@ -317,8 +347,6 @@ Completed example: `slotData.Mission.Completed[missionKey] = true`.
         Members = {
             {
                 ActorKey = "playerWarrior",
-                Level = 1,
-                Exp = 0,
                 Hp = 120,
                 Mp = 20
             }

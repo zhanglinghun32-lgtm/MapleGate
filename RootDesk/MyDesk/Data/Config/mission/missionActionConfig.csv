@@ -1,0 +1,4 @@
+missionKey,timing,actionOrder,actionType,targetKey,amount,param1,param2,failurePolicy,enabled,notes
+missionWelcome,OnAccept,1,AddItem,sealedLetter,1,,,Abort,true,接受任務時取得村長的密封信
+missionWelcome,OnComplete,1,SetPlayerFlag,villageLetterDelivered,1,,,Abort,true,記錄已完成村莊送信
+missionSlimeHunt,OnComplete,1,SetPlayerFlag,villageRoadSafe,1,,,Abort,true,記錄村外道路已恢復安全

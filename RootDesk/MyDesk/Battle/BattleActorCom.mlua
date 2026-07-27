@@ -221,7 +221,8 @@ script BattleActorCom extends Component
 
     @ExecSpace("ServerOnly")
     method table ExportSaveData()
-        -- Slim Actors[] only. No derived fields, no current hp/mp/stamina, no atk.
+        -- Exports active job identity/level and runtime attribute totals;
+        -- PlayerDataLogic stores the job pair and converts totals to allocations.
         local saveData = {}
         saveData.configId = self.configId
         saveData.jobType = self.jobType
