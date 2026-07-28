@@ -77,6 +77,7 @@ subfolders unless documented here.
 | `missionRewardConfig` | `Config/mission/` | `"missionRewardConfig"` | Mission reward rows |
 | `missionActionConfig` | `Config/mission/` | `"missionActionConfig"` | Accept / complete side effects |
 | `UIRegistry` | `Config/` | `"UIRegistry"` | UI key → entity lookup |
+| `npcOutfit` | `Config/npcDialog/` | `"npcOutfit"` | `actorId` → Avatar costume slots or sprite thumbnail RUID |
 
 Runtime lookup uses the `name` field inside each `.userdataset`, not the file path.
 

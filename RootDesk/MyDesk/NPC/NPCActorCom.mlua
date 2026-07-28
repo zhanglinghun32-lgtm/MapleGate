@@ -49,9 +49,9 @@ script NPCActorCom extends Component
             log_warning("[NPCActorCom] OnActorClick ignored: actorId is empty.")
             return
         end
-        _DialogLogic:RequestStartDialog(self.actorId, self.Entity.Id)
+        _DialogLogic:RequestStartDialog(self.actorId)
         log("[NPCActorCom] Requested dialog. actorId=" .. self.actorId
-            .. ", entityId=" .. self.Entity.Id)
+            .. ", source=actorId")
     end
 
     @ExecSpace("ClientOnly")

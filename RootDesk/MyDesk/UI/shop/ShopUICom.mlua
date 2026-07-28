@@ -53,7 +53,7 @@ script ShopUICom extends Component
         self.Entity.Enable = true
         self:ClearVendorSlots()
         self:SetEntityVisible(self.doubleCheckPanel, false)
-        self:ApplyVendorAppearance(tostring(self.shopContext.VendorEntityId or ""))
+        self:ApplyVendorAppearance(tostring(self.shopContext.VendorActorId or ""))
         self:ApplyPlayerAppearance()
         self:RenderVendorProducts(self.shopContext.Products or {})
         self:RenderPlayerItems(self.shopContext.PlayerItems or {})
@@ -215,15 +215,16 @@ script ShopUICom extends Component
         self:SetEntityVisible(self.doubleCheckPanel, true)
     end
 
-    method void ApplyVendorAppearance(string entityId)
-        if self.vendorAvatar == nil or entityId == nil or entityId == "" then
+    method void ApplyVendorAppearance(string actorId)
+        if self.vendorAvatar == nil or actorId == nil or actorId == "" then
             return
         end
-        local vendorEntity = _EntityService:GetEntity(entityId)
-        if isvalid(vendorEntity) == false or vendorEntity.CostumeManagerComponent == nil then
+        local appearance = _ActorAppearanceLogic:GetAppearance(actorId)
+        if appearance == nil or appearance.type ~= "Avatar" then
+            log_warning("[ShopUICom] Vendor Avatar outfit missing. actorId=" .. actorId)
             return
         end
-        self:CopyCostume(vendorEntity.CostumeManagerComponent, self.vendorAvatar)
+        self:ApplyCostume(appearance, self.vendorAvatar)
         self:SetEntityVisible(self.vendorAvatarEntity, true)
     end
 
@@ -243,23 +244,25 @@ script ShopUICom extends Component
             .. tostring(controlledActor.Id))
     end
 
-    method void CopyCostume(CostumeManagerComponent source, CostumeManagerComponent target)
-        local categories = {
-            MapleAvatarItemCategory.Body, MapleAvatarItemCategory.Hair,
-            MapleAvatarItemCategory.Face, MapleAvatarItemCategory.Cap,
-            MapleAvatarItemCategory.Cape, MapleAvatarItemCategory.Coat,
-            MapleAvatarItemCategory.Glove, MapleAvatarItemCategory.Longcoat,
-            MapleAvatarItemCategory.Pants, MapleAvatarItemCategory.Shield,
-            MapleAvatarItemCategory.Shoes, MapleAvatarItemCategory.OneHandedWeapon,
-            MapleAvatarItemCategory.TwoHandedWeapon, MapleAvatarItemCategory.SubWeapon,
-            MapleAvatarItemCategory.FaceAccessory, MapleAvatarItemCategory.EyeAccessory,
-            MapleAvatarItemCategory.EarAccessory, MapleAvatarItemCategory.Ear
-        }
+    method void ApplyCostume(table appearance, CostumeManagerComponent target)
         target.UseCustomEquipOnly = true
         target.DefaultEquipUserId = ""
-        for _, category in ipairs(categories) do
-            target:SetEquip(category, source:GetEquip(category) or "")
-        end
+        target.CustomBodyEquip = appearance.body or ""
+        target.CustomCapEquip = appearance.cap or ""
+        target.CustomCapeEquip = appearance.cape or ""
+        target.CustomCoatEquip = appearance.coat or ""
+        target.CustomEarAccessoryEquip = appearance.earAccessory or ""
+        target.CustomEyeAccessoryEquip = appearance.eyeAccessory or ""
+        target.CustomFaceAccessoryEquip = appearance.faceAccessory or ""
+        target.CustomFaceEquip = appearance.face or ""
+        target.CustomGloveEquip = appearance.glove or ""
+        target.CustomHairEquip = appearance.hair or ""
+        target.CustomLongcoatEquip = appearance.longcoat or ""
+        target.CustomOneHandedWeaponEquip = appearance.oneHandWeapon or ""
+        target.CustomPantsEquip = appearance.pants or ""
+        target.CustomShoesEquip = appearance.shoes or ""
+        target.CustomSubWeaponEquip = appearance.subWeapon or ""
+        target.CustomTwoHandedWeaponEquip = appearance.twoHandWeapon or ""
     end
 
     method void BindButtons()

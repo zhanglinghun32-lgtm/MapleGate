@@ -1,0 +1,4 @@
+﻿actorId,type,spriteRuid,body,cap,cape,coat,earAccessory,eyeAccessory,faceAccessory,face,glove,hair,longcoat,oneHandWeapon,pants,shoes,subWeapon,twoHandWeapon
+,類型,圖片RUID,膚色,帽子,披風,上衣,耳環,眼飾,臉飾品,臉型,手套,髮型,套服,單手武器,褲子,鞋子,副手,雙手武器
+npcVendor,Avatar,,04e82396b2ba40ab9d860f993447f3eb,,2089b302c8824b9997cdcaf1819535ad,04690e85a79d422a8fa2ff5dbef31504,1104c10ca44b489da536ee2f24ed6c6e,735d1921305b465a96083e7ed2a4d600,,08de22685ad347b0877bfc12a10ab8f8,,01b462e520454c8c8d8eb12344cf6ff9,,e7b009cc5c22413db76cdf0659de708a,7cffc11bfc9a4cbd8dcf1973d274cc78,,2496ad1fa78c4fe98068440a76fd0605,
+npcGuard,Avatar,,04e82396b2ba40ab9d860f993447f3eb,089aecd120f242bfb9f42238120d4bc2,06c764134b76407ba570e3fde9c23c72,04690e85a79d422a8fa2ff5dbef31504,,,,005b1222ceb14e0082d6ee10887310e7,,003d1f18986842538fcd2cced4df92dd,,290e391c116c4f7db9827e01b45d446a,1c3732a7f57a455ab7f95ea5b5e6311c,,,

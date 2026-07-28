@@ -12,7 +12,7 @@ The dialog system currently owns:
 - traversing text, option, and confirmation nodes;
 - filtering choices and nodes by inventory or mission state;
 - executing mission and shop actions on the server;
-- displaying localized text and the clicked entity's appearance in `Dialog.ui`.
+- displaying localized text and the actor's Config-defined thumbnail appearance in `Dialog.ui`.
 
 Main files:
 
@@ -21,6 +21,7 @@ Main files:
 | Server authority, Config cache, session and traversal | `RootDesk/MyDesk/Logic/Dialog/DialogLogic.mlua` |
 | World NPC click entry point | `RootDesk/MyDesk/NPC/NPCActorCom.mlua` |
 | Client display and button callbacks | `RootDesk/MyDesk/UI/dialog/npcDialogUICom.mlua` |
+| Shared actor thumbnail lookup | `RootDesk/MyDesk/Logic/ActorAppearanceLogic.mlua` |
 | UI entity | `ui/Dialog.ui` |
 | Config tables | `RootDesk/MyDesk/Data/Config/npcDialog/` |
 | Localized strings | `RootDesk/MyDesk/Data/Localization/GameText.csv` |
@@ -29,13 +30,12 @@ Main files:
 
 ```text
 NPCActorCom.OnActorClick()
-    -> DialogLogic.RequestStartDialog(actorId, entityId)
-    -> validate clicked entity and actor identity
+    -> DialogLogic.RequestStartDialog(actorId)
     -> npcDialogEntry: choose first eligible entry by priority
     -> npcDialogNode: load node
     -> npcDialogChoice: filter and sort visible choices
     -> DialogLogic.OpenDialogClient(context)
-    -> npcDialogUICom: localize text + copy Avatar/Sprite appearance
+    -> npcDialogUICom: localize text + query npcOutfit by actorId
     -> player presses Next / Option / Accept / Reject / Close
     -> DialogLogic.RequestResolveDialog(...)
     -> execute action
@@ -43,7 +43,7 @@ NPCActorCom.OnActorClick()
 ```
 
 `DialogLogic` keeps one in-memory session per user. The session stores the original
-`actorId`, clicked `entityId`, current `dialogKey`, and the server-filtered visible
+`actorId`, current `dialogKey`, and the server-filtered visible
 choices. The client submits only an action and option index; the server resolves the
 actual choice from its session.
 
@@ -52,11 +52,7 @@ actual choice from its session.
 ### Completed
 
 - [x] Cache all four Config tables once in `DialogLogic.OnBeginPlay`.
-- [x] External start API accepts `actorId` and `entityId`.
-- [x] Verify that the entity exists and its configured actor matches `actorId`.
-- [x] Accept actor identity from `NPCActorCom`, `ActorCenterCom`, or
-  `BattleActorCom.configId`.
-- [x] Require either `CostumeManagerComponent` or `SpriteRendererComponent`.
+- [x] External start API accepts only `actorId`; world entities are not passed into Logic.
 - [x] Choose an NPC entry by ascending `priority`.
 - [x] Check both entry and target-node conditions.
 - [x] Support `Text`, `Options`, and UI-side `Confirm` node presentation.
@@ -71,7 +67,9 @@ actual choice from its session.
   `AlwaysPass`, `ItemCount`, `MissionAccepted`, and `MissionCompleted`.
 - [x] Support AND clauses inside one `groupKey` and OR between different groups.
 - [x] Resolve dialog and option localization keys on the client.
-- [x] Copy clicked NPC avatar costume or monster/world sprite into the dialog UI.
+- [x] Resolve dialog thumbnails through `npcOutfit` by `actorId`.
+- [x] Use `type=Avatar` for CostumeManager slots and `type=Sprite` for `spriteRuid`.
+- [x] Keep runtime model appearance authoritative; `npcOutfit` is display-only Config.
 - [x] Close the UI and remove the server session on normal dialog completion.
 
 ### TODO / Blank Areas
@@ -110,7 +108,7 @@ actual choice from its session.
 - [ ] Add automated traversal tests covering every entry, condition group, choice,
   action, and destination node.
 
-## The Four Config Tables
+## Config Tables
 
 Every table is a UserDataSet pair:
 
@@ -121,7 +119,25 @@ TableName.userdataset  <- Maker metadata and runtime table name
 
 Edit rows in Maker's Data Editor or edit the UTF-8 CSV, then stop Play, Refresh the
 workspace, and start Play again. Runtime lookup uses the UserDataSet `name`, which
-currently matches the four names below.
+currently matches the names below.
+
+### `npcOutfit`
+
+Purpose: display-only actor thumbnails for dialog, shop, and similar UI. Runtime
+world entities keep the appearance from their `.model`; this table never overwrites
+the world entity.
+
+Runtime table name: `npcOutfit`
+
+- `actorId`: lookup key shared with dialog and shop actor identity.
+- `type`: `Avatar` or `Sprite`.
+- `spriteRuid`: required only for `Sprite`.
+- Avatar slot columns: `body`, `cap`, `cape`, `coat`, `earAccessory`,
+  `eyeAccessory`, `faceAccessory`, `face`, `glove`, `hair`, `longcoat`,
+  `oneHandWeapon`, `pants`, `shoes`, `subWeapon`, `twoHandWeapon`.
+
+`ActorAppearanceLogic` caches this client-visible table. UI code selects
+`SpriteGUIRendererComponent.ImageRUID` or `CostumeManagerComponent` by `type`.
 
 ### 1. `npcDialogEntry`
 
@@ -334,8 +350,8 @@ npcExample,exampleDefault,1000,,npcExample_Options_01,true,default entry
 
 5. Attach `NPCActorCom` to the world entity and set `actorId = "npcExample"` in
    Maker, or ensure its `ActorCenterCom.actorId` resolves to the same value.
-6. Ensure the entity has either `CostumeManagerComponent` or
-   `SpriteRendererComponent`.
+6. Add the same `actorId` to `npcOutfit` with `type=Avatar` and costume slots, or
+   `type=Sprite` and a `spriteRuid`.
 7. Stop Play, Refresh the workspace, then Play and click the entity.
 
 ## Current Example: `npcGuard`

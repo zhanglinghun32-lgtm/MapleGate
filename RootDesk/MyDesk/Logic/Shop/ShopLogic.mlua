@@ -86,7 +86,7 @@ script ShopLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
-    method void OpenShopForUser(string userId, string shopKey, string vendorEntityId)
+    method void OpenShopForUser(string userId, string shopKey, string vendorActorId)
         local shop = self.shopCache[shopKey]
         if shop == nil then
             log_warning("[ShopLogic] OpenShopForUser failed: shop missing. shopKey=" .. tostring(shopKey))
@@ -151,7 +151,7 @@ script ShopLogic extends Logic
             CurrencyItemKey = shop.CurrencyItemKey,
             AllowBuy = shop.AllowBuy,
             AllowSell = shop.AllowSell,
-            VendorEntityId = vendorEntityId,
+            VendorActorId = vendorActorId,
             Products = products,
             PlayerItems = playerItems
         }, userId)

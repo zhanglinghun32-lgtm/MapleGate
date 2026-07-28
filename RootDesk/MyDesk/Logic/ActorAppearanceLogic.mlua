@@ -1,0 +1,80 @@
+@Logic
+script ActorAppearanceLogic extends Logic
+
+    property string outfitDataSetName = "npcOutfit"
+    property table outfitCache = nil
+
+    @ExecSpace("ClientOnly")
+    method void OnBeginPlay()
+        self:LoadOutfitCache()
+    end
+
+    @ExecSpace("ClientOnly")
+    method void LoadOutfitCache()
+        self.outfitCache = {}
+        local dataSet = _DataService:GetTable(self.outfitDataSetName)
+        if dataSet == nil then
+            log_warning("[ActorAppearanceLogic] Outfit DataSet missing. table="
+                .. self.outfitDataSetName)
+            return
+        end
+        for rowIndex = 1, dataSet:GetRowCount() do
+            local actorId = self:GetCellString(dataSet, rowIndex, "actorId")
+            if actorId ~= "" then
+                self.outfitCache[actorId] = {
+                    actorId = actorId,
+                    type = self:GetCellString(dataSet, rowIndex, "type"),
+                    spriteRuid = self:GetCellString(dataSet, rowIndex, "spriteRuid"),
+                    body = self:GetCellString(dataSet, rowIndex, "body"),
+                    cap = self:GetCellString(dataSet, rowIndex, "cap"),
+                    cape = self:GetCellString(dataSet, rowIndex, "cape"),
+                    coat = self:GetCellString(dataSet, rowIndex, "coat"),
+                    earAccessory = self:GetCellString(dataSet, rowIndex, "earAccessory"),
+                    eyeAccessory = self:GetCellString(dataSet, rowIndex, "eyeAccessory"),
+                    faceAccessory = self:GetCellString(dataSet, rowIndex, "faceAccessory"),
+                    face = self:GetCellString(dataSet, rowIndex, "face"),
+                    glove = self:GetCellString(dataSet, rowIndex, "glove"),
+                    hair = self:GetCellString(dataSet, rowIndex, "hair"),
+                    longcoat = self:GetCellString(dataSet, rowIndex, "longcoat"),
+                    oneHandWeapon = self:GetCellString(dataSet, rowIndex, "oneHandWeapon"),
+                    pants = self:GetCellString(dataSet, rowIndex, "pants"),
+                    shoes = self:GetCellString(dataSet, rowIndex, "shoes"),
+                    subWeapon = self:GetCellString(dataSet, rowIndex, "subWeapon"),
+                    twoHandWeapon = self:GetCellString(dataSet, rowIndex, "twoHandWeapon")
+                }
+            end
+        end
+        log("[ActorAppearanceLogic] LoadOutfitCache. count="
+            .. tostring(self:CountKeys(self.outfitCache)))
+    end
+
+    @ExecSpace("ClientOnly")
+    method table GetAppearance(string actorId)
+        if self.outfitCache == nil then
+            self:LoadOutfitCache()
+        end
+        if actorId == nil or actorId == "" then
+            return nil
+        end
+        return self.outfitCache[actorId]
+    end
+
+    @ExecSpace("ClientOnly")
+    method string GetCellString(any dataSet, integer rowIndex, string columnName)
+        local value = dataSet:GetCell(rowIndex, columnName)
+        if value == nil or tostring(value) == "nil" then
+            return ""
+        end
+        return tostring(value)
+    end
+
+    @ExecSpace("ClientOnly")
+    method integer CountKeys(table target)
+        local count = 0
+        for _, _ in pairs(target or {}) do
+            count = count + 1
+        end
+        return count
+    end
+
+end

@@ -59,7 +59,7 @@ script npcDialogUICom extends Component
             self.normalText.Text = self:ResolveLocalizedText(tostring(self.dialogContext.text or ""))
         end
 
-        self:ApplyTalkerAppearance(tostring(self.dialogContext.entityId or ""))
+        self:ApplyTalkerAppearance(tostring(self.dialogContext.actorId or ""))
 
         local dialogType = tostring(self.dialogContext.type or "Text")
         self:SetEntityVisible(self.nextStepEntity, dialogType == "Text")
@@ -118,83 +118,63 @@ script npcDialogUICom extends Component
         end
     end
 
-    method void ApplyTalkerAppearance(string entityId)
+    method void ApplyTalkerAppearance(string actorId)
         self:HideTalkerAppearance()
-        if entityId == nil or entityId == "" then
-            log_warning("[npcDialogUICom] ApplyTalkerAppearance failed: entityId is empty.")
+        if actorId == nil or actorId == "" then
+            log_warning("[npcDialogUICom] ApplyTalkerAppearance failed: actorId is empty.")
             return
         end
 
-        local talkerEntity = _EntityService:GetEntity(entityId)
-        if isvalid(talkerEntity) == false then
-            log_warning("[npcDialogUICom] ApplyTalkerAppearance failed: entity missing. entityId=" .. entityId)
+        local appearance = _ActorAppearanceLogic:GetAppearance(actorId)
+        if appearance == nil then
+            log_warning("[npcDialogUICom] ApplyTalkerAppearance failed: outfit missing. actorId="
+                .. actorId)
             return
         end
 
-        local sourceCostumeManager = talkerEntity.CostumeManagerComponent
-        if sourceCostumeManager ~= nil then
-            self:CopyAvatarCostume(sourceCostumeManager)
+        if appearance.type == "Avatar" then
+            self:ApplyAvatarCostume(appearance)
             self:SetEntityVisible(self.avatarEntity, true)
-            log("[npcDialogUICom] Talker appearance=Avatar, entityId=" .. entityId)
+            log("[npcDialogUICom] Talker appearance=Avatar, actorId=" .. actorId)
             return
         end
 
-        local sourceSpriteRenderer = talkerEntity.SpriteRendererComponent
-        if sourceSpriteRenderer ~= nil and tostring(sourceSpriteRenderer.SpriteRUID or "") ~= "" then
-            self:CopySpriteAppearance(sourceSpriteRenderer)
+        if appearance.type == "Sprite" and appearance.spriteRuid ~= "" then
+            self.spriteRenderer.ImageRUID = appearance.spriteRuid
             self:SetEntityVisible(self.spriteEntity, true)
-            log("[npcDialogUICom] Talker appearance=Sprite, entityId=" .. entityId
-                .. ", spriteRuid=" .. tostring(sourceSpriteRenderer.SpriteRUID))
+            log("[npcDialogUICom] Talker appearance=Sprite, actorId=" .. actorId
+                .. ", spriteRuid=" .. appearance.spriteRuid)
             return
         end
 
-        log_warning("[npcDialogUICom] ApplyTalkerAppearance failed: no supported renderer. entityId="
-            .. entityId)
+        log_warning("[npcDialogUICom] ApplyTalkerAppearance failed: invalid type or spriteRuid. actorId="
+            .. actorId .. ", type=" .. tostring(appearance.type))
     end
 
-    method void CopyAvatarCostume(CostumeManagerComponent sourceCostumeManager)
+    method void ApplyAvatarCostume(table appearance)
         if self.avatarCostumeManager == nil then
             log_warning("[npcDialogUICom] CopyAvatarCostume failed: UI CostumeManagerComponent missing.")
             return
         end
 
-        local categories = {
-            MapleAvatarItemCategory.Body,
-            MapleAvatarItemCategory.Hair,
-            MapleAvatarItemCategory.Face,
-            MapleAvatarItemCategory.Cap,
-            MapleAvatarItemCategory.Cape,
-            MapleAvatarItemCategory.Coat,
-            MapleAvatarItemCategory.Glove,
-            MapleAvatarItemCategory.Longcoat,
-            MapleAvatarItemCategory.Pants,
-            MapleAvatarItemCategory.Shield,
-            MapleAvatarItemCategory.Shoes,
-            MapleAvatarItemCategory.OneHandedWeapon,
-            MapleAvatarItemCategory.TwoHandedWeapon,
-            MapleAvatarItemCategory.SubWeapon,
-            MapleAvatarItemCategory.FaceAccessory,
-            MapleAvatarItemCategory.EyeAccessory,
-            MapleAvatarItemCategory.EarAccessory,
-            MapleAvatarItemCategory.Ear
-        }
         self.avatarCostumeManager.UseCustomEquipOnly = true
         self.avatarCostumeManager.DefaultEquipUserId = ""
-        for _, category in ipairs(categories) do
-            self.avatarCostumeManager:SetEquip(category, sourceCostumeManager:GetEquip(category) or "")
-        end
-    end
-
-    method void CopySpriteAppearance(SpriteRendererComponent sourceSpriteRenderer)
-        if self.spriteRenderer == nil then
-            log_warning("[npcDialogUICom] CopySpriteAppearance failed: UI SpriteGUIRendererComponent missing.")
-            return
-        end
-        self.spriteRenderer.ImageRUID = sourceSpriteRenderer.SpriteRUID
-        self.spriteRenderer.FlipX = sourceSpriteRenderer.FlipX
-        self.spriteRenderer.FlipY = sourceSpriteRenderer.FlipY
-        self.spriteRenderer.PlayRate = sourceSpriteRenderer.PlayRate
-        self.spriteRenderer.Color = sourceSpriteRenderer.Color
+        self.avatarCostumeManager.CustomBodyEquip = appearance.body or ""
+        self.avatarCostumeManager.CustomCapEquip = appearance.cap or ""
+        self.avatarCostumeManager.CustomCapeEquip = appearance.cape or ""
+        self.avatarCostumeManager.CustomCoatEquip = appearance.coat or ""
+        self.avatarCostumeManager.CustomEarAccessoryEquip = appearance.earAccessory or ""
+        self.avatarCostumeManager.CustomEyeAccessoryEquip = appearance.eyeAccessory or ""
+        self.avatarCostumeManager.CustomFaceAccessoryEquip = appearance.faceAccessory or ""
+        self.avatarCostumeManager.CustomFaceEquip = appearance.face or ""
+        self.avatarCostumeManager.CustomGloveEquip = appearance.glove or ""
+        self.avatarCostumeManager.CustomHairEquip = appearance.hair or ""
+        self.avatarCostumeManager.CustomLongcoatEquip = appearance.longcoat or ""
+        self.avatarCostumeManager.CustomOneHandedWeaponEquip = appearance.oneHandWeapon or ""
+        self.avatarCostumeManager.CustomPantsEquip = appearance.pants or ""
+        self.avatarCostumeManager.CustomShoesEquip = appearance.shoes or ""
+        self.avatarCostumeManager.CustomSubWeaponEquip = appearance.subWeapon or ""
+        self.avatarCostumeManager.CustomTwoHandedWeaponEquip = appearance.twoHandWeapon or ""
     end
 
     method void HideTalkerAppearance()

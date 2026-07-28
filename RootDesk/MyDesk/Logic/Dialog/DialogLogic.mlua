@@ -167,13 +167,14 @@ script DialogLogic extends Logic
     end
 
     @ExecSpace("Server")
-    method void RequestStartDialog(string actorId, string entityId)
+    method void RequestStartDialog(string actorId)
         local userId = senderUserId
         if userId == nil or userId == "" then
             log_warning("[DialogLogic] RequestStartDialog rejected: senderUserId is empty.")
             return
         end
-        if self:ValidateTalkerRequest(actorId, entityId) == false then
+        if actorId == nil or actorId == "" then
+            log_warning("[DialogLogic] RequestStartDialog rejected: actorId is empty.")
             return
         end
 
@@ -186,14 +187,12 @@ script DialogLogic extends Logic
 
         self.userSessions[userId] = {
             ActorId = actorId,
-            EntityId = entityId,
             DialogKey = "",
             VisibleChoices = {}
         }
         self:ShowNode(userId, dialogKey)
         log("[DialogLogic] RequestStartDialog. userId=" .. userId
             .. ", actorId=" .. actorId
-            .. ", entityId=" .. entityId
             .. ", dialogKey=" .. dialogKey)
     end
 
@@ -236,7 +235,7 @@ script DialogLogic extends Logic
                     .. ", optionIndex=" .. tostring(resolvedIndex))
                 return
             end
-            self:ExecuteAction(userId, choice.ActionKey, session.EntityId)
+            self:ExecuteAction(userId, choice.ActionKey, session.ActorId)
             if choice.NextDialogKey ~= "" then
                 self:ShowNode(userId, choice.NextDialogKey)
             else
@@ -246,58 +245,13 @@ script DialogLogic extends Logic
         end
 
         if action == "Next" then
-            self:ExecuteAction(userId, node.ActionKey, session.EntityId)
+            self:ExecuteAction(userId, node.ActionKey, session.ActorId)
             if node.NextDialogKey ~= "" then
                 self:ShowNode(userId, node.NextDialogKey)
             else
                 self:CloseDialogForUser(userId)
             end
         end
-    end
-
-    @ExecSpace("ServerOnly")
-    method boolean ValidateTalkerRequest(string actorId, string entityId)
-        if actorId == nil or actorId == "" or entityId == nil or entityId == "" then
-            log_warning("[DialogLogic] Talker request rejected: actorId or entityId is empty.")
-            return false
-        end
-
-        local talkerEntity = _EntityService:GetEntity(entityId)
-        if isvalid(talkerEntity) == false then
-            log_warning("[DialogLogic] Talker request rejected: entity missing. entityId=" .. entityId)
-            return false
-        end
-
-        local configuredActorId = ""
-        local npcComponent = talkerEntity:GetComponent("script.NPCActorCom")
-        if npcComponent ~= nil then
-            configuredActorId = tostring(npcComponent.actorId or "")
-        end
-        if configuredActorId == "" then
-            local actorCenter = talkerEntity:GetComponent("script.ActorCenterCom")
-            if actorCenter ~= nil then
-                configuredActorId = tostring(actorCenter.actorId or "")
-            end
-        end
-        if configuredActorId == "" then
-            local battleActor = talkerEntity:GetComponent("script.BattleActorCom")
-            if battleActor ~= nil then
-                configuredActorId = tostring(battleActor.configId or "")
-            end
-        end
-        if configuredActorId ~= actorId then
-            log_warning("[DialogLogic] Talker request rejected: actor mismatch. requested=" .. actorId
-                .. ", configured=" .. configuredActorId)
-            return false
-        end
-
-        if talkerEntity.CostumeManagerComponent == nil
-            and talkerEntity.SpriteRendererComponent == nil then
-            log_warning("[DialogLogic] Talker request rejected: no supported appearance component. entityId="
-                .. entityId)
-            return false
-        end
-        return true
     end
 
     @ExecSpace("ServerOnly")
@@ -352,7 +306,7 @@ script DialogLogic extends Logic
             text = node.TextKey,
             type = node.NodeType,
             option = optionTextKeys,
-            entityId = session.EntityId
+            actorId = session.ActorId
         }
         self:OpenDialogClient(dialogContext, userId)
         log("[DialogLogic] ShowNode. userId=" .. userId
@@ -437,7 +391,7 @@ script DialogLogic extends Logic
     end
 
     @ExecSpace("ServerOnly")
-    method void ExecuteAction(string userId, string actionKey, string sourceEntityId)
+    method void ExecuteAction(string userId, string actionKey, string sourceActorId)
         if actionKey == nil or actionKey == "" or actionKey == "Close" then
             return
         end
@@ -464,7 +418,7 @@ script DialogLogic extends Logic
             return
         end
         if actionType == "OpenShop" and actionValue ~= "" then
-            _ShopLogic:OpenShopForUser(userId, actionValue, sourceEntityId)
+            _ShopLogic:OpenShopForUser(userId, actionValue, sourceActorId)
             return
         end
 
